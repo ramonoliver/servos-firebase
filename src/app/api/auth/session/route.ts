@@ -5,6 +5,7 @@ import {
   encodeSessionToken,
   getSessionFromCookieHeader,
 } from "@/lib/auth/server-session";
+import { adminAuth } from "@/lib/firebase-admin";
 
 export async function GET(req: Request) {
   const cookieSession = getSessionFromCookieHeader(req.headers.get("cookie"));
@@ -16,7 +17,8 @@ export async function GET(req: Request) {
   }
 
   const token = encodeSessionToken(session);
-  const response = NextResponse.json({ authenticated: true, session, token });
+  const firebaseToken = await adminAuth.createCustomToken(session.user_id);
+  const response = NextResponse.json({ authenticated: true, session, token, firebaseToken });
 
   if (!cookieSession) {
     response.cookies.set(AUTH_COOKIE_NAME, token, {

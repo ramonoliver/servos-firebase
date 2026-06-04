@@ -63,41 +63,61 @@ export default function OnboardingPage() {
       return;
     }
 
-    setSessionUserId(session.user_id);
-    setSessionChurchId(session.church_id);
+    try {
+      const authHeaders = session.token ? { "x-servos-auth": session.token } : {};
+      const sessionRes = await fetch("/api/auth/session", { method: "GET", credentials: "include", headers: authHeaders });
+      const sessionPayload = await sessionRes.json().catch(() => null);
 
-    const [
-      { data: userData, error: userError },
-      { data: churchData, error: churchError },
-      { data: onboardingData, error: onboardingError },
-      { data: departmentsData, error: departmentsError },
-      { data: eventsData, error: eventsError },
-    ] = await Promise.all([
-      supabase.from("users").select("*").eq("id", session.user_id).maybeSingle(),
-      supabase.from("churches").select("*").eq("id", session.church_id).maybeSingle(),
-      supabase.from("onboarding_progress").select("*").eq("church_id", session.church_id).maybeSingle(),
-      supabase.from("departments").select("*").eq("church_id", session.church_id),
-      supabase.from("events").select("*").eq("church_id", session.church_id),
-    ]);
+      if (!sessionRes.ok || !sessionPayload?.authenticated || !sessionPayload?.session) {
+        router.replace("/login");
+        return;
+      }
 
-    if (userError || churchError || onboardingError || departmentsError || eventsError) {
-      console.error({ userError, churchError, onboardingError, departmentsError, eventsError });
+      if (sessionPayload.firebaseToken) {
+        const { auth } = await import("@/lib/firebase");
+        const { signInWithCustomToken } = await import("firebase/auth");
+        await signInWithCustomToken(auth, sessionPayload.firebaseToken);
+      }
+
+      setSessionUserId(session.user_id);
+      setSessionChurchId(session.church_id);
+
+      const [
+        { data: userData, error: userError },
+        { data: churchData, error: churchError },
+        { data: onboardingData, error: onboardingError },
+        { data: departmentsData, error: departmentsError },
+        { data: eventsData, error: eventsError },
+      ] = await Promise.all([
+        supabase.from("users").select("*").eq("id", session.user_id).maybeSingle(),
+        supabase.from("churches").select("*").eq("id", session.church_id).maybeSingle(),
+        supabase.from("onboarding_progress").select("*").eq("church_id", session.church_id).maybeSingle(),
+        supabase.from("departments").select("*").eq("church_id", session.church_id),
+        supabase.from("events").select("*").eq("church_id", session.church_id),
+      ]);
+
+      if (userError || churchError || onboardingError || departmentsError || eventsError) {
+        console.error({ userError, churchError, onboardingError, departmentsError, eventsError });
+        router.replace("/login");
+        return;
+      }
+
+      if (!userData || !churchData) {
+        router.replace("/login");
+        return;
+      }
+
+      setUser(userData as User);
+      setChurch(churchData as Church);
+      setChurchCity((churchData as Church).city || "");
+      setOnboarding((onboardingData || null) as OnboardingProgress | null);
+      setExistingDepartments((departmentsData || []) as Department[]);
+      setExistingEvents((eventsData || []) as Event[]);
+      setLoading(false);
+    } catch (err) {
+      console.error("Erro no onboarding loadData:", err);
       router.replace("/login");
-      return;
     }
-
-    if (!userData || !churchData) {
-      router.replace("/login");
-      return;
-    }
-
-    setUser(userData as User);
-    setChurch(churchData as Church);
-    setChurchCity((churchData as Church).city || "");
-    setOnboarding((onboardingData || null) as OnboardingProgress | null);
-    setExistingDepartments((departmentsData || []) as Department[]);
-    setExistingEvents((eventsData || []) as Event[]);
-    setLoading(false);
   }
 
   useEffect(() => {

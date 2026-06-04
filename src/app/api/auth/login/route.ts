@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyPassword } from "@/lib/auth/password";
 import { AUTH_COOKIE_NAME, createSessionPayload, encodeSessionToken } from "@/lib/auth/server-session";
-import { getFirebaseAdminClient } from "@/lib/firebase-admin";
+import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 import type { User } from "@/types";
 
 const bodySchema = z.object({
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     }
 
     const firebaseUid = authData.localId;
+    const firebaseToken = await adminAuth.createCustomToken(firebaseUid);
 
     const { data: user, error } = await db
       .from("users")
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
       avatar_color: user.avatar_color,
       photo_url: user.photo_url,
     } satisfies Pick<User, "id" | "church_id" | "email" | "name" | "role" | "avatar_color" | "photo_url">;
-    const response = NextResponse.json({ success: true, session, token, user: clientUser });
+    const response = NextResponse.json({ success: true, session, token, firebaseToken, user: clientUser });
     response.cookies.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: "lax",

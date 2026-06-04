@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSession } from "@/lib/auth/session";
+import { auth } from "@/lib/firebase";
+import { signInWithCustomToken } from "firebase/auth";
 import Link from "next/link";
 
 function ServosMark() {
@@ -50,6 +52,9 @@ export default function LoginPage() {
       }
 
       createSession(data.user, data.token);
+      if (data.firebaseToken) {
+        await signInWithCustomToken(auth, data.firebaseToken);
+      }
       router.push("/dashboard");
     } catch (err: any) {
       setError(err?.message || "Erro ao entrar.");

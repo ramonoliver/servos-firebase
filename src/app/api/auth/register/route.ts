@@ -148,6 +148,7 @@ export async function POST(req: Request) {
 
     const session = createSessionPayload(user);
     const token = encodeSessionToken(session);
+    const firebaseToken = await adminAuth.createCustomToken(userId);
     const clientUser = {
       id: user.id,
       church_id: user.church_id,
@@ -157,7 +158,7 @@ export async function POST(req: Request) {
       avatar_color: user.avatar_color,
       photo_url: user.photo_url,
     } satisfies Pick<User, "id" | "church_id" | "email" | "name" | "role" | "avatar_color" | "photo_url">;
-    const response = NextResponse.json({ success: true, session, token, user: clientUser });
+    const response = NextResponse.json({ success: true, session, token, firebaseToken, user: clientUser });
     response.cookies.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: "lax",

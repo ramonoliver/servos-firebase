@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/firebase";
+import { supabase, auth } from "@/lib/firebase";
+import { signInWithCustomToken, signOut } from "firebase/auth";
 import { getSession, clearSession, updateSession } from "@/lib/auth/session";
 // supabase client retained for notifications polling below
 import { can, type Action } from "@/lib/auth/permissions";
@@ -87,6 +88,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       updateSession({ ...sessionPayload.session, token: sessionPayload.token || localSession.token });
 
+      if (sessionPayload.firebaseToken) {
+        await signInWithCustomToken(auth, sessionPayload.firebaseToken);
+      }
+
       if (!appRes.ok) {
         console.error("Erro ao carregar dados do app:", appRes.status);
         return;
@@ -133,6 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     clearSession();
+    void signOut(auth).catch((err) => console.error("Erro ao deslogar do Firebase:", err));
     router.replace("/login");
   }, [router]);
 
