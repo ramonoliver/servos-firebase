@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
 import { Avatar } from "@/components/ui";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { formatDate, getDayName } from "@/lib/utils/helpers";
 import Link from "next/link";
 import type { Schedule, ScheduleMember, Event, User } from "@/types";

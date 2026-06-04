@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
 import { PageShell, PageHeader } from "@/components/ui";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 
 export type Song = {
   id: string;

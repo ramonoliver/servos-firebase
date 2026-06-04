@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSession } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { notifyDepartmentChatMessage } from "@/lib/server/chat-notifications";
 import { sendUserNotification } from "@/lib/server/notification-service";
 import { genId } from "@/lib/utils/helpers";
@@ -21,7 +21,7 @@ async function canAccessDepartmentMessages(params: {
   userId: string;
 }) {
   const { departmentId, churchId, userId } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   const [{ data: member }, { data: department }, { data: departmentMember }] = await Promise.all([
     supabase
@@ -53,7 +53,7 @@ async function canAccessDepartmentMessages(params: {
 }
 
 async function processMentions(content: string, departmentId: string, senderId: string, churchId: string, senderName: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   // Extract @mentions from content (format: @username)
   const mentionRegex = /@(\w+)/g;
@@ -140,7 +140,7 @@ export async function GET(req: Request) {
 
     const { departmentId } = parsed.data;
     const churchId = session.church_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const canAccess = await canAccessDepartmentMessages({
       departmentId,
@@ -185,7 +185,7 @@ export async function POST(req: Request) {
     const { departmentId, content } = parsed.data;
     const churchId = session.church_id;
     const senderId = session.user_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const canAccess = await canAccessDepartmentMessages({
       departmentId,

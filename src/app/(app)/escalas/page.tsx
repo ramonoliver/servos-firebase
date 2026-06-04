@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getDayName } from "@/lib/utils/helpers";
 import { ConfirmDialog, DateField } from "@/components/ui";
 import { ActionDrawer } from "@/components/ui/action-drawer";

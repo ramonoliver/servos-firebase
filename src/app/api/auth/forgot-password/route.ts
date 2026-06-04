@@ -7,7 +7,7 @@ import {
   getPasswordResetExpiryDate,
   hashPasswordResetToken,
 } from "@/lib/auth/password-reset";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 const bodySchema = z.object({
   email: z.string().trim().email(),
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email invalido." }, { status: 400 });
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const normalizedEmail = parsed.data.email.trim().toLowerCase();
     const { data: user, error } = await supabase
       .from("users")

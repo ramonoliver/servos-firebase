@@ -4,7 +4,7 @@ import {
   createInviteTrackingToken,
   getInviteOpenTrackingUrl,
 } from "@/lib/invitations";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 type DeliveryInput = {
@@ -27,7 +27,7 @@ export async function deliverMemberInvitation(input: DeliveryInput) {
 
   if (trackingEnabled) {
     try {
-      const supabase = getSupabaseServerClient();
+      const supabase = getFirebaseAdminClient();
       invitationId = genId();
 
       const { error } = await supabase.from("member_invitations").insert({
@@ -83,7 +83,7 @@ export async function deliverMemberInvitation(input: DeliveryInput) {
   });
 
   if (trackingEnabled && invitationId) {
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     await supabase
       .from("member_invitations")
       .update({

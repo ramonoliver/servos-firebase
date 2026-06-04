@@ -7,7 +7,7 @@ import { useApp } from "@/hooks/use-app";
 import { PageShell, PageHeader } from "@/components/ui";
 import { EventFormModal } from "@/components/events/event-form-modal";
 import { KidsEventCheckInSection } from "@/components/kids/kids-ui";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getEventCategory } from "@/lib/events/recurrence";
 import type { Event, EventReport } from "@/types";
 

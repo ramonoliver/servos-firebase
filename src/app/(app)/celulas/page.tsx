@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { Avatar, ConfirmDialog, PageShell, PageHeader } from "@/components/ui";
 import { SoftCard } from "@/components/pastoral/pastoral-ui";
 import { CellForm } from "@/components/shared/cell-form";

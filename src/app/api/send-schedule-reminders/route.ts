@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendScheduleReminderAlerts } from "@/lib/server/schedule-notifications";
 
 type RouteBody = {
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Sem permissao para enviar lembretes." }, { status: 403 });
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const body = (await req.json().catch(() => ({}))) as RouteBody;
     const { scheduleId } = body;
     const churchId = session!.church_id;

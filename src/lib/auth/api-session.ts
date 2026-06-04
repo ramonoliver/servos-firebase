@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { decodeSessionToken, getSessionFromCookieHeader } from "@/lib/auth/server-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 type RequireActorOptions = {
   select?: string;
@@ -29,7 +29,7 @@ export async function requireApiActor(req: Request, options: RequireActorOptions
     return { session: null, actor: null, errorResponse };
   }
 
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const { data: actor, error } = await supabase
     .from("users")
     .select(options.select || "id, role, church_id, active")

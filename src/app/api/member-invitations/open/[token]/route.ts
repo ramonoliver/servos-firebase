@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 const TRANSPARENT_GIF = Buffer.from(
   "R0lGODlhAQABAIABAP///wAAACwAAAAAAQABAAACAkQBADs=",
@@ -14,7 +14,7 @@ export async function GET(
 
   if (token) {
     try {
-      const supabase = getSupabaseServerClient();
+      const supabase = getFirebaseAdminClient();
       const { data: invitation } = await supabase
         .from("member_invitations")
         .select("id, open_count, opened_at")

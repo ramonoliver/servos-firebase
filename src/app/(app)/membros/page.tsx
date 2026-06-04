@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getSession } from "@/lib/auth/session";
 import { formatInviteOpenedAt } from "@/lib/invitations";
 import { getInitials } from "@/lib/utils/helpers";

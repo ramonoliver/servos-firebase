@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 export async function GET(req: Request) {
   const { actor, session, errorResponse } = await requireApiActor(req, { select: "*" });
   if (errorResponse) return errorResponse;
 
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const churchId = session!.church_id;
   const userId = session!.user_id;
 

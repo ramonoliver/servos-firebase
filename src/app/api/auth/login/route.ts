@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyPassword } from "@/lib/auth/password";
 import { AUTH_COOKIE_NAME, createSessionPayload, encodeSessionToken } from "@/lib/auth/server-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import type { User } from "@/types";
 
 const bodySchema = z.object({
@@ -18,18 +18,37 @@ export async function POST(req: Request) {
     }
 
     const { email, password } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const db = getFirebaseAdminClient();
 
-    const { data: user, error } = await supabase
+    // Authenticate with Firebase Auth REST API
+    const authUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
+    const authRes = await fetch(authUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        password,
+        returnSecureToken: true,
+      }),
+    });
+
+    const authData = await authRes.json().catch(() => ({}));
+    if (!authRes.ok || !authData.localId) {
+      return NextResponse.json({ error: "Email ou senha incorretos." }, { status: 401 });
+    }
+
+    const firebaseUid = authData.localId;
+
+    const { data: user, error } = await db
       .from("users")
       .select("*")
-      .eq("email", email.trim().toLowerCase())
+      .eq("id", firebaseUid)
       .eq("active", true)
       .maybeSingle();
 
     if (error) throw error;
-    if (!user || !verifyPassword(password, user.password_hash)) {
-      return NextResponse.json({ error: "Email ou senha incorretos." }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: "Usuario inativo ou nao encontrado." }, { status: 401 });
     }
 
     const session = createSessionPayload(user);

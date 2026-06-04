@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 type BadgeDefinition = {
@@ -43,7 +43,7 @@ export async function addPoints(params: {
   points: number;
 }) {
   const { userId, churchId, scheduleId = null, reason, points } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const now = new Date().toISOString();
 
   const { error } = await supabase.from("points_history").insert({
@@ -101,7 +101,7 @@ export async function awardNoAbsenceBonus(userId: string, churchId: string, mont
 }
 
 async function ensureBadges(churchId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const { data, error } = await supabase
     .from("badges")
     .select("key")
@@ -131,7 +131,7 @@ async function ensureBadges(churchId: string) {
 export async function evaluateBadgesForUser(userId: string, churchId: string) {
   await ensureBadges(churchId);
 
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);

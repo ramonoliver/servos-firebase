@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const selectedDepartmentSchema = z.object({
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     const actorId = session!.user_id;
     const churchId = session!.church_id;
     const { memberId, updates, selectedDepartments, spouseId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const requestedDepartmentSelection = selectedDepartments as Array<{
       department_id: string;
       function_name?: string;

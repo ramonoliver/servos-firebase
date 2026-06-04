@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getIconEmoji, getInitials } from "@/lib/utils/helpers";
 import { ConfirmDialog, Modal, MultiSelect, PageShell, PageHeader, Avatar } from "@/components/ui";
 import type { MultiSelectOption } from "@/components/ui";

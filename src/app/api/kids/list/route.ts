@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { calculateAge } from "@/lib/kids/domain";
 import type { KidsCheckIn, KidsChild, KidsGuardianLink, KidsRoom } from "@/lib/kids/types";
 import type { User } from "@/types";
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     const eventId = url.searchParams.get("eventId") || "";
     const eventDate = url.searchParams.get("eventDate") || new Date().toISOString().slice(0, 10);
     const churchId = session!.church_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const [{ data: users, error: usersError }, { data: rooms, error: roomsError }, { data: guardianship, error: guardianshipError }, { data: checkins, error: checkinsError }] =
       await Promise.all([

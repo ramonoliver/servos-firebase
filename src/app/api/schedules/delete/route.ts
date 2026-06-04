@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 const bodySchema = z.object({
   scheduleId: z.string().min(1),
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
     const churchId = session!.church_id;
     const { scheduleId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const { data: schedule, error: scheduleError } = await supabase
         .from("schedules")

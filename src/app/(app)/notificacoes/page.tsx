@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { PageShell, PageHeader } from "@/components/ui";
 import Link from "next/link";
 import type { Notification } from "@/types";

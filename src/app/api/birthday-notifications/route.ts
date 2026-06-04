@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendUserNotification } from "@/lib/server/notification-service";
 
 /**
@@ -17,23 +17,33 @@ export async function POST(req: Request) {
   }
 
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const today = new Date();
     const month = today.getMonth() + 1;
     const day = today.getDate();
 
-    // Use RPC function that queries birth_date by month/day
-    const { data: birthdayUsers, error: birthdayError } = await supabase.rpc(
-      "get_birthday_users",
-      { p_month: month, p_day: day }
-    );
+    // Query active users and filter birthdays in memory
+    const { data: allUsers, error: birthdayError } = await supabase
+      .from("users")
+      .select("id, name, church_id, birth_date")
+      .eq("active", true);
 
     if (birthdayError) {
       console.error("Birthday query error:", birthdayError);
       return NextResponse.json({ error: birthdayError.message }, { status: 500 });
     }
 
-    const users = (birthdayUsers ?? []) as Array<{ id: string; name: string; church_id: string }>;
+    const birthdayUsers = (allUsers ?? []).filter((user: any) => {
+      const bDate = user.birth_date || user.birthDate;
+      if (!bDate) return false;
+      const dateParts = bDate.split("T")[0].split("-");
+      if (dateParts.length < 3) return false;
+      const birthMonth = parseInt(dateParts[1], 10);
+      const birthDay = parseInt(dateParts[2], 10);
+      return birthMonth === month && birthDay === day;
+    });
+
+    const users = birthdayUsers as Array<{ id: string; name: string; church_id: string }>;
 
     let notificationsSent = 0;
 

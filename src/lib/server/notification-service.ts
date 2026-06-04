@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 import type { NotificationType } from "@/types";
 
@@ -121,7 +121,7 @@ export async function registerPushToken(params: {
   deviceName?: string | null;
 }) {
   const { userId, churchId, token, platform, deviceName } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const now = new Date().toISOString();
 
   const { error } = await supabase.from("push_tokens").upsert(
@@ -151,7 +151,7 @@ export async function sendUserNotification(params: {
   type: NotificationType;
 }) {
   const { userId, churchId, title, body, actionUrl, type } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const now = new Date().toISOString();
 
   const { error: notificationError } = await supabase.from("notifications").insert({

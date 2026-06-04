@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 const bodySchema = z.object({ cellId: z.string().min(1) });
 
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     const churchId = session!.church_id;
     const { cellId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const { data: meetings, error: meetingsError } = await supabase
       .from("cell_meetings")

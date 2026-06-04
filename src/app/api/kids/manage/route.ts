@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { calculateAge, generateKidsCode, isKidsAge } from "@/lib/kids/domain";
 import { genId } from "@/lib/utils/helpers";
 
@@ -56,7 +56,7 @@ function randomEmail(prefix: string) {
   return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@kids.local`;
 }
 
-async function ensureGuardian(supabase: ReturnType<typeof getSupabaseServerClient>, churchId: string, guardianId?: string, guardian?: z.infer<typeof personSchema>) {
+async function ensureGuardian(supabase: ReturnType<typeof getFirebaseAdminClient>, churchId: string, guardianId?: string, guardian?: z.infer<typeof personSchema>) {
   if (guardianId) return guardianId;
   if (!guardian?.name || guardian.phone.replace(/\D/g, "").length < 8) {
     throw new Error("Informe um responsavel com nome e telefone validos.");
@@ -93,7 +93,7 @@ async function ensureGuardian(supabase: ReturnType<typeof getSupabaseServerClien
 }
 
 async function createChildWithGuardian(
-  supabase: ReturnType<typeof getSupabaseServerClient>,
+  supabase: ReturnType<typeof getFirebaseAdminClient>,
   churchId: string,
   child: z.infer<typeof personSchema>,
   guardianId: string,
@@ -158,7 +158,7 @@ export async function POST(req: Request) {
     if (errorResponse) return errorResponse;
     if (!actor?.active) return NextResponse.json({ error: "Usuario inativo." }, { status: 403 });
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const churchId = session!.church_id;
     const actorId = session!.user_id;
     const body = parsed.data;

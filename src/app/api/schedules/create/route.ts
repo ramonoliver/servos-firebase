@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendScheduleAssignmentAlerts } from "@/lib/server/schedule-notifications";
 import { genId } from "@/lib/utils/helpers";
 
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
     const actorId = session!.user_id;
     const churchId = session!.church_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const [{ data: department, error: departmentError }, { data: event, error: eventError }] =
       await Promise.all([
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
 
     if (departmentLinksError) throw departmentLinksError;
 
-    const linkMap = new Map((departmentLinks || []).map((link) => [link.user_id, link.function_name || ""]));
+    const linkMap = new Map<string, string>((departmentLinks || []).map((link: any) => [link.user_id, link.function_name || ""]));
     const validSelectedIds = selectedIds.filter((userId) => linkMap.has(userId));
     const normalizedFunctionTargets = Object.entries(functionTargets)
       .map(([functionName, quantity]) => ({

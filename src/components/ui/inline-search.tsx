@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import type { User } from "@/types";
 
 interface InlineSearchProps {

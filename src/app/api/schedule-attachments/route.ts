@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSession } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
@@ -39,7 +39,7 @@ async function canAccessScheduleAttachments(params: {
   userId: string;
 }) {
   const { scheduleId, churchId, userId } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   const [{ data: member }, { data: scheduleMember }, schedule] = await Promise.all([
     supabase
@@ -91,7 +91,7 @@ async function canEditScheduleAttachments(params: {
   userId: string;
 }) {
   const { scheduleId, churchId, userId } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   const [{ data: member }, { data: schedule }] = await Promise.all([
     supabase
@@ -144,7 +144,7 @@ export async function GET(req: Request) {
 
     const { scheduleId } = parsed.data;
     const churchId = session.church_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const canAccess = await canAccessScheduleAttachments({
       scheduleId,
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
     const { scheduleId, fileName, mimeType, sizeBytes, contentBase64 } = parsed.data;
     const churchId = session.church_id;
     const userId = session.user_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
       return NextResponse.json({ error: "Tipo de arquivo nao permitido." }, { status: 400 });
@@ -251,7 +251,7 @@ export async function DELETE(req: Request) {
     const { attachmentId, scheduleId } = parsed.data;
     const churchId = session.church_id;
     const userId = session.user_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const canEdit = await canEditScheduleAttachments({
       scheduleId,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { PageShell, PageHeader } from "@/components/ui";
 import { fetchCells } from "@/lib/cells/client";
 import { EventFormModal } from "@/components/events/event-form-modal";

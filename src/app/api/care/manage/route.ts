@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const noteDataSchema = z.object({
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     const churchId = session!.church_id;
     const { mode, personId, noteId, data } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     if (!actor?.active) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });

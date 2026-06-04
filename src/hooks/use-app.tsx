@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getSession, clearSession, updateSession } from "@/lib/auth/session";
 // supabase client retained for notifications polling below
 import { can, type Action } from "@/lib/auth/permissions";

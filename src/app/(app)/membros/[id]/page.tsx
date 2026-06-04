@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/hooks/use-app";
 import { getSession } from "@/lib/auth/session";
 import { formatInviteDate, formatInviteOpenedAt } from "@/lib/invitations";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { formatDate, formatShortDate } from "@/lib/utils/helpers";
 import { MemberEditModal } from "@/components/shared/member-edit-modal";
 import { CareNoteForm } from "@/components/shared/care-note-form";

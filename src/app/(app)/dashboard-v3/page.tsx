@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getGreeting } from "@/lib/utils/helpers";
 import { getPerson } from "@/lib/pastoral/selectors";
 import {

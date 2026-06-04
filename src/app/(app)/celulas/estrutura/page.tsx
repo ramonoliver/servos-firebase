@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom";
 import Link from "next/link";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { Avatar, ConfirmDialog, Modal, PageShell, PageHeader } from "@/components/ui";
 import { fetchCells } from "@/lib/cells/client";
 import type { Cell, CellNetwork } from "@/lib/cells/types";

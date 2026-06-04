@@ -3,7 +3,7 @@ import {
   sendSmsScheduleAssignment,
   sendSmsScheduleReminder,
 } from "@/lib/email/send";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendUserNotification } from "@/lib/server/notification-service";
 import {
   getUserReminderProfile,
@@ -28,7 +28,7 @@ type DeliveryResult = {
 };
 
 async function getScheduleContext(scheduleId: string, churchId: string): Promise<ScheduleContext | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const { data: schedule, error: scheduleError } = await supabase
     .from("schedules")
     .select("*")
@@ -83,7 +83,7 @@ export async function sendScheduleAssignmentAlerts(params: {
   userIds: string[];
 }) {
   const { churchId, scheduleId, userIds } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const context = await getScheduleContext(scheduleId, churchId);
 
   if (!context || userIds.length === 0 || context.schedule.status !== "active") {
@@ -124,7 +124,7 @@ export async function sendScheduleReminderAlerts(params: {
   onlyPending?: boolean;
 }) {
   const { churchId, scheduleId, stage, onlyPending = false } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const context = await getScheduleContext(scheduleId, churchId);
 
   if (!context || context.schedule.status !== "active") {

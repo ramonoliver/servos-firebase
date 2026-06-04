@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/hooks/use-app";
 import { Avatar, PageHeader, DateField } from "@/components/ui";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { suggestMembers, autoSelectWithCouples } from "@/lib/ai/engine";
 import { getDayOfWeek, getIconEmoji } from "@/lib/utils/helpers";
 import type {

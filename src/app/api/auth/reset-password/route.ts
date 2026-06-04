@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hashPassword } from "@/lib/auth/password";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 import { hashPasswordResetToken, isPasswordResetExpired } from "@/lib/auth/password-reset";
 
 const bodySchema = z.object({
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "As senhas nao coincidem." }, { status: 400 });
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const tokenHash = hashPasswordResetToken(token);
 
     const { data: resetEntry, error: tokenError } = await supabase
@@ -36,6 +36,11 @@ export async function POST(req: Request) {
     if (!resetEntry || resetEntry.used_at || isPasswordResetExpired(resetEntry.expires_at)) {
       return NextResponse.json({ error: "Este link de redefinicao e invalido ou expirou." }, { status: 400 });
     }
+
+    // Update password in Firebase Auth
+    await adminAuth.updateUser(resetEntry.user_id, {
+      password: newPassword,
+    });
 
     const { error: updateUserError } = await supabase
       .from("users")

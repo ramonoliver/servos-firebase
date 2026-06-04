@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 import type { Department, User } from "@/types";
 
@@ -18,7 +18,7 @@ async function upsertUnreadNotifications(params: {
   const { churchId, userIds, title, body, actionUrl } = params;
   if (userIds.length === 0) return;
 
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   await supabase
     .from("notifications")
@@ -57,7 +57,7 @@ export async function notifyDepartmentChatMessage(params: {
   content: string;
 }) {
   const { churchId, departmentId, senderId, senderName, content } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   const [{ data: department, error: departmentError }, { data: departmentMembers, error: membersError }] =
     await Promise.all([
@@ -113,7 +113,7 @@ export async function notifyScheduleChatMessage(params: {
   content: string;
 }) {
   const { churchId, scheduleId, senderId, senderName, content } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   const [{ data: schedule, error: scheduleError }, { data: scheduleMembers, error: membersError }] =
     await Promise.all([

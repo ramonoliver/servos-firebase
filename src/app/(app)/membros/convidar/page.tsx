@@ -6,7 +6,7 @@ import { useApp } from "@/hooks/use-app";
 import { formatPhoneInput } from "@/lib/invitations";
 import { fileToAvatarDataUrl } from "@/lib/utils/image";
 import { getInitials } from "@/lib/utils/helpers";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getIconEmoji } from "@/lib/utils/helpers";
 import { PageHeader } from "@/components/ui";
 import type { User } from "@/types";

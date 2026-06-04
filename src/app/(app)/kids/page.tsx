@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader, PageShell } from "@/components/ui";
 import { KidsCheckInDrawer, KidsChildrenList, KidsRoomsManager, KidsSummaryCards, useKidsData } from "@/components/kids/kids-ui";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { useApp } from "@/hooks/use-app";
 import type { KidsChild } from "@/lib/kids/types";
 import type { Event } from "@/types";

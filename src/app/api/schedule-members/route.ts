@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendScheduleAssignmentAlerts } from "@/lib/server/schedule-notifications";
 import {
   awardConfirmationPoints,
@@ -38,7 +38,7 @@ const patchSchema = z.discriminatedUnion("action", [
 ]);
 
 async function getScheduleContext(scheduleId: string, churchId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const { data: schedule, error } = await supabase
     .from("schedules")
     .select("id, church_id, department_id")
@@ -52,7 +52,7 @@ async function getScheduleContext(scheduleId: string, churchId: string) {
 
 async function canManageSchedule(params: { actorId: string; churchId: string; scheduleId: string }) {
   const { actorId, churchId, scheduleId } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const [actorResult, schedule] = await Promise.all([
     supabase
       .from("users")
@@ -92,7 +92,7 @@ async function canManageSchedule(params: { actorId: string; churchId: string; sc
 }
 
 async function refreshScheduleSlotCounts(scheduleId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const [{ data: slots, error: slotsError }, { data: scheduleMembers, error: membersError }] =
     await Promise.all([
       supabase.from("schedule_slots").select("id, function_name").eq("schedule_id", scheduleId),
@@ -104,7 +104,7 @@ async function refreshScheduleSlotCounts(scheduleId: string) {
 
   if (!slots?.length) return;
 
-  const counts = (scheduleMembers || []).reduce<Record<string, number>>((acc, member) => {
+  const counts = ((scheduleMembers as any[]) || []).reduce<Record<string, number>>((acc, member) => {
     const functionName = member.function_name?.trim() || "Sem função";
     acc[functionName] = (acc[functionName] || 0) + 1;
     return acc;
@@ -136,7 +136,7 @@ export async function POST(req: Request) {
     const actorId = session!.user_id;
     const churchId = session!.church_id;
     const { scheduleId, userId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const { allowed, schedule } = await canManageSchedule({ actorId, churchId, scheduleId });
 
     if (!allowed || !schedule) {
@@ -255,7 +255,7 @@ export async function DELETE(req: Request) {
     const actorId = session!.user_id;
     const churchId = session!.church_id;
     const { scheduleId, scheduleMemberId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const { allowed } = await canManageSchedule({ actorId, churchId, scheduleId });
 
     if (!allowed) {
@@ -289,7 +289,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Dados invalidos para atualizar membro da escala." }, { status: 400 });
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const { session, errorResponse } = await requireApiActor(req);
     if (errorResponse) return errorResponse;
 

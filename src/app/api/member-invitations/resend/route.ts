@@ -3,7 +3,7 @@ import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
 import { generateTempPassword, hashPassword } from "@/lib/auth/password";
 import { deliverMemberInvitation } from "@/lib/server/member-invitations";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import type { User } from "@/types";
 
 type ResendInviteBody = {
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     const churchId = session!.church_id;
     const invitedByUserId = session!.user_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const { data: member, error: memberError } = await supabase
       .from("users")
       .select("*")

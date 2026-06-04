@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type React from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { PageShell, PageHeader } from "@/components/ui";
 import { EventFormModal } from "@/components/events/event-form-modal";
 import { formatEventRecurrence, getEventCategory } from "@/lib/events/recurrence";

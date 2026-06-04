@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getVerseOfDay } from "@/lib/ai/engine";
 import { getGreeting, getDayName } from "@/lib/utils/helpers";
 import Link from "next/link";

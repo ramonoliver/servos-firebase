@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 type ReminderProfile = "engaged" | "intermediate" | "at_risk";
 
@@ -7,7 +7,7 @@ type ScheduleMemberHistory = {
 };
 
 export async function getUserReminderProfile(userId: string, churchId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const threshold = new Date();
   threshold.setMonth(threshold.getMonth() - 3);
   const fromDate = threshold.toISOString().split("T")[0];

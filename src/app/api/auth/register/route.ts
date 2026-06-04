@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hashPassword } from "@/lib/auth/password";
 import { AUTH_COOKIE_NAME, createSessionPayload, encodeSessionToken } from "@/lib/auth/server-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 import type { User } from "@/types";
 
@@ -34,10 +34,11 @@ export async function POST(req: Request) {
     }
 
     const { name, email, phone, password, churchName, weeklyServices } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const db = getFirebaseAdminClient();
     const normalizedEmail = email.trim().toLowerCase();
 
-    const { data: existingUser, error: existingUserError } = await supabase
+    // Check in Firestore if user email is already registered
+    const { data: existingUser, error: existingUserError } = await db
       .from("users")
       .select("id")
       .eq("email", normalizedEmail)
@@ -48,11 +49,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email ja cadastrado." }, { status: 409 });
     }
 
+    // Create user in Firebase Auth
+    let userId;
+    try {
+      const userRecord = await adminAuth.createUser({
+        email: normalizedEmail,
+        password: password,
+        displayName: name.trim(),
+      });
+      userId = userRecord.uid;
+    } catch (authError: any) {
+      if (authError.code === "auth/email-already-exists") {
+        return NextResponse.json({ error: "Email ja cadastrado." }, { status: 409 });
+      }
+      throw authError;
+    }
+
     const now = new Date().toISOString();
     const churchId = genId();
-    const userId = genId();
 
-    const { data: church, error: churchError } = await supabase
+    const { data: church, error: churchError } = await db
       .from("churches")
       .insert({
         id: churchId,
@@ -68,7 +84,7 @@ export async function POST(req: Request) {
       throw churchError || new Error("Falha ao criar igreja.");
     }
 
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await db
       .from("users")
       .insert({
         id: userId,
@@ -115,10 +131,10 @@ export async function POST(req: Request) {
       created_at: now,
     }));
 
-    const { error: eventsError } = await supabase.from("events").insert(initialEvents);
+    const { error: eventsError } = await db.from("events").insert(initialEvents);
     if (eventsError) throw eventsError;
 
-    const { error: onboardingError } = await supabase
+    const { error: onboardingError } = await db
       .from("onboarding_progress")
       .insert({
         id: genId(),

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const postSchema = z.object({
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     if (errorResponse) return errorResponse;
 
     const { type, date, endDate, reason } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     if (!actor?.active) {
       return NextResponse.json({ error: "Usuario nao encontrado." }, { status: 404 });
     }
@@ -72,7 +72,7 @@ export async function DELETE(req: Request) {
     const actorId = session!.user_id;
     const churchId = session!.church_id;
     const { unavailableDateId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const { data: unavailableDate, error: unavailableDateError } = await supabase
       .from("unavailable_dates")

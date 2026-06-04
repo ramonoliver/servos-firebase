@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 type RankingRow = {
@@ -32,7 +32,7 @@ function monthRange(month: string) {
 }
 
 async function gatherRankingData(churchId: string, month: string, departmentId?: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const { start, end } = monthRange(month);
 
   const scheduleQuery = supabase.from("schedules").select("id").eq("church_id", churchId).gte("date", start).lt("date", end);
@@ -92,7 +92,7 @@ async function gatherRankingData(churchId: string, month: string, departmentId?:
 }
 
 async function buildRanking(churchId: string, month: string, departmentId?: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const rows = await gatherRankingData(churchId, month, departmentId);
   const userIds = rows.map((item) => item.user_id);
   if (userIds.length === 0) {
@@ -105,7 +105,7 @@ async function buildRanking(churchId: string, month: string, departmentId?: stri
     .in("id", userIds);
   if (usersError) throw usersError;
 
-  const userMap = new Map((users || []).map((user: any) => [user.id, user]));
+  const userMap = new Map<string, any>((users || []).map((user: any) => [user.id, user]));
 
   const sorted = rows.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
@@ -127,7 +127,7 @@ async function buildRanking(churchId: string, month: string, departmentId?: stri
 }
 
 async function readStoredRanking(churchId: string, month: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const { data, error } = await supabase
     .from("monthly_rankings")
     .select("user_id, points, services, absences, rank")
@@ -147,14 +147,14 @@ async function readStoredRanking(churchId: string, month: string) {
 
 async function attachUserProfile(rows: RankingStoredRow[]) {
   if (rows.length === 0) return [] as RankingItem[];
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const userIds = rows.map((item) => item.user_id);
   const { data: users, error: usersError } = await supabase
     .from("users")
     .select("id, name, avatar_color, photo_url")
     .in("id", userIds);
   if (usersError) throw usersError;
-  const userMap = new Map((users || []).map((user: any) => [user.id, user]));
+  const userMap = new Map<string, any>((users || []).map((user: any) => [user.id, user]));
   return rows.map((item) => {
     const user = userMap.get(item.user_id) || { name: "Usuário", avatar_color: "#777", photo_url: null };
     return {
@@ -199,7 +199,7 @@ export async function getMonthlyRanking(churchId: string, month: string, departm
 }
 
 export async function refreshMonthlyRanking(churchId: string, month: string, departmentId?: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
   const rows = await getMonthlyRanking(churchId, month, departmentId);
   if (rows.length === 0) {
     try {

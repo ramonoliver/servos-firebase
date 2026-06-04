@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
 import { Avatar, PageShell, PageHeader, DateField } from "@/components/ui";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { formatDate } from "@/lib/utils/helpers";
 import type { UnavailableDate, User, Event, Schedule } from "@/types";
 

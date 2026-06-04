@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getSession } from "@/lib/auth/session";
 import { getIconEmoji, genId } from "@/lib/utils/helpers";
 import type { Church, User, Department, Event } from "@/types";

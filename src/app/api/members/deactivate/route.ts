@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 const bodySchema = z.object({
   targetUserId: z.string().min(1),
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Voce nao pode alterar a propria conta por esta acao." }, { status: 400 });
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const { data: target, error: targetError } = await supabase
         .from("users")
         .select("id, church_id, spouse_id, active, status")

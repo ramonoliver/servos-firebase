@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 const bodySchema = z.object({ personId: z.string().min(1) });
 
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     if (errorResponse) return errorResponse;
 
     const churchId = session!.church_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const { data: notes, error } = await supabase
       .from("pastoral_notes")

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { suggestSubstitute } from "@/lib/ai/engine";
 import { formatDate, getDayOfWeek, getInitials, getIconEmoji } from "@/lib/utils/helpers";
 import { Modal } from "@/components/ui";
@@ -245,7 +244,7 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
     let isMounted = true;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     const channelName = `schedule-chat-${schedule.id}`;
-    const channel: RealtimeChannel = supabase.channel(channelName);
+    const channel = supabase.channel(channelName);
 
     const enablePollingFallback = () => {
       if (!isMounted || pollInterval) return;

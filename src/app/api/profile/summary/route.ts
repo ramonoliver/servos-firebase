@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Usuario nao autenticado." }, { status: 401 });
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const month = new Date().toISOString().slice(0, 7);
     const monthStart = `${month}-01`;
     const nextMonth = new Date(monthStart);

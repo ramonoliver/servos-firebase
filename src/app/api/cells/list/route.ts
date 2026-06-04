@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 
 type Actor = { id: string; role: string; cell_role?: string | null };
 type Net = { id: string; name: string; description: string; supervisor_ids: string[]; color: string; church_id: string; created_at: string };
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const churchId = session!.church_id;
     const baseActor = actor as unknown as { id: string; role: string };
     const me = baseActor.id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     // cell_role is tolerant: column may not exist until the roles migration runs.
     const { data: roleRow } = await supabase.from("users").select("cell_role").eq("id", me).maybeSingle();

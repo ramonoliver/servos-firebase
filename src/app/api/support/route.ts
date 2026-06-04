@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendSupportEmail } from "@/lib/email/send";
 
 export async function POST(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obter nome da igreja
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const { data: church } = await supabase
       .from("churches")
       .select("name")

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 import { computeFrequency } from "@/lib/cells/types";
 
@@ -30,7 +30,7 @@ const bodySchema = z.object({
 
 // Recompute the cell's "frequency" health metric from its meetings/attendance.
 async function recomputeHealth(
-  supabase: ReturnType<typeof getSupabaseServerClient>,
+  supabase: ReturnType<typeof getFirebaseAdminClient>,
   cellId: string,
   churchId: string
 ) {
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     const churchId = session!.church_id;
     const { mode, cellId, meetingId, data, attendance } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     if (!actor?.active) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });

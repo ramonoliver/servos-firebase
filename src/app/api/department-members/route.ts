@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const postSchema = z.object({
@@ -32,7 +32,7 @@ async function canManageDepartmentMember(params: {
   departmentId: string;
 }) {
   const { actorId, churchId, departmentId } = params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getFirebaseAdminClient();
 
   const [{ data: actor }, { data: department }] = await Promise.all([
     supabase
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     const actorId = session!.user_id;
     const churchId = session!.church_id;
     const { departmentId, userId, functionName, functionNames, members } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const allowed = await canManageDepartmentMember({ actorId, churchId, departmentId });
     if (!allowed) {
@@ -171,7 +171,7 @@ export async function DELETE(req: Request) {
     const actorId = session!.user_id;
     const churchId = session!.church_id;
     const { departmentId, departmentMemberId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const allowed = await canManageDepartmentMember({ actorId, churchId, departmentId });
     if (!allowed) {

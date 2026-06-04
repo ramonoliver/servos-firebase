@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const nonNegativeInt = z.coerce.number().int().min(0).default(0);
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     const churchId = session!.church_id;
     const { eventId, eventDate, data } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const { data: event, error: eventError } = await supabase
       .from("events")

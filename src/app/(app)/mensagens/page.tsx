@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useApp } from "@/hooks/use-app";
 import { Avatar, PageHeader } from "@/components/ui";
 import { MentionInput } from "@/components/ui/mention-input";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { useSearchParams } from "next/navigation";
 import type { Message, User } from "@/types";
 
@@ -134,7 +133,7 @@ export default function MensagensPage() {
     let isMounted = true;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     const channelName = `department-messages-${selectedDept}`;
-    const channel: RealtimeChannel = supabase.channel(channelName);
+    const channel = supabase.channel(channelName);
 
     const loadMessagesSilently = async () => {
       try {

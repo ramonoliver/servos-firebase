@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 
 const bodySchema = z.object({
   currentPassword: z.string().min(1),
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "As senhas nao coincidem." }, { status: 400 });
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     if (!actor?.active) {
       return NextResponse.json({ error: "Usuario nao encontrado." }, { status: 404 });
     }
@@ -37,6 +37,11 @@ export async function POST(req: Request) {
     if (!verifyPassword(currentPassword, actor.password_hash)) {
       return NextResponse.json({ error: "Senha atual incorreta." }, { status: 400 });
     }
+
+    // Update password in Firebase Auth
+    await adminAuth.updateUser(actor.id, {
+      password: newPassword,
+    });
 
     const { error: updateError } = await supabase
       .from("users")

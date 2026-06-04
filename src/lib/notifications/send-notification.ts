@@ -14,7 +14,7 @@
  *  8. Return structured result
  */
 
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendSms } from "./sms-provider";
 import { sendEmail } from "./email-provider";
 import { buildSmsTemplate, buildEmailTemplate } from "./templates";
@@ -35,7 +35,7 @@ export async function sendNotification(
   const result: SendNotificationResult = { success: false, errors: [] };
 
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const safePayload = sanitizePayload(input.payload as unknown as Record<string, unknown>);
 
     // ── 1. Resolve recipient ──────────────────────────────────────────────────
@@ -162,7 +162,7 @@ function skippedAll(
 
 async function persistLog(row: NotificationLogRow): Promise<void> {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     await supabase.from("notifications_log").insert(row);
   } catch (err) {
     // Log persistence must never break the main flow

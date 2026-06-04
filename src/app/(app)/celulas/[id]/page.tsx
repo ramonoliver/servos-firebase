@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { Avatar, ConfirmDialog, PageShell } from "@/components/ui";
 import { CellForm } from "@/components/shared/cell-form";
 import { CellMeetingForm } from "@/components/shared/cell-meeting-form";

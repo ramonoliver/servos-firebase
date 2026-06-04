@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const songSchema = z.object({
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const { song } = parsed.data;
     const actorId = session!.user_id;
     const churchId = session!.church_id;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     if (!actor?.active || !canManageSongs(actor.role)) {
       return NextResponse.json({ error: "Sem permissao para gerenciar repertorio." }, { status: 403 });
     }
@@ -109,7 +109,7 @@ export async function DELETE(req: Request) {
 
     const churchId = session!.church_id;
     const { songId } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
 
     const { data: song, error: songError } = await supabase
       .from("songs")

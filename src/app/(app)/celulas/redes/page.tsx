@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { Avatar, ConfirmDialog, Modal, MultiSelect, PageShell, PageHeader } from "@/components/ui";
 import type { MultiSelectOption } from "@/components/ui";
 import { fetchCells, saveNetwork } from "@/lib/cells/client";

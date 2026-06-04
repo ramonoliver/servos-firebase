@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/lib/firebase";
 import { getInitials, getIconEmoji } from "@/lib/utils/helpers";
 import { Modal, PageShell } from "@/components/ui";
 import Link from "next/link";

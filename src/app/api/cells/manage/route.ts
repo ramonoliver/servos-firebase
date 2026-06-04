@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const healthSchema = z.object({
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
     const churchId = session!.church_id;
     const { mode, cellId, data, memberIds } = parsed.data;
-    const supabase = getSupabaseServerClient();
+    const supabase = getFirebaseAdminClient();
     const baseActor = actor as unknown as { id: string; role: string; active: boolean };
 
     if (!baseActor?.active) {
