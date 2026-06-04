@@ -35,7 +35,7 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
     ] = await Promise.all([
       supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
       supabase.from("department_members").select("*").eq("department_id", dept.id),
-      supabase.from("schedules").select("*").eq("department_id", dept.id),
+      supabase.from("schedules").select("*").eq("church_id", user.church_id).eq("department_id", dept.id),
       supabase.from("events").select("*").eq("church_id", user.church_id),
     ]);
 

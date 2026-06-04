@@ -51,6 +51,27 @@ service cloud.firestore {
     match /push_tokens/{docId} {
       allow read, write: if isAuthenticated();
     }
+    match /notifications/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /unavailable_dates/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /unavailableDates/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /password_reset_tokens/{docId} {
+      allow read, write: if true;
+    }
+    match /passwordResetTokens/{docId} {
+      allow read, write: if true;
+    }
+    match /member_invitations/{docId} {
+      allow read, write: if true;
+    }
+    match /invitations/{docId} {
+      allow read, write: if true;
+    }
 
     // Default rule for generic collections
     match /{collectionName}/{docId} {
