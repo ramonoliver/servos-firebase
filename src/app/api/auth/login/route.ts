@@ -34,7 +34,9 @@ export async function POST(req: Request) {
 
     const authData = await authRes.json().catch(() => ({}));
     if (!authRes.ok || !authData.localId) {
-      return NextResponse.json({ error: "Email ou senha incorretos." }, { status: 401 });
+      console.error("Firebase auth sign in failed:", authData);
+      const detail = authData?.error?.message || JSON.stringify(authData);
+      return NextResponse.json({ error: `Email ou senha incorretos. (Erro: ${detail})` }, { status: 401 });
     }
 
     const firebaseUid = authData.localId;
