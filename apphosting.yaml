@@ -2,23 +2,73 @@
 # See https://firebase.google.com/docs/app-hosting/configure#cloud-run
 runConfig:
   minInstances: 0
-  # maxInstances: 100
-  # concurrency: 80
-  # cpu: 1
-  # memoryMiB: 512
 
 # Environment variables and secrets.
-# env:
-  # Configure environment variables.
-  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
-  # - variable: MESSAGE
-  #   value: Hello world!
-  #   availability:
-  #     - BUILD
-  #     - RUNTIME
-
-  # Grant access to secrets in Cloud Secret Manager.
-  # You can create secrets with the CLI command `firebase apphosting:secrets:set <secretName>`.
-  # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
-  # - variable: MY_SECRET
-  #   secret: mySecretRef
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyD6B-0yZuCacqNi1kv-7CKBXG1EH_XlxtU
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: servos-bcc51.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: servos-bcc51
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: servos-bcc51.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "929326502312"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:929326502312:web:5ca277a1c18c730f48cd9d
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-D7KW5KQY09
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: BREVO_SMTP_HOST
+    value: smtp-relay.brevo.com
+    availability:
+      - RUNTIME
+  - variable: BREVO_SMTP_PORT
+    value: "587"
+    availability:
+      - RUNTIME
+  - variable: BREVO_SMTP_USER
+    value: a737cd001@smtp-brevo.com
+    availability:
+      - RUNTIME
+  - variable: BREVO_SMTP_PASS
+    secret: brevo_smtp_pass
+    availability:
+      - RUNTIME
+  - variable: EMAIL_FROM
+    value: "Servos App <ramon.oliver@gmail.com>"
+    availability:
+      - RUNTIME
+  - variable: SUPPORT_EMAIL
+    value: ramon.oliver@gmail.com
+    availability:
+      - RUNTIME
+  - variable: NOTIFICATIONS_SMS_ENABLED
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: NOTIFICATIONS_EMAIL_ENABLED
+    value: "true"
+    availability:
+      - RUNTIME
