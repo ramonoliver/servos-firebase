@@ -4,7 +4,7 @@ import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
 import { generateTempPassword, hashPassword } from "@/lib/auth/password";
 import { deliverMemberInvitation } from "@/lib/server/member-invitations";
-import { getFirebaseAdminClient } from "@/lib/firebase-admin";
+import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 
 const selectedDepartmentSchema = z.object({
@@ -76,7 +76,22 @@ export async function POST(req: Request) {
 
     const tempPassword = generateTempPassword();
     const now = new Date().toISOString();
-    const newUserId = genId();
+
+    // Create user in Firebase Auth
+    let newUserId;
+    try {
+      const userRecord = await adminAuth.createUser({
+        email: normalizedEmail,
+        password: tempPassword,
+        displayName: name.trim(),
+      });
+      newUserId = userRecord.uid;
+    } catch (authError: any) {
+      if (authError.code === "auth/email-already-exists") {
+        return NextResponse.json({ error: "Email ja cadastrado." }, { status: 409 });
+      }
+      throw authError;
+    }
 
     const { data: newUser, error: newUserError } = await supabase
       .from("users")
