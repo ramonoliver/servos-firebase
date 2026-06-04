@@ -1,14 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/hooks/use-app";
 import { PageHeader } from "@/components/ui";
+
+const ESTADOS = [
+  { uf: "AC", nome: "Acre" },
+  { uf: "AL", nome: "Alagoas" },
+  { uf: "AP", nome: "Amapá" },
+  { uf: "AM", nome: "Amazonas" },
+  { uf: "BA", nome: "Bahia" },
+  { uf: "CE", nome: "Ceará" },
+  { uf: "DF", nome: "Distrito Federal" },
+  { uf: "ES", nome: "Espírito Santo" },
+  { uf: "GO", nome: "Goiás" },
+  { uf: "MA", nome: "Maranhão" },
+  { uf: "MT", nome: "Mato Grosso" },
+  { uf: "MS", nome: "Mato Grosso do Sul" },
+  { uf: "MG", nome: "Minas Gerais" },
+  { uf: "PA", nome: "Pará" },
+  { uf: "PB", nome: "Paraíba" },
+  { uf: "PR", nome: "Paraná" },
+  { uf: "PE", nome: "Pernambuco" },
+  { uf: "PI", nome: "Piauí" },
+  { uf: "RJ", nome: "Rio de Janeiro" },
+  { uf: "RN", nome: "Rio Grande do Norte" },
+  { uf: "RS", nome: "Rio Grande do Sul" },
+  { uf: "RO", nome: "Rondônia" },
+  { uf: "RR", nome: "Roraima" },
+  { uf: "SC", nome: "Santa Catarina" },
+  { uf: "SP", nome: "São Paulo" },
+  { uf: "SE", nome: "Sergipe" },
+  { uf: "TO", nome: "Tocantins" },
+];
 
 export default function ConfiguraçõesPage() {
   const { toast, church, refresh, user } = useApp();
   const [churchName, setChurchName] = useState(church.name);
-  const [churchCity, setChurchCity] = useState(church.city || "");
+  const [selectedState, setSelectedState] = useState(church.state || "");
+  const [cities, setCities] = useState<string[]>([]);
+  const [selectedCity, setSelectedCity] = useState(church.city || "");
+  const [loadingCities, setLoadingCities] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!selectedState) {
+      setCities([]);
+      return;
+    }
+    let active = true;
+    async function fetchCities() {
+      setLoadingCities(true);
+      try {
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${selectedState}/municipios`);
+        if (res.ok && active) {
+          const data = await res.json();
+          const names = data.map((item: any) => item.nome).sort() as string[];
+          setCities(names);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar cidades:", err);
+      } finally {
+        if (active) setLoadingCities(false);
+      }
+    }
+    void fetchCities();
+    return () => {
+      active = false;
+    };
+  }, [selectedState]);
 
   async function saveChurch() {
     if (!churchName.trim()) {
@@ -24,7 +84,8 @@ export default function ConfiguraçõesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: churchName.trim(),
-          city: churchCity.trim(),
+          city: selectedCity.trim(),
+          state: selectedState.trim(),
         }),
       });
 
@@ -67,13 +128,44 @@ export default function ConfiguraçõesPage() {
             />
           </div>
 
-          <div>
-            <label className="input-label">Cidade</label>
-            <input
-              className="input-field"
-              value={churchCity}
-              onChange={(e) => setChurchCity(e.target.value)}
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="input-label">Estado</label>
+              <select
+                className="input-field"
+                value={selectedState}
+                onChange={(e) => {
+                  setSelectedState(e.target.value);
+                  setSelectedCity(""); // reset city
+                }}
+              >
+                <option value="">Selecione o estado</option>
+                {ESTADOS.map((est) => (
+                  <option key={est.uf} value={est.uf}>
+                    {est.nome} ({est.uf})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="input-label">Cidade</label>
+              <select
+                className="input-field"
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                disabled={!selectedState || loadingCities}
+              >
+                <option value="">
+                  {loadingCities ? "Carregando cidades..." : "Selecione a cidade"}
+                </option>
+                {cities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <button onClick={saveChurch} disabled={saving} className="btn btn-primary btn-sm w-full sm:w-auto">
@@ -100,7 +192,7 @@ export default function ConfiguraçõesPage() {
       <div className="card p-6">
         <h3 className="font-display text-lg mb-3">Dados</h3>
         <p className="text-sm text-ink-muted">
-          O reset local de demonstração foi descontinuado, porque os dados agora ficam persistidos no Supabase.
+          O reset local de demonstração foi descontinuado, porque os dados agora ficam persistidos no Firebase.
         </p>
       </div>
     </div>

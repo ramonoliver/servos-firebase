@@ -9,18 +9,53 @@ service cloud.firestore {
     
     // Helper function to get the user's churchId from their user document in /users/{userId}
     function getUserChurchId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.church_id;
     }
 
     // Helper to check if a document's churchId matches the user's churchId
     function belongsToUserChurch(resourceData) {
-      return resourceData.churchId == getUserChurchId();
+      return resourceData.church_id == getUserChurchId();
+    }
+
+    // Allow read/write for relation-only or user-owned tables that might not store churchId directly
+    match /department_members/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /departmentMembers/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /schedule_members/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /scheduleMembers/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /schedule_slots/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /scheduleChats/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /schedule_chats/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /scheduleAttachments/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /schedule_attachments/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /pushTokens/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /push_tokens/{docId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Default rule for generic collections
     match /{collectionName}/{docId} {
       allow read, update, delete: if isAuthenticated() && belongsToUserChurch(resource.data);
-      allow create: if isAuthenticated() && request.resource.data.churchId == getUserChurchId();
+      allow create: if isAuthenticated() && request.resource.data.church_id == getUserChurchId();
     }
     
     // Allow initial registration (creation of church, user, and onboarding)

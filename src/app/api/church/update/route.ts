@@ -7,6 +7,7 @@ import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 const bodySchema = z.object({
   name: z.string().trim().min(1),
   city: z.string().trim().default(""),
+  state: z.string().trim().default(""),
 });
 
 export async function POST(req: Request) {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     if (errorResponse) return errorResponse;
 
     const churchId = session!.church_id;
-    const { name, city } = parsed.data;
+    const { name, city, state } = parsed.data;
     const supabase = getFirebaseAdminClient();
     if (!actor?.active || !can(actor.role, "settings.edit")) {
       return NextResponse.json({ error: "Sem permissao para atualizar configuracoes." }, { status: 403 });
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
       .update({
         name,
         city,
+        state,
       })
       .eq("id", churchId);
 
