@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
 import { ActionDrawer } from "@/components/ui/action-drawer";
 import { Avatar, EmptyState } from "@/components/ui";
 import { useApp } from "@/hooks/use-app";
@@ -130,6 +132,7 @@ function CalendarIcon() {
 
 export default function PessoaPerfilPage({ params }: { params: { id: string } }) {
   const { user, toast, departments } = useApp();
+  const router = useRouter();
   const [person, setPerson] = useState<PastoralPerson | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(tabs[0]);
@@ -138,6 +141,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   const [careOpen, setCareOpen] = useState(false);
   const [dbCells, setDbCells] = useState<any[]>([]);
   const [dbCell, setDbCell] = useState<any>(null);
+  const [dbNetworks, setDbNetworks] = useState<any[]>([]);
+  const [resendingInvite, setResendingInvite] = useState(false);
 
   const [editForm, setEditForm] = useState({
     fullName: "",
@@ -182,7 +187,9 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
 
       const cellsPayload = cellsResponse ? await cellsResponse.json().catch(() => null) : null;
       const loadedCells = (cellsPayload?.cells || []) as any[];
+      const loadedNetworks = (cellsPayload?.networks || []) as any[];
       setDbCells(loadedCells);
+      setDbNetworks(loadedNetworks);
 
       if (!uData) {
         setPerson(null);
@@ -226,6 +233,9 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
         tagIds: uData.tag_ids || [],
         notes: uData.notes || "",
         lastContactAt: uData.last_served_at || null,
+        mustChangePassword: uData.must_change_password || false,
+        role: uData.role || "member",
+        active: uData.active !== false,
       };
 
       setPerson(p);
@@ -329,7 +339,19 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   const ministries = (person.ministryIds || []).map(id => departments.find(d => d.id === id)).filter(Boolean);
   const prayers = [];
   const relationships = [];
-  const canEdit = user.role === "admin" || user.role === "leader";
+  
+  const canEditPerson = canEditOrDeleteMemberClient({
+    actor: user,
+    target: {
+      id: person.id,
+      role: person.role || "member",
+      cellId: person.cellId,
+      ministryIds: person.ministryIds,
+    },
+    cells: dbCells,
+    networks: dbNetworks,
+    departments,
+  });
 
   async function handleEditCepBlur() {
     const digits = editForm.cep.replace(/\D/g, "");
@@ -362,21 +384,37 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       const addressParts = [street, number, complement, neighborhood, city, state, cep].filter(Boolean);
       const address = addressParts.length > 0 ? addressParts.join(", ") : person.address;
 
-      const { error } = await supabase
-        .from("users")
-        .update({
-          name: fullName.trim(),
-          phone: phone.trim(),
-          email: email.trim().toLowerCase(),
-          instagram: instagram.trim(),
-          address,
-          notes: notes.trim(),
-          cell_id: cellId || null,
-          birth_date: editForm.birthDate || null,
-        })
-        .eq("id", person.id);
+      const res = await fetch("/api/members/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          memberId: person.id,
+          updates: {
+            name: fullName.trim(),
+            email: email.trim().toLowerCase(),
+            phone: phone.trim(),
+            role: kind,
+            status: "active",
+            spouse_id: null,
+            cell_id: cellId || null,
+            birth_date: editForm.birthDate || null,
+            instagram: instagram.trim(),
+            address,
+            notes: notes.trim(),
+          },
+          selectedDepartments: person.ministryIds.map(id => ({ department_id: id, function_name: "", function_names: [] })),
+        }),
+      });
 
-      if (error) throw error;
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        toast(data?.error || "Erro ao salvar perfil.");
+        setLoading(false);
+        return;
+      }
 
       toast("Alterações salvas com sucesso!");
       setEditOpen(false);
@@ -386,6 +424,75 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       toast("Erro ao salvar perfil.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function changeMemberState(action: "deactivate" | "reactivate" | "hard_delete") {
+    if (!person) return;
+    const confirmed = window.confirm(
+      action === "reactivate"
+        ? `Reativar ${person.fullName}?`
+        : action === "hard_delete"
+        ? `Excluir ${person.fullName} permanentemente e apagar os dados relacionados?`
+        : `Desativar ${person.fullName}?`
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch("/api/members/deactivate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          targetUserId: person.id,
+          action,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast(data?.error || "Não foi possível realizar esta ação.");
+        setLoading(false);
+        return;
+      }
+
+      toast(data?.warning || "Ação realizada com sucesso!");
+      if (action === "hard_delete") {
+        router.push("/pessoas");
+        return;
+      }
+
+      await loadPerson();
+    } catch (error) {
+      console.error("Erro ao alterar estado do membro:", error);
+      toast("Erro ao processar requisição.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResendInvite() {
+    if (!person) return;
+    setResendingInvite(true);
+    try {
+      const res = await fetch("/api/member-invitations/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: person.id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao reenviar convite.");
+      } else {
+        toast("Convite reenviado com sucesso!");
+      }
+    } catch (err) {
+      console.error(err);
+      toast("Erro ao reenviar convite.");
+    } finally {
+      setResendingInvite(false);
     }
   }
 
@@ -501,9 +608,29 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {canEdit && (
+            {canEditPerson && (
               <button className="btn btn-secondary btn-sm" onClick={() => setEditOpen(true)}>
                 Editar dados
+              </button>
+            )}
+            {canEditPerson && person.mustChangePassword && (
+              <button className="btn btn-secondary btn-sm" onClick={handleResendInvite} disabled={resendingInvite}>
+                {resendingInvite ? "Reenviando..." : "Reenviar convite"}
+              </button>
+            )}
+            {canEditPerson && person.active && (
+              <button className="btn btn-secondary btn-sm" onClick={() => changeMemberState("deactivate")}>
+                Desativar membro
+              </button>
+            )}
+            {canEditPerson && !person.active && (
+              <button className="btn btn-primary btn-sm" onClick={() => changeMemberState("reactivate")}>
+                Reativar membro
+              </button>
+            )}
+            {user.role === "admin" && (
+              <button className="btn btn-danger btn-sm" onClick={() => changeMemberState("hard_delete")}>
+                Excluir permanente
               </button>
             )}
             <button className="btn btn-secondary btn-sm" onClick={() => setContactOpen(true)}>

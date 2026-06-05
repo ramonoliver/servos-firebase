@@ -22,6 +22,11 @@ const bodySchema = z.object({
     spouse_id: z.string().nullable(),
     photo_url: z.string().nullable().optional(),
     cell_role: z.enum(["pastor", "coordenacao"]).nullable().optional(),
+    cell_id: z.string().nullable().optional(),
+    birth_date: z.string().nullable().optional(),
+    instagram: z.string().trim().default(""),
+    address: z.string().trim().default(""),
+    notes: z.string().trim().default(""),
   }),
   selectedDepartments: z.array(selectedDepartmentSchema).default([]),
   spouseId: z.string().default(""),
@@ -95,7 +100,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dados invalidos para atualizar membro." }, { status: 400 });
     }
 
-    const { actor, session, errorResponse } = await requireApiActor(req);
+    const { actor, session, errorResponse } = await requireApiActor(req, {
+      select: "id, role, cell_role, church_id, active",
+    });
     if (errorResponse) return errorResponse;
 
     const actorId = session!.user_id;
@@ -112,7 +119,7 @@ export async function POST(req: Request) {
       await Promise.all([
         supabase
         .from("users")
-        .select("id, church_id, spouse_id, active, role")
+        .select("id, church_id, spouse_id, active, role, cell_id")
         .eq("id", memberId)
         .eq("church_id", churchId)
         .maybeSingle(),
@@ -124,71 +131,73 @@ export async function POST(req: Request) {
     if (memberError) throw memberError;
     if (currentDepartmentMembersError) throw currentDepartmentMembersError;
 
-    if (!actor?.active || !can(actor.role, "member.edit")) {
-      return NextResponse.json({ error: "Sem permissao para editar membros." }, { status: 403 });
+    // Check permission using the matrix:
+    const isSystemAdmin = actor.role === "admin";
+    const isPastor = actor.cell_role === "pastor";
+    let hasEditPermission = isSystemAdmin || isPastor;
+
+    if (!hasEditPermission && actor.role === "leader") {
+      // 1. Cell leader check
+      if (member.cell_id) {
+        const { data: targetCell } = await supabase
+          .from("cells")
+          .select("id, leader_ids, co_leader_ids, network_id")
+          .eq("id", member.cell_id)
+          .maybeSingle();
+
+        if (targetCell) {
+          const cellLeaders = [...(targetCell.leader_ids || []), ...(targetCell.co_leader_ids || [])];
+          if (cellLeaders.includes(actorId)) {
+            hasEditPermission = true;
+          }
+
+          // 2. Supervision check
+          if (!hasEditPermission && targetCell.network_id) {
+            const { data: targetNetwork } = await supabase
+              .from("cell_networks")
+              .select("id, supervisor_ids")
+              .eq("id", targetCell.network_id)
+              .maybeSingle();
+
+            if (targetNetwork && (targetNetwork.supervisor_ids || []).includes(actorId)) {
+              hasEditPermission = true;
+            }
+          }
+        }
+      }
+
+      // 3. Ministry leader check
+      if (!hasEditPermission) {
+        const { data: allDepts } = await supabase
+          .from("departments")
+          .select("id, leader_ids, co_leader_ids")
+          .eq("church_id", churchId);
+
+        const ledDeptIds = (allDepts || [])
+          .filter((d) => [...(d.leader_ids || []), ...(d.co_leader_ids || [])].includes(actorId))
+          .map((d) => d.id);
+
+        const targetDeptIds = (currentDepartmentMembers || []).map((dm) => dm.department_id);
+        const hasDeptOverlap = targetDeptIds.some((id) => ledDeptIds.includes(id));
+
+        if (hasDeptOverlap) {
+          hasEditPermission = true;
+        }
+      }
+    }
+
+    if (!actor?.active || !hasEditPermission) {
+      return NextResponse.json({ error: "Sem permissao para editar este membro." }, { status: 403 });
     }
 
     // Only admin/pastor may assign the cell_role (pastor/coordenação).
     if ((updates as { cell_role?: unknown }).cell_role !== undefined) {
-      const { data: actorRoleRow } = await supabase.from("users").select("cell_role").eq("id", actorId).maybeSingle();
-      const canAssignCellRole = actor.role === "admin" || (actorRoleRow as any)?.cell_role === "pastor";
+      const canAssignCellRole = isSystemAdmin || isPastor;
       if (!canAssignCellRole) delete (updates as { cell_role?: unknown }).cell_role;
     }
 
-    if (!member) {
-      return NextResponse.json({ error: "Membro nao encontrado." }, { status: 404 });
-    }
-
-    if (!member.active && actor.role !== "admin") {
+    if (!member.active && !isSystemAdmin) {
       return NextResponse.json({ error: "Somente administradores podem editar membros desativados." }, { status: 403 });
-    }
-
-    const departmentIds = selectedDepartments.map((dept) => dept.department_id);
-    if (actor.role === "leader") {
-      const [{ data: allowedDepartments, error: departmentsError }, { data: currentDepartmentLinks, error: currentLinksError }] =
-        await Promise.all([
-          supabase
-            .from("departments")
-            .select("id, leader_ids, co_leader_ids")
-            .eq("church_id", churchId),
-          supabase
-            .from("department_members")
-            .select("department_id")
-            .eq("user_id", memberId),
-        ]);
-
-      if (departmentsError) throw departmentsError;
-      if (currentLinksError) throw currentLinksError;
-
-      const allowedIds = (allowedDepartments || [])
-        .filter(
-          (department) =>
-            (department.leader_ids || []).includes(actorId) ||
-            (department.co_leader_ids || []).includes(actorId)
-        )
-        .map((department) => department.id);
-
-      const currentDepartmentIds = (currentDepartmentLinks || []).map((item) => item.department_id);
-      const hasForbiddenCurrentDepartment = currentDepartmentIds.some(
-        (departmentId) => !allowedIds.includes(departmentId)
-      );
-      const hasForbiddenSelectedDepartment = departmentIds.some(
-        (departmentId) => !allowedIds.includes(departmentId)
-      );
-
-      if (hasForbiddenCurrentDepartment || hasForbiddenSelectedDepartment) {
-        return NextResponse.json(
-          { error: "Sem permissao para alterar ministerios fora da sua lideranca." },
-          { status: 403 }
-        );
-      }
-
-      if (member.role !== "member" || updates.role !== "member") {
-        return NextResponse.json(
-          { error: "Lideres so podem editar membros comuns." },
-          { status: 403 }
-        );
-      }
     }
 
     if (actor.role === "leader" && member.id === actorId) {

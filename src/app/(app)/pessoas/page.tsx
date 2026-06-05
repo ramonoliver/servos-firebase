@@ -317,14 +317,16 @@ export default function PessoasPage() {
         title="Pessoas"
         description="Uma visão única para membros, visitantes, voluntários, líderes e pessoas em acompanhamento."
         action={
-          <div className="flex gap-2">
-            <button className="btn btn-secondary btn-sm" onClick={() => setInviteModalOpen(true)}>
-              Enviar convite
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => setDrawerOpen(true)}>
-              + Nova pessoa
-            </button>
-          </div>
+          (user.role === "admin" || user.role === "leader") && (
+            <div className="flex gap-2">
+              <button className="btn btn-secondary btn-sm" onClick={() => setInviteModalOpen(true)}>
+                Enviar convite
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={() => setDrawerOpen(true)}>
+                + Nova pessoa
+              </button>
+            </div>
+          )
         }
       />
 

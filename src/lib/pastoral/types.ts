@@ -64,6 +64,9 @@ export interface PastoralPerson {
   tagIds: string[];
   notes: string;
   lastContactAt: string | null;
+  mustChangePassword?: boolean;
+  role?: string;
+  active?: boolean;
 }
 
 export interface PastoralMinistry {

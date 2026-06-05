@@ -10,7 +10,8 @@ import {
   deleteDoc,
   query,
   where,
-  onSnapshot
+  onSnapshot,
+  documentId
 } from "firebase/firestore";
 import { genId } from "@/lib/utils/helpers";
 
@@ -269,7 +270,11 @@ class ClientQueryBuilder {
         inMemoryFilters.push(f);
         continue;
       }
-      q = query(q, where(f.field, f.operator, f.value));
+      let field: any = f.field;
+      if (field === "id") {
+        field = documentId();
+      }
+      q = query(q, where(field, f.operator, f.value));
     }
 
     const snap = await getDocs(q);

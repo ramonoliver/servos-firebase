@@ -31,7 +31,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dados invalidos para remover membro." }, { status: 400 });
     }
 
-    const { actor, session, errorResponse } = await requireApiActor(req);
+    const { actor, session, errorResponse } = await requireApiActor(req, {
+      select: "id, role, cell_role, church_id, active",
+    });
     if (errorResponse) return errorResponse;
 
     const actorId = session!.user_id;
@@ -45,18 +47,80 @@ export async function POST(req: Request) {
     const supabase = getFirebaseAdminClient();
     const { data: target, error: targetError } = await supabase
         .from("users")
-        .select("id, church_id, spouse_id, active, status")
+        .select("id, church_id, spouse_id, active, status, role, cell_id")
         .eq("id", targetUserId)
         .eq("church_id", churchId)
         .maybeSingle();
     if (targetError) throw targetError;
 
-    if (!actor?.active || !can(actor.role, "member.remove")) {
-      return NextResponse.json({ error: "Sem permissao para remover membros." }, { status: 403 });
-    }
-
     if (!target) {
       return NextResponse.json({ error: "Membro nao encontrado." }, { status: 404 });
+    }
+
+    // Check permission using the matrix:
+    const isSystemAdmin = actor.role === "admin";
+    const isPastor = actor.cell_role === "pastor";
+    let hasRemovePermission = isSystemAdmin || isPastor;
+
+    if (!hasRemovePermission && actor.role === "leader") {
+      if (target.role !== "admin") {
+        // 1. Cell leader check
+        if (target.cell_id) {
+          const { data: targetCell } = await supabase
+            .from("cells")
+            .select("id, leader_ids, co_leader_ids, network_id")
+            .eq("id", target.cell_id)
+            .maybeSingle();
+
+          if (targetCell) {
+            const cellLeaders = [...(targetCell.leader_ids || []), ...(targetCell.co_leader_ids || [])];
+            if (cellLeaders.includes(actorId)) {
+              hasRemovePermission = true;
+            }
+
+            // 2. Supervision check
+            if (!hasRemovePermission && targetCell.network_id) {
+              const { data: targetNetwork } = await supabase
+                .from("cell_networks")
+                .select("id, supervisor_ids")
+                .eq("id", targetCell.network_id)
+                .maybeSingle();
+
+              if (targetNetwork && (targetNetwork.supervisor_ids || []).includes(actorId)) {
+                hasRemovePermission = true;
+              }
+            }
+          }
+        }
+
+        // 3. Ministry leader check
+        if (!hasRemovePermission) {
+          const { data: allDepts } = await supabase
+            .from("departments")
+            .select("id, leader_ids, co_leader_ids")
+            .eq("church_id", churchId);
+
+          const ledDeptIds = (allDepts || [])
+            .filter((d) => [...(d.leader_ids || []), ...(d.co_leader_ids || [])].includes(actorId))
+            .map((d) => d.id);
+
+          const { data: targetDeptMembers } = await supabase
+            .from("department_members")
+            .select("department_id")
+            .eq("user_id", targetUserId);
+
+          const targetDeptIds = (targetDeptMembers || []).map((dm) => dm.department_id);
+          const hasDeptOverlap = targetDeptIds.some((id) => ledDeptIds.includes(id));
+
+          if (hasDeptOverlap) {
+            hasRemovePermission = true;
+          }
+        }
+      }
+    }
+
+    if (!actor?.active || !hasRemovePermission) {
+      return NextResponse.json({ error: "Sem permissao para remover este membro." }, { status: 403 });
     }
 
     if (action === "reactivate") {

@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldPath } from "firebase-admin/firestore";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
@@ -248,7 +248,11 @@ class AdminQueryBuilder {
         inMemoryFilters.push(f);
         continue;
       }
-      queryRef = queryRef.where(f.field, f.operator, f.value);
+      let field: any = f.field;
+      if (field === "id") {
+        field = FieldPath.documentId();
+      }
+      queryRef = queryRef.where(field, f.operator, f.value);
     }
 
     const snap = await queryRef.get();
