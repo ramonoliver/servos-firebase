@@ -57,7 +57,7 @@ env:
     availability:
       - RUNTIME
   - variable: EMAIL_FROM
-    value: "Servos App <ramon.oliver@gmail.com>"
+    value: "Servos App <noreply@servosapp.com>"
     availability:
       - RUNTIME
   - variable: SUPPORT_EMAIL
