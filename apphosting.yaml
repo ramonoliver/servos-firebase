@@ -40,20 +40,9 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  - variable: BREVO_SMTP_HOST
-    value: smtp-relay.brevo.com
-    availability:
-      - RUNTIME
-  - variable: BREVO_SMTP_PORT
-    value: "587"
-    availability:
-      - RUNTIME
-  - variable: BREVO_SMTP_USER
-    value: a737cd001@smtp-brevo.com
-    availability:
-      - RUNTIME
-  - variable: BREVO_SMTP_PASS
-    secret: brevo_smtp_pass
+  # ── E-mail (Resend) ──
+  - variable: RESEND_API_KEY
+    secret: resend_api_key
     availability:
       - RUNTIME
   - variable: EMAIL_FROM
@@ -62,6 +51,19 @@ env:
       - RUNTIME
   - variable: SUPPORT_EMAIL
     value: ramon.oliver@gmail.com
+    availability:
+      - RUNTIME
+  # ── SMS (Twilio) ──
+  - variable: TWILIO_ACCOUNT_SID
+    secret: twilio_account_sid
+    availability:
+      - RUNTIME
+  - variable: TWILIO_AUTH_TOKEN
+    secret: twilio_auth_token
+    availability:
+      - RUNTIME
+  - variable: TWILIO_SMS_FROM
+    value: "+17407461554"
     availability:
       - RUNTIME
   - variable: NOTIFICATIONS_SMS_ENABLED

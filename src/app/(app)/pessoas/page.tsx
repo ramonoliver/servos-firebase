@@ -139,6 +139,7 @@ export default function PessoasPage() {
 
         return {
           id: u.id,
+          slug: u.slug || undefined,
           fullName: u.name || "",
           avatarColor: u.avatar_color || "#F4532A",
           photoUrl: u.photo_url || null,

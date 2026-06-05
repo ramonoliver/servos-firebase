@@ -11,6 +11,8 @@ import {
   hashPasswordResetToken,
 } from "@/lib/auth/password-reset";
 import { getAppBaseUrl } from "@/lib/invitations";
+import { firstLastSlug, resolveUniqueSlug } from "@/lib/utils/slug";
+
 
 const bodySchema = z.object({
   name: z.string().trim().min(1),
@@ -94,12 +96,21 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
     const role = (kind === "leader" || kind === "pastor") ? "leader" : "member";
 
+    // Generate unique slug
+    const baseSlug = firstLastSlug(name.trim());
+    const slug = await resolveUniqueSlug(baseSlug, async (candidate) => {
+      const { data } = await supabase.from("users").select("id").eq("slug", candidate).eq("church_id", churchId).maybeSingle();
+      return Boolean(data);
+    });
+
+
     const { error: userError } = await supabase.from("users").insert({
       id,
       church_id: churchId,
       email: normalizedEmail,
       password_hash: emailProvided ? hashPassword(tempPassword) : "",
       name: name.trim(),
+      slug,
       phone: phone.trim(),
       role,
       status: "active",

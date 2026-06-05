@@ -43,6 +43,7 @@ export interface PersonRelationship {
 
 export interface PastoralPerson {
   id: string;
+  slug?: string;
   fullName: string;
   avatarColor: string;
   photoUrl: string | null;
@@ -61,7 +62,7 @@ export interface PastoralPerson {
   cellId: string | null;
   ministryIds: string[];
   roleTitle: string;
-  tagIds: string[];
+  tagIds: string[]
   notes: string;
   lastContactAt: string | null;
   mustChangePassword?: boolean;

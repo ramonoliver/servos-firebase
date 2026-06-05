@@ -4,6 +4,8 @@ import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
 import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
+import { firstLastSlug, resolveUniqueSlug } from "@/lib/utils/slug";
+
 
 const selectedDepartmentSchema = z.object({
   department_id: z.string().min(1),
@@ -27,6 +29,8 @@ const bodySchema = z.object({
     instagram: z.string().trim().default(""),
     address: z.string().trim().default(""),
     notes: z.string().trim().default(""),
+    baptized: z.boolean().optional(),
+    in_discipleship: z.boolean().optional(),
   }),
   selectedDepartments: z.array(selectedDepartmentSchema).default([]),
   spouseId: z.string().default(""),
@@ -243,10 +247,32 @@ export async function POST(req: Request) {
       }
     }
 
+    // Regenerar slug se o nome mudou — ou gerar pela primeira vez se a pessoa ainda não tem slug
+    let slugUpdate: Record<string, string> = {};
+    const nameChanged = Boolean(updates.name && updates.name.trim() !== (member as any).name);
+    const missingSlug = !(member as any).slug;
+    if (nameChanged || missingSlug) {
+      const churchId2 = churchId;
+      const slugSource = (updates.name?.trim() || (member as any).name || "").trim();
+      const baseSlug = firstLastSlug(slugSource);
+      const newSlug = await resolveUniqueSlug(baseSlug, async (candidate) => {
+        const { data } = await supabase
+          .from("users")
+          .select("id")
+          .eq("slug", candidate)
+          .eq("church_id", churchId2)
+          .neq("id", memberId)
+          .maybeSingle();
+        return Boolean(data);
+      });
+      slugUpdate = { slug: newSlug };
+    }
+
     const { error: updateUserError } = await supabase
       .from("users")
       .update({
         ...updates,
+        ...slugUpdate,
         email: normalizedEmail,
         spouse_id: spouseId || null,
       })

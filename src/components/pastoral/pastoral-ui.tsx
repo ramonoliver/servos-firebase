@@ -146,8 +146,9 @@ export function PersonMini({
 }
 
 export function PersonCard({ person, cellName }: { person: PastoralPerson; cellName?: string }) {
+  const href = `/pessoas/${person.slug || person.id}`;
   return (
-    <SoftCard href={`/pessoas/${person.id}`} className="p-4">
+    <SoftCard href={href} className="p-4">
       <PersonMini person={person} />
       <div className="mt-3">
         <PersonTagList tagIds={person.tagIds} />

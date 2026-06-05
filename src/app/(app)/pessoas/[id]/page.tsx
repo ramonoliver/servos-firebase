@@ -161,6 +161,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     state: "",
     roleTitle: "",
     notes: "",
+    baptized: false,
+    inDiscipleship: false,
   });
   const [editBirthDateMask, setEditBirthDateMask] = useState("");
   const [editCepLoading, setEditCepLoading] = useState(false);
@@ -177,7 +179,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ personId: params.id }),
+          body: JSON.stringify({ personSlug: params.id }),
         }).catch(() => null),
         fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
       ]);
@@ -221,6 +223,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
 
       const p: PastoralPerson = {
         id: uData.id,
+        slug: uData.slug || undefined,
         fullName: uData.name || "",
         avatarColor: uData.avatar_color || "#F4532A",
         photoUrl: uData.photo_url || null,
@@ -309,6 +312,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
         state: "",
         roleTitle: p.roleTitle,
         notes: p.notes,
+        baptized: p.baptized,
+        inDiscipleship: p.inDiscipleship,
       });
       setEditBirthDateMask(toDateMask(p.birthDate));
     } catch (err) {
@@ -412,6 +417,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             instagram: instagram.trim(),
             address,
             notes: notes.trim(),
+            baptized: editForm.baptized,
+            in_discipleship: editForm.inDiscipleship,
           },
           selectedDepartments: person.ministryIds.map(id => ({ department_id: id, function_name: "", function_names: [] })),
         }),
@@ -882,6 +889,31 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             </div>
           </div>
 
+          {/* Vida na Igreja */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-3">Vida na Igreja</p>
+            <div className="space-y-2.5">
+              <label className="flex items-center justify-between rounded-[12px] border border-border-soft bg-surface-alt px-3 py-2.5 cursor-pointer">
+                <span className="text-[13px] font-medium text-ink">Batizado(a)</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-brand"
+                  checked={editForm.baptized}
+                  onChange={(e) => setEditForm((f) => ({ ...f, baptized: e.target.checked }))}
+                />
+              </label>
+              <label className="flex items-center justify-between rounded-[12px] border border-border-soft bg-surface-alt px-3 py-2.5 cursor-pointer">
+                <span className="text-[13px] font-medium text-ink">Em discipulado</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-brand"
+                  checked={editForm.inDiscipleship}
+                  onChange={(e) => setEditForm((f) => ({ ...f, inDiscipleship: e.target.checked }))}
+                />
+              </label>
+            </div>
+          </div>
+
           {/* Endereço */}
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-3">Endereço</p>
@@ -974,9 +1006,6 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             <textarea className="input-field min-h-[120px]" value={editForm.notes} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
           </div>
 
-          <div className="rounded-[12px] bg-brand-light px-3 py-2 text-[12px] text-brand">
-            Alteração local para validação. Ainda não salva no Supabase.
-          </div>
           <button className="btn btn-primary w-full" onClick={saveProfile}>Salvar alterações</button>
         </div>
       </ActionDrawer>

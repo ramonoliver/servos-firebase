@@ -1,8 +1,9 @@
-import nodemailer from "nodemailer";
-import {
-  buildSmsInvitePreview,
-  normalizePhoneForSms,
-} from "@/lib/invitations";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM = process.env.EMAIL_FROM || "Servos App <noreply@servosapp.com>";
+
+// ── Tipos ──────────────────────────────────────────────────────────────────
 
 type WelcomeEmailInput = {
   to: string;
@@ -10,24 +11,6 @@ type WelcomeEmailInput = {
   churchName: string;
   tempPassword: string;
   trackingPixelUrl?: string;
-};
-
-type ScheduleReminderInput = {
-  to: string;
-  memberName: string;
-  eventName: string;
-  date: string;
-  time: string;
-  departmentName: string;
-};
-
-type SmsScheduleInput = {
-  to: string;
-  memberName: string;
-  eventName: string;
-  date: string;
-  time: string;
-  departmentName: string;
 };
 
 type PasswordResetInput = {
@@ -44,6 +27,14 @@ type InviteEmailInput = {
   churchName?: string;
 };
 
+type ScheduleReminderInput = {
+  to: string;
+  memberName: string;
+  eventName: string;
+  date: string;
+  time: string;
+  departmentName: string;
+};
 
 type SupportEmailInput = {
   to: string;
@@ -54,16 +45,7 @@ type SupportEmailInput = {
   message: string;
 };
 
-function normalizeSmtpHost(value?: string) {
-  if (!value) return "smtp-relay.brevo.com";
-  return value;
-}
-
-const host = normalizeSmtpHost(process.env.BREVO_SMTP_HOST);
-const port = Number(process.env.BREVO_SMTP_PORT || 587);
-const user = process.env.BREVO_SMTP_USER;
-const pass = process.env.BREVO_SMTP_PASS;
-const from = process.env.EMAIL_FROM || "Servos <noreply@seudominio.com>";
+// ── Utilitários ────────────────────────────────────────────────────────────
 
 function escapeHtml(value: string) {
   return value
@@ -74,24 +56,30 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-function getTransporter() {
-  if (!user || !pass) {
-    throw new Error("Brevo SMTP não configurado. Defina BREVO_SMTP_USER e BREVO_SMTP_PASS.");
+// ── Envio via Resend ───────────────────────────────────────────────────────
+
+async function sendEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}) {
+  const { data, error } = await resend.emails.send({
+    from: FROM,
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+  });
+
+  if (error) {
+    throw new Error(`Resend error: ${JSON.stringify(error)}`);
   }
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    tls: {
-      servername: host,
-    },
-    auth: {
-      user,
-      pass,
-    },
-  });
+  return data;
 }
+
+// ── E-mails de boas-vindas ─────────────────────────────────────────────────
 
 export async function sendWelcomeEmail({
   to,
@@ -100,11 +88,13 @@ export async function sendWelcomeEmail({
   tempPassword,
   trackingPixelUrl,
 }: WelcomeEmailInput) {
-  const transporter = getTransporter();
   const safeMemberName = escapeHtml(memberName);
   const safeChurchName = escapeHtml(churchName);
   const safeEmail = escapeHtml(to);
   const safePassword = escapeHtml(tempPassword);
+  const trackingPixel = trackingPixelUrl
+    ? `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;" />`
+    : "";
 
   const html = `
     <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
@@ -112,7 +102,7 @@ export async function sendWelcomeEmail({
         <div style="padding:32px 32px 24px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
           <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
           <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Seu convite chegou</h1>
-          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, voce foi convidado(a) para entrar no Servos e servir com <strong>${safeChurchName}</strong>.</p>
+          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, você foi convidado(a) para entrar no Servos e servir com <strong>${safeChurchName}</strong>.</p>
         </div>
 
         <div style="padding:28px 32px 10px;">
@@ -123,43 +113,132 @@ export async function sendWelcomeEmail({
               <div style="font-size:18px;font-weight:700;line-height:1.4;">${safeEmail}</div>
             </div>
             <div style="margin-top:18px;">
-              <div style="font-size:12px;opacity:.72;margin-bottom:6px;font-family:Arial,sans-serif;">Senha temporaria</div>
+              <div style="font-size:12px;opacity:.72;margin-bottom:6px;font-family:Arial,sans-serif;">Senha temporária</div>
               <div style="display:inline-block;background:#fff7ef;color:#2f241c;padding:10px 14px;border-radius:14px;font-size:24px;font-weight:700;letter-spacing:.08em;">${safePassword}</div>
             </div>
           </div>
 
           <div style="padding:22px 2px 4px;">
             <p style="margin:0 0 10px;font-size:15px;line-height:1.8;color:#4d3a2b;">No primeiro acesso, troque sua senha para manter a conta segura.</p>
-            <p style="margin:0;font-size:15px;line-height:1.8;color:#4d3a2b;">Se voce recebeu este email por engano, basta ignorar a mensagem.</p>
+            <p style="margin:0;font-size:15px;line-height:1.8;color:#4d3a2b;">Se você recebeu este email por engano, basta ignorar a mensagem.</p>
           </div>
         </div>
 
         <div style="padding:18px 32px 28px;border-top:1px solid #eadfcd;background:#fffcf6;">
-          <p style="margin:0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,sans-serif;">Que Deus abencoe seu servir. Nos vemos no app.</p>
+          <p style="margin:0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,sans-serif;">Que Deus abençoe seu servir. Nos vemos no app.</p>
         </div>
       </div>
-      ${
-        trackingPixelUrl
-          ? `<img src="${trackingPixelUrl}" alt="" width="1" height="1" style="display:block;width:1px;height:1px;border:0;opacity:0;" />`
-          : ""
-      }
+      ${trackingPixel}
     </div>
   `;
 
-  return transporter.sendMail({
-    from,
+  return sendEmail({
     to,
     subject: `Seu acesso ao ${churchName} no Servos`,
     html,
     text: [
-      `Ola, ${memberName}!`,
-      `Voce foi convidado(a) para acessar o Servos em ${churchName}.`,
+      `Olá, ${memberName}!`,
+      `Você foi convidado(a) para acessar o Servos em ${churchName}.`,
       `Email: ${to}`,
-      `Senha temporaria: ${tempPassword}`,
+      `Senha temporária: ${tempPassword}`,
       "No primeiro acesso, altere sua senha.",
     ].join("\n"),
   });
 }
+
+// ── Redefinição de senha ───────────────────────────────────────────────────
+
+export async function sendPasswordResetEmail({
+  to,
+  memberName,
+  resetUrl,
+  churchName,
+}: PasswordResetInput) {
+  const safeMemberName = escapeHtml(memberName);
+  const safeChurchName = churchName ? escapeHtml(churchName) : "sua igreja";
+  const safeResetUrl = resetUrl; // URLs não devem ser escapadas em hrefs
+
+  const html = `
+    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
+      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
+        <div style="padding:32px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
+          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
+          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Redefina sua senha</h1>
+          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, recebemos um pedido para redefinir o seu acesso em <strong>${safeChurchName}</strong>.</p>
+        </div>
+        <div style="padding:28px 32px;">
+          <div style="background:#2f241c;border-radius:24px;padding:24px;color:#fff7ef;">
+            <div style="font-size:12px;opacity:.72;margin-bottom:10px;font-family:Arial,sans-serif;">Use o botão abaixo para criar uma nova senha com segurança.</div>
+            <a href="${safeResetUrl}" style="display:inline-block;background:#fff7ef;color:#2f241c;padding:12px 18px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;">Redefinir senha</a>
+          </div>
+          <p style="margin:18px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;">Se o botão não funcionar, copie este link no navegador:</p>
+          <p style="margin:8px 0 0;font-size:14px;line-height:1.7;color:#8a6441;word-break:break-all;">${safeResetUrl}</p>
+          <p style="margin:14px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;">Esse link expira em 7 dias. Se você não solicitou a alteração, ignore este email.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to,
+    subject: "Redefinição de senha — Servos",
+    html,
+    text: [
+      `Olá, ${memberName}!`,
+      `Recebemos um pedido para redefinir seu acesso em ${churchName || "sua igreja"}.`,
+      `Abra este link para redefinir sua senha: ${resetUrl}`,
+      "Se você não solicitou a alteração, ignore esta mensagem.",
+    ].join("\n"),
+  });
+}
+
+// ── Convite de cadastro ────────────────────────────────────────────────────
+
+export async function sendInviteEmail({
+  to,
+  memberName,
+  inviteUrl,
+  churchName,
+}: InviteEmailInput) {
+  const safeMemberName = escapeHtml(memberName);
+  const safeChurchName = churchName ? escapeHtml(churchName) : "sua igreja";
+
+  const html = `
+    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
+      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
+        <div style="padding:32px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
+          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
+          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Seu cadastro está pronto</h1>
+          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, você foi convidado(a) a se cadastrar no Servos para servir com a equipe de <strong>${safeChurchName}</strong>.</p>
+        </div>
+        <div style="padding:28px 32px;">
+          <div style="background:#2f241c;border-radius:24px;padding:24px;color:#fff7ef;text-align:center;">
+            <div style="font-size:14px;opacity:.85;margin-bottom:18px;font-family:Arial,sans-serif;line-height:1.5;">Clique no botão abaixo para concluir seu cadastro e escolher a sua senha de acesso.</div>
+            <a href="${inviteUrl}" style="display:inline-block;background:#fff7ef;color:#2f241c;padding:14px 28px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">Concluir Cadastro</a>
+          </div>
+          <p style="margin:24px 0 0;font-size:14px;line-height:1.8;color:#4d3a2b;">Se o botão não funcionar, copie e cole o link abaixo no seu navegador:</p>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#8a6441;word-break:break-all;">${inviteUrl}</p>
+          <p style="margin:20px 0 0;font-size:13px;line-height:1.8;color:#8a6441;font-family:Arial,sans-serif;opacity:.8;">Este link de cadastro expira em 7 dias. Se você não esperava este convite, desconsidere esta mensagem.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to,
+    subject: `Convite para se cadastrar no Servos — ${churchName || "sua igreja"}`,
+    html,
+    text: [
+      `Olá, ${memberName}!`,
+      `Você foi convidado(a) a se cadastrar no Servos para servir com a equipe de ${churchName || "sua igreja"}.`,
+      `Clique no link abaixo para concluir o seu cadastro e definir sua senha de acesso:`,
+      `${inviteUrl}`,
+      `Se você não solicitou este acesso, ignore esta mensagem.`,
+    ].join("\n"),
+  });
+}
+
+// ── Lembrete de escala ─────────────────────────────────────────────────────
 
 export async function sendScheduleReminderEmail({
   to,
@@ -169,8 +248,6 @@ export async function sendScheduleReminderEmail({
   time,
   departmentName,
 }: ScheduleReminderInput) {
-  const transporter = getTransporter();
-
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
       <h2>Lembrete de Escala</h2>
@@ -187,18 +264,68 @@ export async function sendScheduleReminderEmail({
     </div>
   `;
 
-  return transporter.sendMail({
-    from,
+  return sendEmail({ to, subject: "Lembrete de escala — Servos", html });
+}
+
+// ── E-mail de suporte ──────────────────────────────────────────────────────
+
+export async function sendSupportEmail({
+  to,
+  userName,
+  churchName,
+  userEmail,
+  subject,
+  message,
+}: SupportEmailInput) {
+  const safeUserName = escapeHtml(userName);
+  const safeChurchName = escapeHtml(churchName);
+  const safeUserEmail = escapeHtml(userEmail);
+  const safeSubject = escapeHtml(subject);
+  const safeMessage = escapeHtml(message);
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+      <h2>Nova mensagem de suporte — Servos</h2>
+      <p><strong>Usuário:</strong> ${safeUserName}</p>
+      <p><strong>Email:</strong> ${safeUserEmail}</p>
+      <p><strong>Igreja:</strong> ${safeChurchName}</p>
+      <p><strong>Assunto:</strong> ${safeSubject}</p>
+      <div style="background:#f3f4f6;padding:16px;border-radius:12px;margin:16px 0;">
+        <p style="margin:0;"><strong>Mensagem:</strong></p>
+        <p style="margin:8px 0 0;white-space:pre-wrap;">${safeMessage}</p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
     to,
-    subject: "Lembrete de escala - Servos",
+    subject: `Suporte — ${subject} — ${userName} (${churchName})`,
     html,
   });
 }
 
-async function sendSmsMessage(params: {
+// ── SMS (Twilio) ───────────────────────────────────────────────────────────
+
+import { buildSmsInvitePreview, normalizePhoneForSms } from "@/lib/invitations";
+
+type SmsInviteInput = {
   to: string;
-  body: string;
-}) {
+  memberName: string;
+  churchName: string;
+  tempPassword: string;
+  email: string;
+};
+
+type SmsScheduleInput = {
+  to: string;
+  memberName: string;
+  eventName: string;
+  date: string;
+  time: string;
+  departmentName: string;
+};
+
+async function sendSmsMessage(params: { to: string; body: string }) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_SMS_FROM;
@@ -211,7 +338,7 @@ async function sendSmsMessage(params: {
   if (!accountSid || !authToken || !fromNumber) {
     return {
       status: "skipped" as const,
-      error: "SMS nao configurado. Defina TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_SMS_FROM.",
+      error: "SMS não configurado. Defina TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_SMS_FROM.",
     };
   }
 
@@ -221,127 +348,25 @@ async function sendSmsMessage(params: {
     Body: params.body,
   });
 
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: body.toString(),
-  });
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    return {
-      status: "failed" as const,
-      error: errorText || "Falha ao enviar SMS.",
-    };
+    return { status: "failed" as const, error: errorText || "Falha ao enviar SMS." };
   }
 
   return { status: "sent" as const, error: null };
 }
-
-export async function sendPasswordResetEmail({
-  to,
-  memberName,
-  resetUrl,
-  churchName,
-}: PasswordResetInput) {
-  const transporter = getTransporter();
-  const safeMemberName = escapeHtml(memberName);
-  const safeChurchName = churchName ? escapeHtml(churchName) : "sua igreja";
-  const safeResetUrl = escapeHtml(resetUrl);
-
-  const html = `
-    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
-      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
-        <div style="padding:32px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
-          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
-          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Redefina sua senha</h1>
-          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, recebemos um pedido para redefinir o seu acesso em <strong>${safeChurchName}</strong>.</p>
-        </div>
-        <div style="padding:28px 32px;">
-          <div style="background:#2f241c;border-radius:24px;padding:24px;color:#fff7ef;">
-            <div style="font-size:12px;opacity:.72;margin-bottom:10px;font-family:Arial,sans-serif;">Use o botao abaixo para criar uma nova senha com seguranca.</div>
-            <a href="${safeResetUrl}" style="display:inline-block;background:#fff7ef;color:#2f241c;padding:12px 18px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;">Redefinir senha</a>
-          </div>
-          <p style="margin:18px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;">Se o botao nao funcionar, copie este link no navegador:</p>
-          <p style="margin:8px 0 0;font-size:14px;line-height:1.7;color:#8a6441;word-break:break-all;">${safeResetUrl}</p>
-          <p style="margin:14px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;">Esse link expira em pouco tempo. Se voce nao solicitou a alteracao, ignore este email.</p>
-        </div>
-      </div>
-    </div>
-  `;
-
-  return transporter.sendMail({
-    from,
-    to,
-    subject: "Redefinicao de senha - Servos",
-    html,
-    text: [
-      `Ola, ${memberName}!`,
-      `Recebemos um pedido para redefinir seu acesso em ${churchName || "sua igreja"}.`,
-      `Abra este link para redefinir sua senha: ${resetUrl}`,
-      "Se voce nao solicitou a alteracao, ignore esta mensagem.",
-    ].join("\n"),
-  });
-}
-
-export async function sendInviteEmail({
-  to,
-  memberName,
-  inviteUrl,
-  churchName,
-}: InviteEmailInput) {
-  const transporter = getTransporter();
-  const safeMemberName = escapeHtml(memberName);
-  const safeChurchName = churchName ? escapeHtml(churchName) : "sua igreja";
-  const safeInviteUrl = escapeHtml(inviteUrl);
-
-  const html = `
-    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
-      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
-        <div style="padding:32px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
-          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
-          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Seu cadastro esta pronto</h1>
-          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, voce foi convidado(a) a se cadastrar no Servos para servir com a equipe de <strong>${safeChurchName}</strong>.</p>
-        </div>
-        <div style="padding:28px 32px;">
-          <div style="background:#2f241c;border-radius:24px;padding:24px;color:#fff7ef;text-align:center;">
-            <div style="font-size:14px;opacity:.85;margin-bottom:18px;font-family:Arial,sans-serif;line-height:1.5;">Clique no botao abaixo para concluir seu cadastro e escolher a sua senha de acesso.</div>
-            <a href="${safeInviteUrl}" style="display:inline-block;background:#fff7ef;color:#2f241c;padding:14px 28px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">Concluir Cadastro</a>
-          </div>
-          <p style="margin:24px 0 0;font-size:14px;line-height:1.8;color:#4d3a2b;">Se o botao nao funcionar, copie e cole o link abaixo no seu navegador:</p>
-          <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#8a6441;word-break:break-all;">${safeInviteUrl}</p>
-          <p style="margin:20px 0 0;font-size:13px;line-height:1.8;color:#8a6441;font-family:Arial,sans-serif;opacity:.8;">Este link de cadastro expira em 7 dias. Se voce nao esperava este convite, desconsidere esta mensagem.</p>
-        </div>
-      </div>
-    </div>
-  `;
-
-  return transporter.sendMail({
-    from,
-    to,
-    subject: `Convite para se cadastrar no Servos - ${churchName || "sua igreja"}`,
-    html,
-    text: [
-      `Ola, ${memberName}!`,
-      `Voce foi convidado(a) a se cadastrar no Servos para servir com a equipe de ${churchName || "sua igreja"}.`,
-      `Clique no link abaixo para concluir o seu cadastro e definir sua senha de acesso:`,
-      `${inviteUrl}`,
-      `Se voce nao solicitou este acesso, ignore esta mensagem.`,
-    ].join("\n"),
-  });
-}
-
-
-type SmsInviteInput = {
-  to: string;
-  memberName: string;
-  churchName: string;
-  tempPassword: string;
-  email: string;
-};
 
 export async function sendSmsInvite({
   to,
@@ -352,12 +377,7 @@ export async function sendSmsInvite({
 }: SmsInviteInput): Promise<{ status: "sent" | "failed" | "skipped"; error: string | null }> {
   return sendSmsMessage({
     to,
-    body: buildSmsInvitePreview({
-      memberName,
-      churchName,
-      email,
-      tempPassword,
-    }),
+    body: buildSmsInvitePreview({ memberName, churchName, email, tempPassword }),
   });
 }
 
@@ -396,42 +416,5 @@ export async function sendSmsScheduleReminder({
       `Ministério: ${departmentName}.`,
       "Se ainda não respondeu, confirme no app.",
     ].join("\n"),
-  });
-}
-
-export async function sendSupportEmail({
-  to,
-  userName,
-  churchName,
-  userEmail,
-  subject,
-  message,
-}: SupportEmailInput) {
-  const transporter = getTransporter();
-  const safeUserName = escapeHtml(userName);
-  const safeChurchName = escapeHtml(churchName);
-  const safeUserEmail = escapeHtml(userEmail);
-  const safeSubject = escapeHtml(subject);
-  const safeMessage = escapeHtml(message);
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
-      <h2>Nova mensagem de suporte - Servos</h2>
-      <p><strong>Usuário:</strong> ${safeUserName}</p>
-      <p><strong>Email:</strong> ${safeUserEmail}</p>
-      <p><strong>Igreja:</strong> ${safeChurchName}</p>
-      <p><strong>Assunto:</strong> ${safeSubject}</p>
-      <div style="background:#f3f4f6;padding:16px;border-radius:12px;margin:16px 0;">
-        <p style="margin:0;"><strong>Mensagem:</strong></p>
-        <p style="margin:8px 0 0;white-space:pre-wrap;">${safeMessage}</p>
-      </div>
-    </div>
-  `;
-
-  return transporter.sendMail({
-    from,
-    to,
-    subject: `Suporte - ${subject} - ${userName} (${churchName})`,
-    html,
   });
 }
