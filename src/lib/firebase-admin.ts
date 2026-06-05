@@ -174,6 +174,11 @@ class AdminQueryBuilder {
 
   update(data: any) {
     this.writePromise = (async () => {
+      // Espera um microtask para que os filtros encadeados (.eq/.neq, aplicados
+      // DEPOIS de .update() no padrão fluente) já estejam em this.filters antes
+      // de fetchDocs() lê-los. Sem isso, o update rodava sobre a coleção inteira
+      // (filtros ainda vazios), sobrescrevendo TODOS os documentos.
+      await Promise.resolve();
       const prepared = prepareDocumentForWrite(data, true);
       const queryResults = await this.fetchDocs();
       for (const docData of queryResults) {
@@ -187,6 +192,9 @@ class AdminQueryBuilder {
 
   delete() {
     this.writePromise = (async () => {
+      // Mesmo motivo do update(): aguardar os filtros encadeados antes de
+      // fetchDocs(), senão o delete apagaria a coleção inteira.
+      await Promise.resolve();
       const queryResults = await this.fetchDocs();
       for (const docData of queryResults) {
         const docRef = adminDb.collection(this.collectionName).doc(docData.id);
