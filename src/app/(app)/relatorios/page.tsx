@@ -6,7 +6,7 @@ import { useApp } from "@/hooks/use-app";
 import { Avatar, PageShell, PageHeader } from "@/components/ui";
 import { supabase } from "@/lib/firebase";
 import { careCases, pastoralCells, prayerRequests } from "@/lib/pastoral/mock-data";
-import { getHealthAverage } from "@/lib/pastoral/selectors";
+import { getHealthAverage, registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
 import type { DepartmentMember, Event, Schedule, ScheduleMember, ScheduleSlot, User } from "@/types";
 
 type IconName = "calendar" | "chart" | "check" | "heart" | "home" | "target" | "users";
@@ -27,73 +27,88 @@ export default function RelatoriosPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [allSM, setAllSM] = useState<ScheduleMember[]>([]);
   const [allSlots, setAllSlots] = useState<ScheduleSlot[]>([]);
+  const [dbCells, setDbCells] = useState<any[]>([]);
+  const [dbNotes, setDbNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
-      setLoading(true);
+      try {
+        setLoading(true);
 
-      const [
-        { data: usersData, error: usersError },
-        { data: schedulesData, error: schedulesError },
-        { data: departmentMembersData, error: departmentMembersError },
-      ] = await Promise.all([
-        supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
-        supabase.from("schedules").select("*").eq("church_id", user.church_id),
-        departments.length
-          ? supabase.from("department_members").select("*").in("department_id", visibleDepartmentIds)
-          : Promise.resolve({ data: [], error: null }),
-      ]);
+        const [
+          { data: usersData, error: usersError },
+          { data: schedulesData, error: schedulesError },
+          { data: departmentMembersData, error: departmentMembersError },
+          { data: cellsData, error: cellsError },
+          { data: notesData, error: notesError },
+        ] = await Promise.all([
+          supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
+          supabase.from("schedules").select("*").eq("church_id", user.church_id),
+          departments.length
+            ? supabase.from("department_members").select("*").in("department_id", visibleDepartmentIds)
+            : Promise.resolve({ data: [], error: null }),
+          supabase.from("cells").select("*").eq("church_id", user.church_id),
+          supabase.from("pastoral_notes").select("*").eq("church_id", user.church_id),
+        ]);
 
-      if (usersError || schedulesError || departmentMembersError) {
-        console.error({ usersError, schedulesError, departmentMembersError });
+        if (usersError) console.error("usersError:", usersError);
+        if (schedulesError) console.error("schedulesError:", schedulesError);
+        if (departmentMembersError) console.error("departmentMembersError:", departmentMembersError);
+        if (cellsError) console.error("cellsError:", cellsError);
+        if (notesError) console.error("notesError:", notesError);
+
+        setDbCells(cellsData || []);
+        setDbNotes(notesData || []);
+
+        registerPeopleInCache(usersData || []);
+        registerCellsInCache(cellsData || []);
+
+        const allSchedules = (schedulesData || []) as Schedule[];
+        const scopedDepartmentIds = new Set(visibleDepartmentIds);
+        const scopedSchedules =
+          user.role === "admin"
+            ? allSchedules
+            : allSchedules.filter((schedule) => scopedDepartmentIds.has(schedule.department_id));
+        const scopedScheduleIds = scopedSchedules.map((schedule) => schedule.id);
+        const scopedEventIds = [...new Set(scopedSchedules.map((schedule) => schedule.event_id))];
+        const scopedMembers =
+          user.role === "admin"
+            ? ((usersData || []) as User[])
+            : ((usersData || []) as User[]).filter((member) =>
+                ((departmentMembersData || []) as DepartmentMember[]).some(
+                  (link) => link.user_id === member.id && scopedDepartmentIds.has(link.department_id)
+                )
+              );
+
+        const [
+          { data: smData, error: smError },
+          { data: slotsData, error: slotsError },
+          { data: eventsData, error: eventsError },
+        ] = scopedScheduleIds.length
+          ? await Promise.all([
+              supabase.from("schedule_members").select("*").in("schedule_id", scopedScheduleIds),
+              supabase.from("schedule_slots").select("*").in("schedule_id", scopedScheduleIds),
+              scopedEventIds.length
+                ? supabase.from("events").select("*").in("id", scopedEventIds)
+                : Promise.resolve({ data: [], error: null }),
+            ])
+          : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+
+        if (smError) console.error("smError:", smError);
+        if (slotsError) console.error("slotsError:", slotsError);
+        if (eventsError) console.error("eventsError:", eventsError);
+
+        setMembers(scopedMembers);
+        setSchedules(scopedSchedules);
+        setEvents((eventsData || []) as Event[]);
+        setAllSM((smData || []) as ScheduleMember[]);
+        setAllSlots((slotsData || []) as ScheduleSlot[]);
+      } catch (err) {
+        console.error("Critical error inside reports loadData:", err);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const allSchedules = (schedulesData || []) as Schedule[];
-      const scopedDepartmentIds = new Set(visibleDepartmentIds);
-      const scopedSchedules =
-        user.role === "admin"
-          ? allSchedules
-          : allSchedules.filter((schedule) => scopedDepartmentIds.has(schedule.department_id));
-      const scopedScheduleIds = scopedSchedules.map((schedule) => schedule.id);
-      const scopedEventIds = [...new Set(scopedSchedules.map((schedule) => schedule.event_id))];
-      const scopedMembers =
-        user.role === "admin"
-          ? ((usersData || []) as User[])
-          : ((usersData || []) as User[]).filter((member) =>
-              ((departmentMembersData || []) as DepartmentMember[]).some(
-                (link) => link.user_id === member.id && scopedDepartmentIds.has(link.department_id)
-              )
-            );
-
-      const [
-        { data: smData, error: smError },
-        { data: slotsData, error: slotsError },
-        { data: eventsData, error: eventsError },
-      ] = scopedScheduleIds.length
-        ? await Promise.all([
-            supabase.from("schedule_members").select("*").in("schedule_id", scopedScheduleIds),
-            supabase.from("schedule_slots").select("*").in("schedule_id", scopedScheduleIds),
-            scopedEventIds.length
-              ? supabase.from("events").select("*").in("id", scopedEventIds)
-              : Promise.resolve({ data: [], error: null }),
-          ])
-        : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
-
-      if (smError || slotsError || eventsError) {
-        console.error({ smError, slotsError, eventsError });
-        setLoading(false);
-        return;
-      }
-
-      setMembers(scopedMembers);
-      setSchedules(scopedSchedules);
-      setEvents((eventsData || []) as Event[]);
-      setAllSM((smData || []) as ScheduleMember[]);
-      setAllSlots((slotsData || []) as ScheduleSlot[]);
-      setLoading(false);
     }
 
     void loadData();
@@ -215,25 +230,41 @@ export default function RelatoriosPage() {
     [members, sixtyDaysAgoIso]
   );
 
-  const peopleInCare = useMemo(() => careCases.filter((care) => care.status !== "finished").length, []);
-  const openPrayers = useMemo(
-    () => prayerRequests.filter((request) => request.status === "open").length,
-    []
-  );
+  const peopleInCare = useMemo(() => {
+    return dbNotes.filter((n) => n.type === "care_case").length;
+  }, [dbNotes]);
 
-  const cellsToday = useMemo(
-    () => pastoralCells.filter((cell) => weekDay.startsWith(cell.weekDay.slice(0, 3).toLowerCase())),
-    [weekDay]
-  );
+  const openPrayers = useMemo(() => {
+    return dbNotes.filter((n) => n.type === "prayer_request").length;
+  }, [dbNotes]);
+
+  const cellsToday = useMemo(() => {
+    return dbCells.filter((cell) => {
+      const dayName = String(cell.week_day || "").toLowerCase();
+      return weekDay.startsWith(dayName.slice(0, 3));
+    });
+  }, [dbCells, weekDay]);
 
   const cellHealth = useMemo(
     () =>
-      pastoralCells.map((cell) => ({
-        id: cell.id,
-        name: cell.name,
-        score: getHealthAverage(cell.health),
-      })),
-    []
+      dbCells.map((cell) => {
+        let healthObj = { frequency: 70, communion: 70, participation: 70, growth: 70, engagement: 70, care: 70 };
+        try {
+          if (typeof cell.health === "object" && cell.health !== null) {
+            healthObj = { ...healthObj, ...cell.health };
+          } else if (typeof cell.health === "string") {
+            healthObj = { ...healthObj, ...JSON.parse(cell.health) };
+          }
+        } catch (e) {
+          console.error("Erro ao fazer parse do health da celula:", e);
+        }
+        return {
+          id: cell.id,
+          name: cell.name,
+          score: getHealthAverage(healthObj),
+        };
+      }),
+    [dbCells]
   );
 
   const cellsNeedCare = useMemo(
@@ -361,7 +392,7 @@ export default function RelatoriosPage() {
           action="Abrir Células"
         >
           <div className="grid gap-3 sm:grid-cols-3">
-            <MetricBox label="Ativas" value={pastoralCells.length} />
+            <MetricBox label="Ativas" value={dbCells.length} />
             <MetricBox label="Hoje" value={cellsToday.length} tone="visitor" />
             <MetricBox label="Precisam cuidado" value={cellsNeedCare} tone="coral" />
           </div>

@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
 import { supabase } from "@/lib/firebase";
 import { getGreeting } from "@/lib/utils/helpers";
-import { getPerson } from "@/lib/pastoral/selectors";
+import { getPerson, registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
 import {
-  careCases,
-  pastoralCells,
-  prayerRequests,
-  timelineEvents,
+  careCases as mockCareCases,
+  pastoralCells as mockPastoralCells,
+  prayerRequests as mockPrayerRequests,
+  timelineEvents as mockTimelineEvents,
 } from "@/lib/pastoral/mock-data";
 import {
   DashboardV3Home,
@@ -84,6 +84,7 @@ export default function DashboardV3Page() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
   const [cellMembers, setCellMembers] = useState<CellMemberRow[]>([]);
+  const [pastoralNotes, setPastoralNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const visibleDepartmentIds = useMemo(() => departments.map((department) => department.id), [departments]);
@@ -92,57 +93,79 @@ export default function DashboardV3Page() {
     let cancelled = false;
 
     async function loadData() {
-      setLoading(true);
-      const [
-        { data: membersData },
-        { data: schedulesData },
-        { data: eventsData },
-        { data: notificationsData },
-        { data: departmentMembersData },
-        cellsResponse,
-      ] = await Promise.all([
-        supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
-        supabase.from("schedules").select("*").eq("church_id", user.church_id).neq("status", "cancelled"),
-        supabase.from("events").select("*").eq("church_id", user.church_id),
-        supabase.from("notifications").select("*").eq("user_id", user.id).eq("read", false).limit(8),
-        departments.length
-          ? supabase.from("department_members").select("*").in("department_id", visibleDepartmentIds)
-          : Promise.resolve({ data: [], error: null }),
-        fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
-      ]);
+      try {
+        setLoading(true);
+        const [
+          { data: membersData, error: membersError },
+          { data: schedulesData, error: schedulesError },
+          { data: eventsData, error: eventsError },
+          { data: notificationsData, error: notificationsError },
+          { data: departmentMembersData, error: departmentMembersError },
+          { data: notesData, error: notesError },
+          cellsResponse,
+        ] = await Promise.all([
+          supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
+          supabase.from("schedules").select("*").eq("church_id", user.church_id).neq("status", "cancelled"),
+          supabase.from("events").select("*").eq("church_id", user.church_id),
+          supabase.from("notifications").select("*").eq("user_id", user.id).eq("read", false).limit(8),
+          departments.length
+            ? supabase.from("department_members").select("*").in("department_id", visibleDepartmentIds)
+            : Promise.resolve({ data: [], error: null }),
+          supabase.from("pastoral_notes").select("*").eq("church_id", user.church_id),
+          fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
+        ]);
 
-      const allSchedules = (schedulesData || []) as Schedule[];
-      const scheduleIds = allSchedules.map((schedule) => schedule.id);
-      const { data: smData } = scheduleIds.length
-        ? await supabase.from("schedule_members").select("*").in("schedule_id", scheduleIds)
-        : { data: [] };
+        if (membersError) console.error("loadData users query error:", membersError);
+        if (schedulesError) console.error("loadData schedules query error:", schedulesError);
+        if (eventsError) console.error("loadData events query error:", eventsError);
+        if (notificationsError) console.error("loadData notifications query error:", notificationsError);
+        if (departmentMembersError) console.error("loadData department_members query error:", departmentMembersError);
+        if (notesError) console.error("loadData notes query error:", notesError);
 
-      if (cancelled) return;
+        const allSchedules = (schedulesData || []) as Schedule[];
+        const scheduleIds = allSchedules.map((schedule) => schedule.id);
+        const { data: smData, error: smError } = scheduleIds.length
+          ? await supabase.from("schedule_members").select("*").in("schedule_id", scheduleIds)
+          : { data: [], error: null };
 
-      const scopedDepartmentIds = new Set(visibleDepartmentIds);
-      const scopedSchedules =
-        user.role === "admin"
-          ? allSchedules
-          : allSchedules.filter((schedule) => scopedDepartmentIds.has(schedule.department_id));
-      const scopedScheduleIds = new Set(scopedSchedules.map((schedule) => schedule.id));
-      const scopedMembers =
-        user.role === "admin"
-          ? ((membersData || []) as User[])
-          : ((membersData || []) as User[]).filter((member) =>
-              ((departmentMembersData || []) as Array<{ user_id: string; department_id: string }>).some(
-                (link) => link.user_id === member.id && scopedDepartmentIds.has(link.department_id)
-              )
-            );
+        if (smError) console.error("loadData schedule_members query error:", smError);
 
-      setMembers(scopedMembers);
-      setSchedules(scopedSchedules);
-      setScheduleMembers(((smData || []) as ScheduleMember[]).filter((sm) => scopedScheduleIds.has(sm.schedule_id)));
-      setEvents((eventsData || []) as Event[]);
-      setNotifications((notificationsData || []) as Notification[]);
-      const cellsPayload = cellsResponse ? await cellsResponse.json().catch(() => null) : null;
-      setCells((cellsPayload?.cells || []) as Cell[]);
-      setCellMembers((cellsPayload?.cellMembers || []) as CellMemberRow[]);
-      setLoading(false);
+        if (cancelled) return;
+
+        const scopedDepartmentIds = new Set(visibleDepartmentIds);
+        const scopedSchedules =
+          user.role === "admin"
+            ? allSchedules
+            : allSchedules.filter((schedule) => scopedDepartmentIds.has(schedule.department_id));
+        const scopedScheduleIds = new Set(scopedSchedules.map((schedule) => schedule.id));
+        const scopedMembers =
+          user.role === "admin"
+            ? ((membersData || []) as User[])
+            : ((membersData || []) as User[]).filter((member) =>
+                ((departmentMembersData || []) as Array<{ user_id: string; department_id: string }>).some(
+                  (link) => link.user_id === member.id && scopedDepartmentIds.has(link.department_id)
+                )
+              );
+
+        setMembers(scopedMembers);
+        setSchedules(scopedSchedules);
+        setScheduleMembers(((smData || []) as ScheduleMember[]).filter((sm) => scopedScheduleIds.has(sm.schedule_id)));
+        setEvents((eventsData || []) as Event[]);
+        setNotifications((notificationsData || []) as Notification[]);
+        const cellsPayload = cellsResponse ? await cellsResponse.json().catch(() => null) : null;
+        const cellsList = (cellsPayload?.cells || []) as Cell[];
+        setCells(cellsList);
+        setCellMembers((cellsPayload?.cellMembers || []) as CellMemberRow[]);
+        setPastoralNotes(notesData || []);
+
+        // Register database objects in selector cache
+        registerPeopleInCache(membersData || []);
+        registerCellsInCache(cellsList);
+      } catch (err) {
+        console.error("Critical error inside loadData:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
     void loadData();
@@ -185,13 +208,16 @@ export default function DashboardV3Page() {
       .map((sm) => upcomingSchedules.find((schedule) => schedule.id === sm.schedule_id))
       .filter(Boolean) as Schedule[];
     const nextMemberSchedule = myUpcoming[0] || upcomingSchedules[0];
-    const todaysCells = pastoralCells.filter((cell) => {
+
+    const todaysCells = cells.filter((cell) => {
       const weekday = today.toLocaleDateString("pt-BR", { weekday: "long" }).toLowerCase();
-      return weekday.startsWith(cell.weekDay.slice(0, 3).toLowerCase());
+      return weekday.startsWith((cell.week_day || "").slice(0, 3).toLowerCase());
     });
-    const activePrayerRequests = prayerRequests.filter((request) => request.status === "open");
-    const visitorsWithoutCare = 1;
-    const openCareCount = careCases.filter((care) => care.status !== "finished").length;
+    const dbPrayerRequests = pastoralNotes.filter((n) => n.type === "prayer_request");
+    const activePrayerRequests = dbPrayerRequests.filter((request) => request.status !== "resolved");
+    const visitorsWithoutCare = members.filter((m) => m.role === "member" && !m.cell_id).length;
+    const dbCareCases = pastoralNotes.filter((n) => n.type === "care_case");
+    const openCareCount = dbCareCases.length;
 
     const heroTitle =
       profileMode === "connect"
@@ -239,7 +265,7 @@ export default function DashboardV3Page() {
           },
           {
             label: "Células acontecendo",
-            value: Math.max(todaysCells.length, 2),
+            value: Math.max(todaysCells.length, cells.length),
             description: "encontros ativos ou próximos nesta semana.",
             href: "/celulas",
             action: "Ver células",
@@ -277,8 +303,8 @@ export default function DashboardV3Page() {
           },
           {
             label: "Minha célula",
-            value: pastoralCells[0]?.time || "20:00",
-            description: pastoralCells[0]?.name || "encontro da semana.",
+            value: myCell?.time || "20:00",
+            description: myCell?.name || "Sem célula vinculada.",
             href: "/celulas",
             action: "Abrir célula",
             icon: "home",
@@ -295,53 +321,57 @@ export default function DashboardV3Page() {
           },
         ];
 
-    const priorityItems: PriorityListItem[] = [
-      {
-        title: "Confirmar escala do Louvor",
-        meta: "Ainda faltam respostas para domingo",
+    const priorityItems: PriorityListItem[] = [];
+    if (pendingConfirmations > 0) {
+      priorityItems.push({
+        title: "Confirmar escalas pendentes",
+        meta: `${pendingConfirmations} voluntários ainda não responderam.`,
         badge: "Escalas",
         href: "/escalas",
         icon: "check",
-      },
-      {
-        title: "Entrar em contato com Elisa",
-        meta: "Visitante recorrente sem célula",
+      });
+    }
+    const driftPeople = members.filter((m) => !m.last_served_at).slice(0, 2);
+    driftPeople.forEach((m) => {
+      priorityItems.push({
+        title: `Entrar em contato com ${m.name.split(" ")[0]}`,
+        meta: "Sem escala ou participação recente registrada.",
         badge: "Cuidado",
-        href: "/pessoas",
+        href: `/pessoas/${m.id}`,
         icon: "heart",
-      },
-      {
-        title: "Aprovar visitantes",
-        meta: "Novas pessoas aguardando acolhimento",
-        badge: "Pessoas",
-        href: "/pessoas",
-        icon: "users",
-      },
-      {
-        title: "Revisar célula Jovens Norte",
-        meta: "Encontro com novos participantes",
+      });
+    });
+    const cellWithoutReports = cells.slice(0, 2);
+    cellWithoutReports.forEach((c) => {
+      priorityItems.push({
+        title: `Revisar célula ${c.name}`,
+        meta: "Verificar relatórios de reuniões e frequência.",
         badge: "Células",
-        href: "/celulas",
+        href: `/celulas/${c.id}`,
         icon: "calendar",
-      },
-      {
-        title: "Fechar escala de produção",
-        meta: "Publicação pendente para os voluntários",
-        badge: "Hoje",
-        href: "/escalas",
-        icon: "settings",
-      },
-    ];
+      });
+    });
+    if (priorityItems.length === 0) {
+      priorityItems.push({
+        title: "Tudo em dia!",
+        meta: "Nenhuma pendência crítica identificada.",
+        badge: "Status",
+        href: "/dashboard",
+        icon: "check",
+      });
+    }
 
+    const dbTimeline = pastoralNotes.filter((n) => n.type !== "care_case" && n.type !== "prayer_request");
     const timeline: TimelineItem[] = [
-      ...timelineEvents.slice(0, 4).map((event) => {
-        const person = getPerson(event.personId);
+      ...dbTimeline.slice(0, 4).map((event) => {
+        const person = members.find((m) => m.id === event.person_id);
+        const tone: TimelineItem["tone"] = event.type === "alert" ? "coral" : "visitor";
         return {
-          title: person ? `${person.fullName.split(" ")[0]}: ${event.title.toLowerCase()}` : event.title,
+          title: person ? `${person.name.split(" ")[0]}: ${event.title.toLowerCase()}` : event.title,
           meta: event.description,
-          time: formatRelative(event.date),
-          tone: timelineTone(event.tone),
-          icon: event.type === "schedule_confirmed" ? "check" : event.type === "visit" ? "users" : event.type === "absence" ? "heart" : "spark",
+          time: formatRelative(event.date || event.created_at),
+          tone,
+          icon: event.type === "visit" ? "users" : event.type === "absence" ? "heart" : "spark",
         } satisfies TimelineItem;
       }),
       ...notifications.slice(0, 1).map((notification) => ({
@@ -387,11 +417,11 @@ export default function DashboardV3Page() {
             icon: "home" as const,
           }]
         : []
-      : pastoralCells.slice(0, Math.max(0, 3 - upcomingFromSchedules.length)).map((cell) => ({
+      : cells.slice(0, Math.max(0, 3 - upcomingFromSchedules.length)).map((cell) => ({
           title: cell.name,
-          meta: cell.audience,
-          time: `${cell.weekDay} · ${cell.time}`,
-          location: cell.address,
+          meta: cell.audience || "Célula",
+          time: `${cell.week_day} · ${cell.time}`,
+          location: cell.address || "Local a confirmar",
           badge: "Célula",
           href: `/celulas/${cell.id}`,
           icon: "home" as const,
@@ -416,33 +446,23 @@ export default function DashboardV3Page() {
       ...upcomingFromEvents,
     ].slice(0, 6);
 
-    const carePeople: CarePerson[] = careCases.map((care) => {
-      const person = getPerson(care.personId);
-      const badgeMap: Record<string, string> = {
-        "care-ana": "Participação baixa",
-        "care-elisa": "Atenção pastoral",
-        "care-joao": "3 faltas seguidas",
-      };
-      const lastPresenceMap: Record<string, string> = {
-        "care-ana": "há 18 dias",
-        "care-elisa": "25/05/2025",
-        "care-joao": "18/05/2025",
-      };
+    const carePeople: CarePerson[] = dbCareCases.map((care) => {
+      const person = members.find((m) => m.id === care.person_id);
       return {
         id: care.id,
-        name: person?.fullName || care.title,
-        reason: care.reason,
-        lastPresence: lastPresenceMap[care.id] ?? (person?.lastContactAt ? formatShortDate(person.lastContactAt) : "sem contato recente"),
-        badge: badgeMap[care.id] ?? (care.priority === "high" ? "Atenção pastoral" : "Participação baixa"),
-        avatarColor: person?.avatarColor || "#F4532A",
-        photoUrl: person?.photoUrl || null,
+        name: person?.name || care.title,
+        reason: care.description || care.title,
+        lastPresence: person?.last_served_at ? formatShortDate(person.last_served_at) : "sem contato recente",
+        badge: "Atenção pastoral",
+        avatarColor: person?.avatar_color || "#F4532A",
+        photoUrl: person?.photo_url || null,
       };
     });
 
     const insights: Insight[] = [
-      { value: "+18%", label: "Crescimento geral", description: "vs. semana passada", trend: [3, 5, 4, 6, 7, 8, 9, 11], icon: "spark" },
-      { value: "7", label: "Novos visitantes", description: "esta semana", trend: [2, 4, 3, 5, 4, 6, 5, 7], icon: "users" },
-      { value: "4", label: "Pessoas reconectadas", description: "esta semana", trend: [1, 1, 2, 1, 3, 2, 3, 4], icon: "heart" },
+      { value: String(members.length), label: "Membros ativos", description: "na base da igreja", trend: [3, 5, 4, 6, 7, 8, 9, 11], icon: "users" },
+      { value: String(cells.length), label: "Células ativas", description: "esta semana", trend: [2, 4, 3, 5, 4, 6, 5, 7], icon: "home" },
+      { value: String(openCareCount), label: "Acompanhamentos", description: "em andamento", trend: [1, 1, 2, 1, 3, 2, 3, 4], icon: "heart" },
       { value: "92%", label: "Presença média", description: "geral", trend: [87, 89, 88, 91, 90, 92, 91, 92], icon: "clock" },
     ];
 
@@ -480,11 +500,11 @@ export default function DashboardV3Page() {
       : undefined;
 
     const prayers: PrayerRequestCardData[] = activePrayerRequests.slice(0, 2).map((request) => {
-      const person = getPerson(request.personId);
+      const person = members.find((m) => m.id === request.person_id);
       return {
         title: request.title,
         description: request.description,
-        person: person?.fullName || "Pedido compartilhado",
+        person: person?.name || "Pedido compartilhado",
         href: "/pedidos-oracao",
       };
     });
@@ -543,7 +563,7 @@ export default function DashboardV3Page() {
       quickActions,
       notices,
     };
-  }, [cellMembers, cells, church.name, departments, events, members, notifications, scheduleMembers, schedules, unreadNotifications, user]);
+  }, [cellMembers, cells, church.name, departments, events, members, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
 
   if (loading) return <DashboardV3Skeleton />;
 

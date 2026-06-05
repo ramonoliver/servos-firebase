@@ -24,47 +24,56 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
   const dept = departments.find((d) => d.id === params.id);
 
   async function loadData() {
-    if (!dept) return;
-    setLoading(true);
-
-    const [
-      { data: usersData, error: usersError },
-      { data: dmData, error: dmError },
-      { data: schedulesData, error: schedulesError },
-      { data: eventsData, error: eventsError },
-    ] = await Promise.all([
-      supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
-      supabase.from("department_members").select("*").eq("department_id", dept.id),
-      supabase.from("schedules").select("*").eq("church_id", user.church_id).eq("department_id", dept.id),
-      supabase.from("events").select("*").eq("church_id", user.church_id),
-    ]);
-
-    if (usersError || dmError || schedulesError || eventsError) {
-      console.error({
-        usersError,
-        dmError,
-        schedulesError,
-        eventsError,
-      });
-      toast("Erro ao carregar dados do ministério.");
+    if (!dept) {
       setLoading(false);
       return;
     }
+    try {
+      setLoading(true);
 
-    setAllMembers((usersData || []) as User[]);
-    setDms((dmData || []) as DepartmentMember[]);
-    setSchedules(
-      ((schedulesData || []) as Schedule[])
-        .filter((s) => s.status !== "cancelled")
-        .sort((a, b) => a.date.localeCompare(b.date))
-    );
-    setEvents((eventsData || []) as Event[]);
-    setLoading(false);
+      const [
+        { data: usersData, error: usersError },
+        { data: dmData, error: dmError },
+        { data: schedulesData, error: schedulesError },
+        { data: eventsData, error: eventsError },
+      ] = await Promise.all([
+        supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
+        supabase.from("department_members").select("*").eq("department_id", dept.id),
+        supabase.from("schedules").select("*").eq("church_id", user.church_id).eq("department_id", dept.id),
+        supabase.from("events").select("*").eq("church_id", user.church_id),
+      ]);
+
+      if (usersError || dmError || schedulesError || eventsError) {
+        console.error("Ministry loadData error:", {
+          usersError,
+          dmError,
+          schedulesError,
+          eventsError,
+        });
+        toast("Erro ao carregar dados do ministério.");
+        setLoading(false);
+        return;
+      }
+
+      setAllMembers((usersData || []) as User[]);
+      setDms((dmData || []) as DepartmentMember[]);
+      setSchedules(
+        ((schedulesData || []) as Schedule[])
+          .filter((s) => s.status !== "cancelled")
+          .sort((a, b) => a.date.localeCompare(b.date))
+      );
+      setEvents((eventsData || []) as Event[]);
+    } catch (err) {
+      console.error("Critical error in ministry detail loadData:", err);
+      toast("Erro crítico ao carregar ministério.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     loadData();
-  }, [params.id, user.church_id]);
+  }, [params.id, user.church_id, dept]);
 
   const deptMemberIds = useMemo(() => dms.map((dm) => dm.user_id), [dms]);
 

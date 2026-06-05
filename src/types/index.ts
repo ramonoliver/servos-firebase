@@ -86,6 +86,10 @@ export interface User {
   phone: string;
   role: Role;
   cell_role?: "pastor" | "coordenacao" | null; // cell-domain church-wide role
+  cell_id?: string | null;
+  cellId?: string | null;
+  tag_ids?: string[];
+  ministry_ids?: string[];
   status: UserStatus;
   avatar_color: string;
   photo_url: string | null;   // Profile photo URL or base64

@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { useApp } from "@/hooks/use-app";
+import { supabase } from "@/lib/firebase";
 import { ActionDrawer } from "@/components/ui/action-drawer";
 import { PageIntro, PersonCard, SoftCard } from "@/components/pastoral/pastoral-ui";
 import { calculateAge } from "@/lib/kids/domain";
+import { registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
 import { pastoralCells, pastoralMinistries, pastoralPeople, pastoralTags } from "@/lib/pastoral/mock-data";
-import type { PastoralPerson, PersonGender, PersonKind } from "@/lib/pastoral/types";
+import type { PastoralPerson, PersonGender, PersonKind, MaritalStatus } from "@/lib/pastoral/types";
 
 const kindOptions: { value: PersonKind | "all"; label: string }[] = [
   { value: "all", label: "Todas" },
@@ -78,7 +81,10 @@ const emptyForm = {
 };
 
 export default function PessoasPage() {
-  const [peopleData, setPeopleData] = useState<PastoralPerson[]>(pastoralPeople);
+  const { user, toast, departments } = useApp();
+  const [peopleData, setPeopleData] = useState<PastoralPerson[]>([]);
+  const [dbCells, setDbCells] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<PersonKind | "all">("all");
   const [tagId, setTagId] = useState("all");
@@ -91,6 +97,80 @@ export default function PessoasPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const newPersonAge = calculateAge(newPerson.birthDate);
   const isChildPerson = newPersonAge !== null && newPersonAge <= 12;
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const [
+        { data: usersData, error: usersError },
+        cellsResponse,
+      ] = await Promise.all([
+        supabase.from("users").select("*").eq("church_id", user.church_id),
+        fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
+      ]);
+
+      if (usersError) {
+        console.error("Erro ao carregar pessoas:", usersError);
+        toast("Erro ao carregar pessoas.");
+      }
+
+      const cellsPayload = cellsResponse ? await cellsResponse.json().catch(() => null) : null;
+      const cellsList = (cellsPayload?.cells || []) as any[];
+      setDbCells(cellsList);
+
+      registerPeopleInCache(usersData || []);
+      registerCellsInCache(cellsList);
+
+      const mapped: PastoralPerson[] = (usersData || []).map((u: any) => {
+        const kinds: PersonKind[] = [];
+        if (u.role === "admin") kinds.push("member", "volunteer", "leader");
+        else if (u.role === "leader") kinds.push("member", "volunteer", "leader");
+        else kinds.push("member");
+
+        if (u.cell_role === "lider" || u.cell_role === "lider_em_treinamento") {
+          kinds.push("leader");
+        }
+        if (u.cell_role === "pastor") {
+          kinds.push("pastor");
+        }
+
+        return {
+          id: u.id,
+          fullName: u.name || "",
+          avatarColor: u.avatar_color || "#F4532A",
+          photoUrl: u.photo_url || null,
+          phone: u.phone || "",
+          email: u.email || "",
+          birthDate: u.birth_date || "",
+          gender: (u.gender || "nao_informado") as PersonGender,
+          maritalStatus: (u.marital_status || "nao_informado") as MaritalStatus,
+          address: u.address || "",
+          instagram: u.instagram || "",
+          arrivalDate: u.joined_at || u.created_at || "",
+          kinds,
+          baptized: u.baptized || false,
+          inDiscipleship: u.in_discipleship || false,
+          participatesInCell: !!u.cell_id,
+          cellId: u.cell_id || null,
+          ministryIds: u.ministry_ids || [],
+          roleTitle: u.role === "admin" ? "Administrador" : u.role === "leader" ? "Líder" : "Membro",
+          tagIds: u.tag_ids || [],
+          notes: u.notes || "",
+          lastContactAt: u.last_served_at || null,
+        };
+      });
+
+      setPeopleData(mapped);
+    } catch (err) {
+      console.error("Erro crítico em loadData:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadData();
+  }, [user.church_id]);
 
   const people = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -152,48 +232,44 @@ export default function PessoasPage() {
     setPhotoPreview(null);
   }
 
-  function createPerson() {
+  async function createPerson() {
     const name = newPerson.fullName.trim();
     if (!name) return;
     if (isChildPerson && !newPerson.guardianName.trim()) return;
 
-    const addressParts = [
-      newPerson.street,
-      newPerson.number,
-      newPerson.complement,
-      newPerson.neighborhood,
-      newPerson.city,
-      newPerson.state,
-      newPerson.cep,
-    ].filter(Boolean);
+    try {
+      setLoading(true);
+      const res = await fetch("/api/people/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email: newPerson.email,
+          phone: newPerson.phone,
+          birthDate: newPerson.birthDate,
+          gender: newPerson.gender,
+          kind: newPerson.kind,
+          cellId: newPerson.cellId || null,
+          notes: "",
+        }),
+      });
 
-    const created: PastoralPerson = {
-      id: `local-${Date.now()}`,
-      fullName: name,
-      avatarColor: "#F4532A",
-      photoUrl: photoPreview,
-      phone: newPerson.phone,
-      email: newPerson.email,
-      birthDate: newPerson.birthDate,
-      gender: newPerson.gender,
-      maritalStatus: "nao_informado",
-      address: addressParts.join(", "),
-      instagram: "",
-      arrivalDate: new Date().toISOString().slice(0, 10),
-      kinds: [newPerson.kind],
-      baptized: false,
-      inDiscipleship: false,
-      participatesInCell: Boolean(newPerson.cellId),
-      cellId: newPerson.cellId || null,
-      ministryIds: newPerson.ministryId ? [newPerson.ministryId] : [],
-      roleTitle: newPerson.kind === "visitor" ? "Visitante" : "Pessoa cadastrada",
-      tagIds: ["visitante"],
-      notes: "",
-      lastContactAt: null,
-    };
+      const data = await res.json().catch(() => null);
 
-    setPeopleData((current) => [created, ...current]);
-    closeDrawer();
+      if (!res.ok) {
+        toast(data?.error || "Erro ao criar cadastro.");
+        setLoading(false);
+        return;
+      }
+
+      toast("Pessoa cadastrada com sucesso!");
+      closeDrawer();
+      await loadData();
+    } catch (err) {
+      console.error("Erro ao criar pessoa:", err);
+      toast("Erro ao criar cadastro.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -255,7 +331,7 @@ export default function PessoasPage() {
           <PersonCard
             key={person.id}
             person={person}
-            cellName={pastoralCells.find((c) => c.id === person.cellId)?.name}
+            cellName={dbCells.find((c) => c.id === person.cellId)?.name}
           />
         ))}
       </div>
@@ -431,14 +507,14 @@ export default function PessoasPage() {
                 <label className="input-label">Célula</label>
                 <select className="input-field" value={newPerson.cellId} onChange={(e) => setNewPerson((p) => ({ ...p, cellId: e.target.value }))}>
                   <option value="">Sem célula por enquanto</option>
-                  {pastoralCells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {dbCells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="input-label">Ministério</label>
                 <select className="input-field" value={newPerson.ministryId} onChange={(e) => setNewPerson((p) => ({ ...p, ministryId: e.target.value }))}>
                   <option value="">Sem ministério por enquanto</option>
-                  {pastoralMinistries.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {departments.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
             </div>

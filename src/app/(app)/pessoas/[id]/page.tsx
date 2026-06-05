@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ActionDrawer } from "@/components/ui/action-drawer";
 import { Avatar, EmptyState } from "@/components/ui";
 import { useApp } from "@/hooks/use-app";
+import { supabase } from "@/lib/firebase";
 import {
   CareCaseCard,
   PersonMini,
@@ -24,7 +25,7 @@ import {
   getPersonTimeline,
 } from "@/lib/pastoral/selectors";
 import { pastoralCells, pastoralMinistries } from "@/lib/pastoral/mock-data";
-import type { CareCase, PastoralPerson, PersonKind, TimelineEvent } from "@/lib/pastoral/types";
+import type { CareCase, PastoralPerson, PersonKind, TimelineEvent, PersonGender, MaritalStatus } from "@/lib/pastoral/types";
 
 const tabs = ["Timeline", "Acompanhamentos", "Pedidos de Oração", "Escalas", "Observações"];
 
@@ -128,21 +129,24 @@ function CalendarIcon() {
 }
 
 export default function PessoaPerfilPage({ params }: { params: { id: string } }) {
-  const initialPerson = getPerson(params.id);
-  const { user } = useApp();
-  const [person, setPerson] = useState<PastoralPerson | null>(initialPerson);
+  const { user, toast, departments } = useApp();
+  const [person, setPerson] = useState<PastoralPerson | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [editOpen, setEditOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [careOpen, setCareOpen] = useState(false);
-  const [editForm, setEditForm] = useState(() => ({
-    fullName: initialPerson?.fullName || "",
-    phone: initialPerson?.phone || "",
-    email: initialPerson?.email || "",
-    birthDate: initialPerson?.birthDate || "",
-    kind: (initialPerson?.kinds[0] || "member") as PersonKind,
-    cellId: initialPerson?.cellId || "",
-    instagram: initialPerson?.instagram || "",
+  const [dbCells, setDbCells] = useState<any[]>([]);
+  const [dbCell, setDbCell] = useState<any>(null);
+
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    phone: "",
+    email: "",
+    birthDate: "",
+    kind: "member" as PersonKind,
+    cellId: "",
+    instagram: "",
     cep: "",
     street: "",
     number: "",
@@ -150,15 +154,163 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     neighborhood: "",
     city: "",
     state: "",
-    roleTitle: initialPerson?.roleTitle || "",
-    notes: initialPerson?.notes || "",
-  }));
-  const [editBirthDateMask, setEditBirthDateMask] = useState(() => toDateMask(initialPerson?.birthDate || ""));
+    roleTitle: "",
+    notes: "",
+  });
+  const [editBirthDateMask, setEditBirthDateMask] = useState("");
   const [editCepLoading, setEditCepLoading] = useState(false);
   const [contactForm, setContactForm] = useState({ title: "Contato registrado", description: "" });
   const [careForm, setCareForm] = useState({ title: "", reason: "", priority: "medium" as CareCase["priority"], nextStep: "" });
-  const [timelineItems, setTimelineItems] = useState<TimelineEvent[]>(() => initialPerson ? getPersonTimeline(initialPerson.id) : []);
-  const [careItems, setCareItems] = useState<CareCase[]>(() => initialPerson ? getPersonCareCases(initialPerson.id) : []);
+  const [timelineItems, setTimelineItems] = useState<TimelineEvent[]>([]);
+  const [careItems, setCareItems] = useState<CareCase[]>([]);
+
+  async function loadPerson() {
+    try {
+      setLoading(true);
+      const [
+        { data: uData, error: uError },
+        { data: notesData, error: notesError },
+        cellsResponse,
+      ] = await Promise.all([
+        supabase.from("users").select("*").eq("id", params.id).maybeSingle(),
+        supabase.from("pastoral_notes").select("*").eq("person_id", params.id).order("date", { ascending: false }),
+        fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
+      ]);
+
+      if (uError) throw uError;
+      if (notesError) throw notesError;
+
+      const cellsPayload = cellsResponse ? await cellsResponse.json().catch(() => null) : null;
+      const loadedCells = (cellsPayload?.cells || []) as any[];
+      setDbCells(loadedCells);
+
+      if (!uData) {
+        setPerson(null);
+        setLoading(false);
+        return;
+      }
+
+      // Map User to PastoralPerson
+      const kinds: PersonKind[] = [];
+      if (uData.role === "admin") kinds.push("member", "volunteer", "leader");
+      else if (uData.role === "leader") kinds.push("member", "volunteer", "leader");
+      else kinds.push("member");
+
+      if (uData.cell_role === "lider" || uData.cell_role === "lider_em_treinamento") {
+        kinds.push("leader");
+      }
+      if (uData.cell_role === "pastor") {
+        kinds.push("pastor");
+      }
+
+      const p: PastoralPerson = {
+        id: uData.id,
+        fullName: uData.name || "",
+        avatarColor: uData.avatar_color || "#F4532A",
+        photoUrl: uData.photo_url || null,
+        phone: uData.phone || "",
+        email: uData.email || "",
+        birthDate: uData.birth_date || "",
+        gender: (uData.gender || "nao_informado") as PersonGender,
+        maritalStatus: (uData.marital_status || "nao_informado") as MaritalStatus,
+        address: uData.address || "",
+        instagram: uData.instagram || "",
+        arrivalDate: uData.joined_at || uData.created_at || "",
+        kinds,
+        baptized: uData.baptized || false,
+        inDiscipleship: uData.in_discipleship || false,
+        participatesInCell: !!uData.cell_id,
+        cellId: uData.cell_id || null,
+        ministryIds: uData.ministry_ids || [],
+        roleTitle: uData.role === "admin" ? "Administrador" : uData.role === "leader" ? "Líder" : "Membro",
+        tagIds: uData.tag_ids || [],
+        notes: uData.notes || "",
+        lastContactAt: uData.last_served_at || null,
+      };
+
+      setPerson(p);
+
+      // Set Cell
+      if (p.cellId) {
+        const found = loadedCells.find((c) => c.id === p.cellId);
+        setDbCell(found || null);
+      } else {
+        setDbCell(null);
+      }
+
+      // Map notesData to timeline and care items
+      const tItems: TimelineEvent[] = (notesData || [])
+        .filter((n: any) => n.type !== "care_case")
+        .map((n: any) => ({
+          id: n.id,
+          personId: n.person_id,
+          type: (n.type || "care_done") as any,
+          title: n.title,
+          description: n.description,
+          date: n.date,
+          tone: n.type === "alert" ? "danger" : "success",
+        }));
+
+      const cItems: CareCase[] = (notesData || [])
+        .filter((n: any) => n.type === "care_case")
+        .map((n: any) => {
+          const parts = n.description.split("\n\nPróximo passo: ");
+          return {
+            id: n.id,
+            personId: n.person_id,
+            responsibleId: n.author_id || "",
+            title: n.title,
+            reason: parts[0] || "",
+            status: "open" as const,
+            priority: "medium" as const,
+            openedAt: n.date.slice(0, 10),
+            nextStep: parts[1] || "",
+            notes: [],
+          };
+        });
+
+      setTimelineItems(tItems);
+      setCareItems(cItems);
+
+      // Populate edit form
+      setEditForm({
+        fullName: p.fullName,
+        phone: p.phone,
+        email: p.email,
+        birthDate: p.birthDate,
+        kind: (p.kinds[0] || "member") as PersonKind,
+        cellId: p.cellId || "",
+        instagram: p.instagram,
+        cep: "",
+        street: "",
+        number: "",
+        complement: "",
+        neighborhood: "",
+        city: "",
+        state: "",
+        roleTitle: p.roleTitle,
+        notes: p.notes,
+      });
+      setEditBirthDateMask(toDateMask(p.birthDate));
+    } catch (err) {
+      console.error("Erro ao carregar perfil da pessoa:", err);
+      toast("Erro ao carregar perfil.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadPerson();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="page-shell">
+        <div className="py-20 text-center text-ink-faint">Carregando perfil...</div>
+      </div>
+    );
+  }
 
   if (!person) {
     return (
@@ -166,17 +318,17 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
         <EmptyState
           icon="♡"
           title="Pessoa não encontrada"
-          description="Esse perfil ainda não existe nos dados locais de validação."
+          description="Esse perfil ainda não existe no banco de dados."
           action={<Link href="/pessoas" className="btn btn-secondary btn-sm">Voltar para pessoas</Link>}
         />
       </div>
     );
   }
 
-  const cell = person.cellId ? getCell(person.cellId) : null;
-  const ministries = getPersonMinistries(person);
-  const prayers = getPersonPrayerRequests(person.id);
-  const relationships = getPersonRelationships(person.id);
+  const cell = dbCell;
+  const ministries = (person.ministryIds || []).map(id => departments.find(d => d.id === id)).filter(Boolean);
+  const prayers = [];
+  const relationships = [];
   const canEdit = user.role === "admin" || user.role === "leader";
 
   async function handleEditCepBlur() {
@@ -202,59 +354,113 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     }
   }
 
-  function saveProfile() {
-    setPerson((current) => {
-      if (!current) return current;
-      const { kind, cellId, cep, street, number, complement, neighborhood, city, state, ...rest } = editForm;
+  async function saveProfile() {
+    if (!person) return;
+    try {
+      setLoading(true);
+      const { kind, cellId, cep, street, number, complement, neighborhood, city, state, fullName, phone, email, instagram, notes } = editForm;
       const addressParts = [street, number, complement, neighborhood, city, state, cep].filter(Boolean);
-      const address = addressParts.length > 0 ? addressParts.join(", ") : current.address;
-      return {
-        ...current,
-        ...rest,
-        address,
-        kinds: [kind],
-        cellId: cellId || null,
-        participatesInCell: Boolean(cellId),
-      };
-    });
-    setEditOpen(false);
+      const address = addressParts.length > 0 ? addressParts.join(", ") : person.address;
+
+      const { error } = await supabase
+        .from("users")
+        .update({
+          name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim().toLowerCase(),
+          instagram: instagram.trim(),
+          address,
+          notes: notes.trim(),
+          cell_id: cellId || null,
+          birth_date: editForm.birthDate || null,
+        })
+        .eq("id", person.id);
+
+      if (error) throw error;
+
+      toast("Alterações salvas com sucesso!");
+      setEditOpen(false);
+      await loadPerson();
+    } catch (err) {
+      console.error("Erro ao salvar perfil:", err);
+      toast("Erro ao salvar perfil.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function registerContact() {
+  async function registerContact() {
     if (!contactForm.description.trim()) return;
-    const event: TimelineEvent = {
-      id: `local-contact-${Date.now()}`,
-      personId: person.id,
-      type: "care_done",
-      title: contactForm.title || "Contato registrado",
-      description: contactForm.description,
-      date: new Date().toISOString(),
-      tone: "success",
-    };
-    setTimelineItems((current) => [event, ...current]);
-    setContactForm({ title: "Contato registrado", description: "" });
-    setContactOpen(false);
-    setActiveTab("Timeline");
+    try {
+      setLoading(true);
+      const res = await fetch("/api/care/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "create",
+          personId: person.id,
+          data: {
+            type: "care_done",
+            title: contactForm.title || "Contato registrado",
+            description: contactForm.description,
+            date: new Date().toISOString(),
+          },
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao registrar contato.");
+        setLoading(false);
+        return;
+      }
+
+      toast("Contato registrado com sucesso!");
+      setContactForm({ title: "Contato registrado", description: "" });
+      setContactOpen(false);
+      await loadPerson();
+    } catch (err) {
+      console.error("Erro ao registrar contato:", err);
+      toast("Erro ao registrar contato.");
+      setLoading(false);
+    }
   }
 
-  function createCareCase() {
+  async function createCareCase() {
     if (!careForm.title.trim()) return;
-    const careCase: CareCase = {
-      id: `local-care-${Date.now()}`,
-      personId: person.id,
-      responsibleId: user.id,
-      title: careForm.title,
-      reason: careForm.reason,
-      status: "open",
-      priority: careForm.priority,
-      openedAt: new Date().toISOString().slice(0, 10),
-      nextStep: careForm.nextStep || "Definir próximo contato pastoral.",
-      notes: careForm.reason ? [careForm.reason] : [],
-    };
-    setCareItems((current) => [careCase, ...current]);
-    setCareForm({ title: "", reason: "", priority: "medium", nextStep: "" });
-    setCareOpen(false);
-    setActiveTab("Acompanhamentos");
+    try {
+      setLoading(true);
+      const res = await fetch("/api/care/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "create",
+          personId: person.id,
+          data: {
+            type: "care_case",
+            title: careForm.title,
+            description: `${careForm.reason}\n\nPróximo passo: ${careForm.nextStep}`,
+            date: new Date().toISOString(),
+          },
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao registrar acompanhamento.");
+        setLoading(false);
+        return;
+      }
+
+      toast("Acompanhamento registrado com sucesso!");
+      setCareForm({ title: "", reason: "", priority: "medium", nextStep: "" });
+      setCareOpen(false);
+      await loadPerson();
+    } catch (err) {
+      console.error("Erro ao registrar acompanhamento:", err);
+      toast("Erro ao registrar acompanhamento.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -534,7 +740,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                 <label className="input-label">Célula</label>
                 <select className="input-field" value={editForm.cellId} onChange={(e) => setEditForm((f) => ({ ...f, cellId: e.target.value }))}>
                   <option value="">Sem célula</option>
-                  {pastoralCells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {dbCells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>

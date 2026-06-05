@@ -44,6 +44,15 @@ export default function ConfiguraçõesPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (church) {
+      setChurchName(church.name);
+      setSelectedState(church.state || "");
+      setSelectedCity(church.city || "");
+    }
+  }, [church]);
+
+
+  useEffect(() => {
     if (!selectedState) {
       setCities([]);
       return;
@@ -159,6 +168,9 @@ export default function ConfiguraçõesPage() {
                 <option value="">
                   {loadingCities ? "Carregando cidades..." : "Selecione a cidade"}
                 </option>
+                {selectedCity && !cities.includes(selectedCity) && (
+                  <option value={selectedCity}>{selectedCity}</option>
+                )}
                 {cities.map((city) => (
                   <option key={city} value={city}>
                     {city}
