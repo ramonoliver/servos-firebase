@@ -1,7 +1,21 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.EMAIL_FROM || "Servos App <noreply@servosapp.com>";
+
+// Instanciação preguiçosa: a RESEND_API_KEY só existe em RUNTIME (não no build).
+// Criar o client no topo do módulo quebra o `next build` ("Missing API key").
+let resendClient: Resend | null = null;
+
+function getResend(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY não configurada. Não é possível enviar e-mails.");
+  }
+  if (!resendClient) {
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+}
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -64,7 +78,7 @@ async function sendEmail(params: {
   html: string;
   text?: string;
 }) {
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResend().emails.send({
     from: FROM,
     to: params.to,
     subject: params.subject,
