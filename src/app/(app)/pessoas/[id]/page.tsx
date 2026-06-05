@@ -7,7 +7,7 @@ import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
 import { ActionDrawer } from "@/components/ui/action-drawer";
 import { Avatar, EmptyState } from "@/components/ui";
 import { useApp } from "@/hooks/use-app";
-import { supabase } from "@/lib/firebase";
+
 import {
   CareCaseCard,
   PersonMini,
@@ -172,24 +172,33 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   async function loadPerson() {
     try {
       setLoading(true);
-      const [
-        { data: uData, error: uError },
-        { data: notesData, error: notesError },
-        cellsResponse,
-      ] = await Promise.all([
-        supabase.from("users").select("*").eq("id", params.id).maybeSingle(),
-        supabase.from("pastoral_notes").select("*").eq("person_id", params.id).order("date", { ascending: false }),
+      const [personResponse, cellsResponse] = await Promise.all([
+        fetch("/api/people/get", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ personId: params.id }),
+        }).catch(() => null),
         fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
       ]);
-
-      if (uError) throw uError;
-      if (notesError) throw notesError;
 
       const cellsPayload = cellsResponse ? await cellsResponse.json().catch(() => null) : null;
       const loadedCells = (cellsPayload?.cells || []) as any[];
       const loadedNetworks = (cellsPayload?.networks || []) as any[];
       setDbCells(loadedCells);
       setDbNetworks(loadedNetworks);
+
+      if (!personResponse || !personResponse.ok) {
+        const errData = personResponse ? await personResponse.json().catch(() => null) : null;
+        console.error("Erro ao carregar pessoa:", errData?.error || "status " + personResponse?.status);
+        setPerson(null);
+        setLoading(false);
+        return;
+      }
+
+      const personPayload = await personResponse.json().catch(() => null);
+      const uData = personPayload?.person;
+      const notesData = personPayload?.notes || [];
 
       if (!uData) {
         setPerson(null);
@@ -249,7 +258,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       }
 
       // Map notesData to timeline and care items
-      const tItems: TimelineEvent[] = (notesData || [])
+      const tItems: TimelineEvent[] = (notesData as any[])
         .filter((n: any) => n.type !== "care_case")
         .map((n: any) => ({
           id: n.id,
@@ -261,7 +270,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
           tone: n.type === "alert" ? "danger" : "success",
         }));
 
-      const cItems: CareCase[] = (notesData || [])
+      const cItems: CareCase[] = (notesData as any[])
         .filter((n: any) => n.type === "care_case")
         .map((n: any) => {
           const parts = n.description.split("\n\nPróximo passo: ");
