@@ -55,8 +55,7 @@ type SupportEmailInput = {
 };
 
 function normalizeSmtpHost(value?: string) {
-  if (!value) return "smtp-relay.sendinblue.com";
-  if (value === "smtp-relay.brevo.com") return "smtp-relay.sendinblue.com";
+  if (!value) return "smtp-relay.brevo.com";
   return value;
 }
 
