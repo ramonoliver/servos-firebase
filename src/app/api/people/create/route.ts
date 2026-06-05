@@ -2,8 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getFirebaseAdminClient } from "@/lib/firebase-admin";
+import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
+import { generateTempPassword, hashPassword } from "@/lib/auth/password";
+import { sendPasswordResetEmail } from "@/lib/email/send";
+import {
+  createPasswordResetToken,
+  hashPasswordResetToken,
+} from "@/lib/auth/password-reset";
+import { getAppBaseUrl } from "@/lib/invitations";
 
 const bodySchema = z.object({
   name: z.string().trim().min(1),
@@ -40,7 +47,8 @@ export async function POST(req: Request) {
     const { name, email, phone, birthDate, gender, kind, cellId, notes } = parsed.data;
     const supabase = getFirebaseAdminClient();
 
-    const normalizedEmail = email.trim()
+    const emailProvided = Boolean(email.trim());
+    const normalizedEmail = emailProvided
       ? email.trim().toLowerCase()
       : randomEmail(kind === "visitor" ? "visitante" : "membro");
 
@@ -52,19 +60,45 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (existingUser) {
-      return NextResponse.json({ error: "E-mail já está sendo utilizado por outro cadastro." }, { status: 409 });
+      return NextResponse.json({ error: "E-mail ja esta sendo utilizado por outro cadastro." }, { status: 409 });
     }
 
-    const id = genId();
-    const now = new Date().toISOString();
+    const { data: church } = await supabase
+      .from("churches")
+      .select("name")
+      .eq("id", churchId)
+      .maybeSingle();
 
+    let id = genId();
+    let tempPassword = "";
+    let authUserCreated = false;
+
+    if (emailProvided) {
+      tempPassword = generateTempPassword();
+      try {
+        const userRecord = await adminAuth.createUser({
+          email: normalizedEmail,
+          password: tempPassword,
+          displayName: name.trim(),
+        });
+        id = userRecord.uid;
+        authUserCreated = true;
+      } catch (authError: any) {
+        if (authError.code === "auth/email-already-exists") {
+          return NextResponse.json({ error: "E-mail ja cadastrado no sistema." }, { status: 409 });
+        }
+        throw authError;
+      }
+    }
+
+    const now = new Date().toISOString();
     const role = (kind === "leader" || kind === "pastor") ? "leader" : "member";
 
     const { error: userError } = await supabase.from("users").insert({
       id,
       church_id: churchId,
       email: normalizedEmail,
-      password_hash: "",
+      password_hash: emailProvided ? hashPassword(tempPassword) : "",
       name: name.trim(),
       phone: phone.trim(),
       role,
@@ -77,7 +111,7 @@ export async function POST(req: Request) {
       availability: [true, true, true, true, true, true, true],
       total_schedules: 0,
       confirm_rate: 100,
-      must_change_password: false,
+      must_change_password: emailProvided,
       last_served_at: null,
       notes,
       active: true,
@@ -85,7 +119,12 @@ export async function POST(req: Request) {
       created_at: now,
     });
 
-    if (userError) throw userError;
+    if (userError) {
+      if (authUserCreated) {
+        await adminAuth.deleteUser(id).catch(console.error);
+      }
+      throw userError;
+    }
 
     // If cell_id is specified, link in cell_members
     if (cellId) {
@@ -98,6 +137,44 @@ export async function POST(req: Request) {
       });
       if (cellMemberError) {
         console.error("Erro ao vincular membro à célula:", cellMemberError);
+      }
+    }
+
+    // If email is provided, generate token and send password reset email
+    if (emailProvided) {
+      const rawToken = createPasswordResetToken();
+      const tokenHash = hashPasswordResetToken(rawToken);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 dias
+
+      await supabase
+        .from("password_reset_tokens")
+        .delete()
+        .eq("user_id", id);
+
+      const { error: tokenInsertError } = await supabase
+        .from("password_reset_tokens")
+        .insert({
+          id: crypto.randomUUID(),
+          user_id: id,
+          church_id: churchId,
+          token_hash: tokenHash,
+          expires_at: expiresAt,
+        });
+
+      if (tokenInsertError) {
+        console.error("Erro ao salvar token de convite:", tokenInsertError);
+      } else {
+        const resetUrl = `${getAppBaseUrl()}/redefinir-senha?token=${rawToken}`;
+        try {
+          await sendPasswordResetEmail({
+            to: normalizedEmail,
+            memberName: name.trim(),
+            resetUrl,
+            churchName: church?.name,
+          });
+        } catch (emailErr) {
+          console.error("Erro ao enviar email de redefinicao de senha:", emailErr);
+        }
       }
     }
 

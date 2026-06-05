@@ -94,6 +94,9 @@ export default function PessoasPage() {
   const [birthDateMask, setBirthDateMask] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: "", phone: "", email: "" });
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const newPersonAge = calculateAge(newPerson.birthDate);
   const isChildPerson = newPersonAge !== null && newPersonAge <= 12;
@@ -272,13 +275,57 @@ export default function PessoasPage() {
     }
   }
 
+  async function handleSendInvite() {
+    const name = inviteForm.name.trim();
+    const email = inviteForm.email.trim();
+    const phone = inviteForm.phone.trim();
+
+    if (!name || !email || !phone) {
+      toast("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    setInviteSubmitting(true);
+    try {
+      const res = await fetch("/api/people/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, phone }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao enviar convite.");
+      } else {
+        toast("Convite enviado com sucesso!");
+        setInviteModalOpen(false);
+        setInviteForm({ name: "", phone: "", email: "" });
+        await loadData();
+      }
+    } catch (err) {
+      console.error("Erro ao enviar convite:", err);
+      toast("Erro de conexão ao enviar convite.");
+    } finally {
+      setInviteSubmitting(false);
+    }
+  }
+
   return (
     <div>
       <PageIntro
         eyebrow="Pessoas & Cuidado"
         title="Pessoas"
         description="Uma visão única para membros, visitantes, voluntários, líderes e pessoas em acompanhamento."
-        action={<button className="btn btn-primary btn-sm" onClick={() => setDrawerOpen(true)}>+ Nova pessoa</button>}
+        action={
+          <div className="flex gap-2">
+            <button className="btn btn-secondary btn-sm" onClick={() => setInviteModalOpen(true)}>
+              Enviar convite
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => setDrawerOpen(true)}>
+              + Nova pessoa
+            </button>
+          </div>
+        }
       />
 
       <SoftCard className="mb-4 p-3">
@@ -613,6 +660,81 @@ export default function PessoasPage() {
           >
             Criar pessoa
           </button>
+        </div>
+      </ActionDrawer>
+
+      <ActionDrawer
+        open={inviteModalOpen}
+        onClose={() => {
+          setInviteModalOpen(false);
+          setInviteForm({ name: "", phone: "", email: "" });
+        }}
+        title="Enviar convite"
+        width={440}
+      >
+        <div className="space-y-5">
+          <div className="rounded-xl border border-brand-light bg-brand-glow p-4 text-xs text-ink-muted leading-relaxed">
+            O destinatário receberá um e-mail com um link seguro de cadastro para escolher sua senha e acessar o sistema.
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="input-label">Nome completo *</label>
+              <input
+                className="input-field"
+                placeholder="Ex: João da Silva"
+                value={inviteForm.name}
+                onChange={(e) => setInviteForm((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="input-label">Telefone *</label>
+              <input
+                className="input-field"
+                placeholder="(00) 99999-9999"
+                value={inviteForm.phone}
+                onChange={(e) => setInviteForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
+              />
+              <span className="text-[11px] text-ink-faint mt-1 block">Necessário para futuros envios por SMS.</span>
+            </div>
+
+            <div>
+              <label className="input-label">E-mail *</label>
+              <input
+                type="email"
+                className="input-field"
+                placeholder="email@exemplo.com"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-3">
+            <button
+              className="btn btn-secondary flex-1"
+              onClick={() => {
+                setInviteModalOpen(false);
+                setInviteForm({ name: "", phone: "", email: "" });
+              }}
+              disabled={inviteSubmitting}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-primary flex-1"
+              onClick={handleSendInvite}
+              disabled={
+                inviteSubmitting ||
+                !inviteForm.name.trim() ||
+                !inviteForm.email.trim() ||
+                !inviteForm.phone.trim()
+              }
+            >
+              {inviteSubmitting ? "Enviando..." : "Enviar Convite"}
+            </button>
+          </div>
         </div>
       </ActionDrawer>
     </div>

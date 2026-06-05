@@ -37,6 +37,14 @@ type PasswordResetInput = {
   churchName?: string;
 };
 
+type InviteEmailInput = {
+  to: string;
+  memberName: string;
+  inviteUrl: string;
+  churchName?: string;
+};
+
+
 type SupportEmailInput = {
   to: string;
   userName: string;
@@ -279,6 +287,54 @@ export async function sendPasswordResetEmail({
     ].join("\n"),
   });
 }
+
+export async function sendInviteEmail({
+  to,
+  memberName,
+  inviteUrl,
+  churchName,
+}: InviteEmailInput) {
+  const transporter = getTransporter();
+  const safeMemberName = escapeHtml(memberName);
+  const safeChurchName = churchName ? escapeHtml(churchName) : "sua igreja";
+  const safeInviteUrl = escapeHtml(inviteUrl);
+
+  const html = `
+    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
+      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
+        <div style="padding:32px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
+          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
+          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Seu cadastro esta pronto</h1>
+          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, voce foi convidado(a) a se cadastrar no Servos para servir com a equipe de <strong>${safeChurchName}</strong>.</p>
+        </div>
+        <div style="padding:28px 32px;">
+          <div style="background:#2f241c;border-radius:24px;padding:24px;color:#fff7ef;text-align:center;">
+            <div style="font-size:14px;opacity:.85;margin-bottom:18px;font-family:Arial,sans-serif;line-height:1.5;">Clique no botao abaixo para concluir seu cadastro e escolher a sua senha de acesso.</div>
+            <a href="${safeInviteUrl}" style="display:inline-block;background:#fff7ef;color:#2f241c;padding:14px 28px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">Concluir Cadastro</a>
+          </div>
+          <p style="margin:24px 0 0;font-size:14px;line-height:1.8;color:#4d3a2b;">Se o botao nao funcionar, copie e cole o link abaixo no seu navegador:</p>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#8a6441;word-break:break-all;">${safeInviteUrl}</p>
+          <p style="margin:20px 0 0;font-size:13px;line-height:1.8;color:#8a6441;font-family:Arial,sans-serif;opacity:.8;">Este link de cadastro expira em 7 dias. Se voce nao esperava este convite, desconsidere esta mensagem.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return transporter.sendMail({
+    from,
+    to,
+    subject: `Convite para se cadastrar no Servos - ${churchName || "sua igreja"}`,
+    html,
+    text: [
+      `Ola, ${memberName}!`,
+      `Voce foi convidado(a) a se cadastrar no Servos para servir com a equipe de ${churchName || "sua igreja"}.`,
+      `Clique no link abaixo para concluir o seu cadastro e definir sua senha de acesso:`,
+      `${inviteUrl}`,
+      `Se voce nao solicitou este acesso, ignore esta mensagem.`,
+    ].join("\n"),
+  });
+}
+
 
 type SmsInviteInput = {
   to: string;
