@@ -7,6 +7,7 @@
 import { Resend } from "resend";
 import type { ChannelResult } from "./notification-types";
 import { isValidEmail, normalizeEmail } from "./validators";
+import { normalizeEmailFrom } from "@/lib/email/send";
 
 // ─── Singleton ────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ export async function sendEmail(input: SendEmailInput): Promise<ChannelResult> {
     return { status: "failed", error: "Email subject and html body are required." };
   }
 
-  const from = process.env.EMAIL_FROM || "Servos App <noreply@servosapp.com>";
+  const from = normalizeEmailFrom(process.env.EMAIL_FROM);
 
   try {
     const client = getResendClient();

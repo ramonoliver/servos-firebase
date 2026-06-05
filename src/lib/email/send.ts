@@ -1,6 +1,15 @@
 import { Resend } from "resend";
 
-const FROM = process.env.EMAIL_FROM || "Servos App <noreply@servosapp.com>";
+const FALLBACK_FROM = "Servos App <noreply@servosapp.com>";
+
+// Em ambientes como Cloud Run/App Hosting o valor de EMAIL_FROM pode chegar
+// com aspas literais (ao contrário do dotenv local, que as remove). Aspas no
+// campo `from` fazem o Resend rejeitar com 422 "Invalid `from` field". Aqui
+// removemos aspas externas e espaços para garantir um remetente válido.
+export function normalizeEmailFrom(raw?: string): string {
+  const cleaned = (raw ?? "").trim().replace(/^['"]+|['"]+$/g, "").trim();
+  return cleaned || FALLBACK_FROM;
+}
 
 // Instanciação preguiçosa: a RESEND_API_KEY só existe em RUNTIME (não no build).
 // Criar o client no topo do módulo quebra o `next build` ("Missing API key").
@@ -79,7 +88,7 @@ async function sendEmail(params: {
   text?: string;
 }) {
   const { data, error } = await getResend().emails.send({
-    from: FROM,
+    from: normalizeEmailFrom(process.env.EMAIL_FROM),
     to: params.to,
     subject: params.subject,
     html: params.html,
