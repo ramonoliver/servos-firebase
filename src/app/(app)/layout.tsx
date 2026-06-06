@@ -105,7 +105,9 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     },
   ];
 
-  const isSplitPage = SPLIT_PAGES.some((p) => pathname.startsWith(p));
+  // Apenas as listas (que usam SplitView de altura cheia) ficam sem scroll de
+  // página. Sub-rotas como /escalas/nova e /escalas/[id] devem rolar normalmente.
+  const isSplitPage = SPLIT_PAGES.includes(pathname);
 
   return (
     <div className="relative flex h-[100dvh] overflow-hidden">

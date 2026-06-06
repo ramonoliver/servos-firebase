@@ -498,11 +498,11 @@ export default function NovaEscalaPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {coverageByFunction.map((item) => (
                   <div
                     key={item.functionName}
-                    className={`rounded-[14px] border px-3.5 py-3 ${
+                    className={`rounded-[12px] border px-3 py-2 ${
                       item.missing > 0
                         ? "border-amber/35 bg-amber-light"
                         : item.desired > 0
@@ -510,21 +510,21 @@ export default function NovaEscalaPage() {
                         : "border-border-soft bg-white/70"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold truncate">{item.functionName}</div>
-                        <div className="text-[11px] text-ink-faint mt-1">
-                          {item.desired > 0
-                            ? `${item.selected} selecionado(s) para ${item.desired} vaga(s)`
-                            : "Nenhuma vaga definida ainda"}
+                        <div className="text-[13px] font-semibold truncate leading-tight">{item.functionName}</div>
+                        <div className="text-[10px] text-ink-faint mt-0.5">
+                          {item.desired > 0 ? `${item.selected}/${item.desired} vaga(s)` : "Sem vaga"}
+                          {item.missing > 0 && <span className="text-amber font-semibold"> · faltam {item.missing}</span>}
+                          {item.extra > 0 && <span className="text-success font-semibold"> · +{item.extra}</span>}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => adjustFunctionTarget(item.functionName, -1)}
-                          className="w-8 h-8 rounded-full border border-border-soft bg-surface text-sm font-bold"
+                          className="w-6 h-6 rounded-full border border-border-soft bg-surface text-sm font-bold leading-none"
                         >
                           -
                         </button>
@@ -532,56 +532,22 @@ export default function NovaEscalaPage() {
                           type="number"
                           min={0}
                           value={item.desired}
-                          onChange={(e) =>
-                            {
-                              setFunctionTargets((prev) => ({
-                                ...prev,
-                                [item.functionName]: Math.max(0, Number(e.target.value) || 0),
-                              }));
-                              setAiRan(false);
-                            }
-                          }
-                          className="input-field w-[72px] text-center"
+                          onChange={(e) => {
+                            setFunctionTargets((prev) => ({
+                              ...prev,
+                              [item.functionName]: Math.max(0, Number(e.target.value) || 0),
+                            }));
+                            setAiRan(false);
+                          }}
+                          className="input-field h-7 w-10 px-1 text-center text-[13px]"
                         />
                         <button
                           type="button"
                           onClick={() => adjustFunctionTarget(item.functionName, 1)}
-                          className="w-8 h-8 rounded-full border border-border-soft bg-surface text-sm font-bold"
+                          className="w-6 h-6 rounded-full border border-border-soft bg-surface text-sm font-bold leading-none"
                         >
                           +
                         </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <div className="h-2 flex-1 rounded-full bg-white/80 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            item.missing > 0 ? "bg-amber" : "bg-success"
-                          }`}
-                          style={{
-                            width: `${
-                              item.desired > 0
-                                ? Math.min(100, Math.round((item.selected / item.desired) * 100))
-                                : item.selected > 0
-                                ? 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                      <div
-                        className={`text-[11px] font-semibold ${
-                          item.missing > 0 ? "text-amber" : "text-success"
-                        }`}
-                      >
-                        {item.missing > 0
-                          ? `Faltam ${item.missing}`
-                          : item.extra > 0
-                          ? `+${item.extra} extra`
-                          : item.desired > 0
-                          ? "Coberto"
-                          : "Livre"}
                       </div>
                     </div>
                   </div>
