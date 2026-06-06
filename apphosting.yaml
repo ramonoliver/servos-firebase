@@ -40,6 +40,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # ── URL pública da aplicação (usada nos links de convite/redefinição) ──
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://servos-backend--servos-bcc51.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
   # ── E-mail (Resend) ──
   - variable: RESEND_API_KEY
     secret: resend_api_key
