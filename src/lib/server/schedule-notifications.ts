@@ -3,8 +3,10 @@ import {
   sendSmsScheduleAssignment,
   sendSmsScheduleReminder,
 } from "@/lib/email/send";
+import { getAppBaseUrl } from "@/lib/invitations";
 import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { sendUserNotification } from "@/lib/server/notification-service";
+import { sendTemplateEmail } from "@/services/email.service";
 import {
   getUserReminderProfile,
   buildScheduleReminderText,
@@ -102,6 +104,30 @@ export async function sendScheduleAssignmentAlerts(params: {
   const summary = emptyDeliveryResult();
 
   for (const user of (users || []) as User[]) {
+    if (user.email) {
+      try {
+        await sendTemplateEmail("schedule_created", user.email, {
+          memberName: user.name,
+          eventName: context.event?.name || "Evento",
+          date: context.schedule.date,
+          time: context.schedule.time,
+          ministryName: context.department?.name || "Ministério",
+          url: `${getAppBaseUrl()}/escalas/${encodeURIComponent(scheduleId)}`,
+        });
+        trackChannelResult(summary, "email", "sent", user.id);
+      } catch (error) {
+        trackChannelResult(
+          summary,
+          "email",
+          "failed",
+          user.id,
+          error instanceof Error ? error.message : "Falha ao enviar email."
+        );
+      }
+    } else {
+      trackChannelResult(summary, "email", "skipped", user.id);
+    }
+
     const result = await sendSmsScheduleAssignment({
       to: user.phone || "",
       memberName: user.name,
@@ -112,6 +138,33 @@ export async function sendScheduleAssignmentAlerts(params: {
     });
 
     trackChannelResult(summary, "sms", result.status, user.id, result.error);
+
+    try {
+      const pushResult = await sendUserNotification({
+        userId: user.id,
+        churchId,
+        title: "Você foi incluído em uma escala",
+        body: `${context.event?.name || "Evento"} em ${context.schedule.date} às ${context.schedule.time}, ${context.department?.name || "Ministério"}.`,
+        actionUrl: `/escalas/${encodeURIComponent(scheduleId)}`,
+        type: "confirmation",
+      });
+      if (pushResult.pushSent > 0) {
+        trackChannelResult(summary, "push", "sent", user.id);
+      } else {
+        trackChannelResult(summary, "push", "skipped", user.id);
+      }
+      if (pushResult.pushFailed > 0) {
+        trackChannelResult(summary, "push", "failed", user.id, "Falha ao enviar push.");
+      }
+    } catch (error) {
+      trackChannelResult(
+        summary,
+        "push",
+        "failed",
+        user.id,
+        error instanceof Error ? error.message : "Falha ao enviar notificacao."
+      );
+    }
   }
 
   return summary;

@@ -5,6 +5,8 @@ import { useApp } from "@/hooks/use-app";
 import { updateSession } from "@/lib/auth/session";
 import { getInitials } from "@/lib/utils/helpers";
 import { AvailabilityEditor, Skeleton, PageHeader } from "@/components/ui";
+import { supabase } from "@/lib/firebase";
+import type { Department, Event, Schedule, ScheduleMember, User } from "@/types";
 
 function formatPhone(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -60,6 +62,12 @@ export default function PerfilPage() {
   const [neighborhood, setNeighborhood] = useState(user.address_neighborhood || "");
   const [city, setCity] = useState(user.address_city || "");
   const [addressState, setAddressState] = useState(user.address_state || "");
+  const [spouseId, setSpouseId] = useState(user.spouse_id || "");
+  const [members, setMembers] = useState<User[]>([]);
+  const [profileScheduleMembers, setProfileScheduleMembers] = useState<ScheduleMember[]>([]);
+  const [profileSchedules, setProfileSchedules] = useState<Schedule[]>([]);
+  const [profileEvents, setProfileEvents] = useState<Event[]>([]);
+  const [profileDepartments, setProfileDepartments] = useState<Department[]>([]);
   const [cepLoading, setCepLoading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(user.photo_url || "");
   const [avail, setAvail] = useState([
@@ -149,6 +157,65 @@ export default function PerfilPage() {
     void loadProfileSummary();
   }, []);
 
+  useEffect(() => {
+    supabase
+      .from("users")
+      .select("*")
+      .eq("church_id", user.church_id)
+      .eq("active", true)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Erro ao carregar membros para cônjuge:", error);
+          return;
+        }
+        setMembers((data || []) as User[]);
+        const reverse = ((data || []) as User[]).find((member) => member.spouse_id === user.id);
+        if (!user.spouse_id && reverse) setSpouseId(reverse.id);
+      });
+  }, [user.church_id, user.id, user.spouse_id]);
+
+  useEffect(() => {
+    async function loadMySchedules() {
+      const { data: smData, error: smError } = await supabase
+        .from("schedule_members")
+        .select("*")
+        .eq("user_id", user.id);
+      if (smError) {
+        console.error("Erro ao carregar minhas participações:", smError);
+        return;
+      }
+      const memberships = (smData || []) as ScheduleMember[];
+      setProfileScheduleMembers(memberships);
+      const scheduleIds = [...new Set(memberships.map((item) => item.schedule_id))];
+      if (scheduleIds.length === 0) {
+        setProfileSchedules([]);
+        setProfileEvents([]);
+        setProfileDepartments([]);
+        return;
+      }
+      const { data: schedulesData, error: schedulesError } = await supabase
+        .from("schedules")
+        .select("*")
+        .eq("church_id", user.church_id)
+        .in("id", scheduleIds);
+      if (schedulesError) {
+        console.error("Erro ao carregar minhas escalas:", schedulesError);
+        return;
+      }
+      const loadedSchedules = (schedulesData || []) as Schedule[];
+      setProfileSchedules(loadedSchedules);
+      const eventIds = [...new Set(loadedSchedules.map((item) => item.event_id).filter(Boolean))];
+      const departmentIds = [...new Set(loadedSchedules.map((item) => item.department_id).filter(Boolean))];
+      const [{ data: eventsData }, { data: departmentsData }] = await Promise.all([
+        eventIds.length ? supabase.from("events").select("*").eq("church_id", user.church_id).in("id", eventIds) : Promise.resolve({ data: [] }),
+        departmentIds.length ? supabase.from("departments").select("*").eq("church_id", user.church_id).in("id", departmentIds) : Promise.resolve({ data: [] }),
+      ]);
+      setProfileEvents((eventsData || []) as Event[]);
+      setProfileDepartments((departmentsData || []) as Department[]);
+    }
+    void loadMySchedules();
+  }, [user.church_id, user.id]);
+
   async function saveProfile() {
     if (!name.trim()) {
       toast("Informe seu nome.");
@@ -178,6 +245,7 @@ export default function PerfilPage() {
           addressNeighborhood: neighborhood.trim(),
           addressCity: city.trim(),
           addressState: addressState.trim(),
+          spouseId,
         }),
       });
 
@@ -378,6 +446,7 @@ export default function PerfilPage() {
       </div>
 
       {tab === "perfil" && (
+        <div className="space-y-5">
         <div className="card p-6 space-y-5">
           <div className="flex items-center gap-5">
             <div className="relative group">
@@ -437,6 +506,21 @@ export default function PerfilPage() {
           <div>
             <label className="input-label">Nome completo</label>
             <input className="input-field" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="input-label">Cônjuge</label>
+            <select className="input-field" value={spouseId} onChange={(e) => setSpouseId(e.target.value)}>
+              <option value="">Sem cônjuge cadastrado</option>
+              {members
+                .filter((member) => member.id !== user.id)
+                .map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+            </select>
+            <p className="mt-1 text-[11px] text-ink-faint">O vínculo aparece automaticamente nos dois perfis.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -529,6 +613,53 @@ export default function PerfilPage() {
           <button onClick={saveProfile} disabled={savingProfile} className="btn btn-primary">
             {savingProfile ? "Salvando..." : "Salvar perfil"}
           </button>
+        </div>
+
+        <div className="card p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="font-display text-lg">Minhas escalas</div>
+              <p className="text-sm text-ink-muted">Próximas participações e respostas pendentes.</p>
+            </div>
+            <a href="/minhas-escalas" className="btn btn-secondary btn-sm">Ver todas</a>
+          </div>
+          <div className="space-y-2">
+            {profileScheduleMembers
+              .map((scheduleMember) => {
+                const schedule = profileSchedules.find((item) => item.id === scheduleMember.schedule_id);
+                if (!schedule) return null;
+                const event = profileEvents.find((item) => item.id === schedule.event_id);
+                const department = profileDepartments.find((item) => item.id === schedule.department_id);
+                return { scheduleMember, schedule, event, department };
+              })
+              .filter(Boolean)
+              .sort((a: any, b: any) => `${a.schedule.date} ${a.schedule.time}`.localeCompare(`${b.schedule.date} ${b.schedule.time}`))
+              .slice(0, 4)
+              .map((item: any) => (
+                <a
+                  key={item.scheduleMember.id}
+                  href={`/escalas/${item.schedule.id}`}
+                  className="flex flex-col gap-2 rounded-[16px] border border-border-soft bg-surface-alt px-4 py-3 transition-colors hover:bg-brand-glow sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-ink">{item.event?.name || "Escala"}</div>
+                    <div className="mt-0.5 text-[12px] text-ink-muted">{item.department?.name || "Ministério"} · {item.scheduleMember.function_name || "Função não informada"}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="badge badge-secondary">{item.schedule.date} · {item.schedule.time}</span>
+                    <span className={`badge ${item.scheduleMember.status === "confirmed" ? "badge-green" : item.scheduleMember.status === "declined" ? "badge-red" : "badge-amber"}`}>
+                      {item.scheduleMember.status === "confirmed" ? "Confirmado" : item.scheduleMember.status === "declined" ? "Recusado" : "Pendente"}
+                    </span>
+                  </div>
+                </a>
+              ))}
+            {profileScheduleMembers.length === 0 && (
+              <div className="rounded-[16px] border border-dashed border-border-soft bg-surface-alt px-4 py-8 text-center text-sm text-ink-faint">
+                Nenhuma escala vinculada ao seu perfil ainda.
+              </div>
+            )}
+          </div>
+        </div>
         </div>
       )}
 

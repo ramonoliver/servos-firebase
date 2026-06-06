@@ -217,7 +217,7 @@ export function buildEmailTemplate(
           body: `
             <p>Olá, <strong>${name}</strong>!</p>
             <p>Novo aviso do ministério <strong>${p.ministryName}</strong>:</p>
-            <blockquote style="border-left:3px solid #FF6B57;margin:16px 0;padding:12px 16px;background:#fff3f1;color:#1a1a1a;border-radius:0 8px 8px 0;">
+            <blockquote style="border:1px solid #FFE0D9;margin:16px 0;padding:14px 16px;background:#FFF1EE;color:#1B1726;border-radius:16px;">
               ${p.body}
             </blockquote>
           `,
@@ -236,7 +236,7 @@ export function buildEmailTemplate(
           body: `
             <p>Olá, <strong>${name}</strong>!</p>
             <p>Novo aviso da célula <strong>${p.cellName}</strong>:</p>
-            <blockquote style="border-left:3px solid #FF6B57;margin:16px 0;padding:12px 16px;background:#fff3f1;color:#1a1a1a;border-radius:0 8px 8px 0;">
+            <blockquote style="border:1px solid #FFE0D9;margin:16px 0;padding:14px 16px;background:#FFF1EE;color:#1B1726;border-radius:16px;">
               ${p.body}
             </blockquote>
           `,
@@ -345,34 +345,35 @@ function baseEmailLayout(opts: BaseLayoutOptions): string {
   <title>${opts.title}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
   <style>
-    body { margin: 0; padding: 0; background: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .wrapper { width: 100%; background: #f4f4f5; padding: 32px 0; }
-    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-    .header { background: #0f0f0f; padding: 28px 40px; text-align: left; }
-    .logo { font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
-    .logo span { color: ${accent}; }
-    .content { padding: 36px 40px; color: #1a1a1a; font-size: 15px; line-height: 1.65; }
-    .content h1 { font-size: 22px; font-weight: 700; color: #0f0f0f; margin: 0 0 20px; }
+    body { margin: 0; padding: 0; background: #f3eee6; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { width: 100%; background: #f3eee6; padding: 28px 16px; }
+    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #eadfce; border-radius: 30px; overflow: hidden; box-shadow: 0 34px 90px rgba(92,64,37,.16); }
+    .header { padding: 36px 40px 8px; text-align: left; }
+    .logo { color: #1B1726; font-size: 19px; font-weight: 800; letter-spacing: .01em; }
+    .logo-mark { display: inline-block; width: 44px; height: 44px; margin-right: 12px; border-radius: 14px; background: ${accent}; color: #ffffff; text-align: center; line-height: 44px; font-size: 24px; vertical-align: middle; }
+    .content { padding: 14px 40px 24px; color: #736D82; font-size: 15px; line-height: 1.7; }
+    .content h1 { font-size: 30px; line-height: 1.1; font-weight: 800; color: #1B1726; margin: 0 0 18px; }
     .content p { margin: 0 0 14px; }
-    .content strong { color: #0f0f0f; }
-    .cta-wrap { text-align: center; padding: 8px 0 28px; }
-    .cta { display: inline-block; background: ${accent}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
-    .divider { border: none; border-top: 1px solid #ebebeb; margin: 24px 0; }
-    .footer { background: #f9f9f9; padding: 20px 40px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #ebebeb; }
-    .footer a { color: #888; text-decoration: underline; }
+    .content strong { color: #1B1726; }
+    .cta-wrap { text-align: center; padding: 0 40px 28px; }
+    .cta { display: inline-block; background: ${accent}; color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 999px; font-size: 15px; font-weight: 800; }
+    .divider { border: none; border-top: 1px solid #F0EEF8; margin: 24px 0; }
+    .footer { padding: 20px 40px 34px; text-align: left; font-size: 12px; line-height: 1.65; color: #A39DAE; border-top: 1px solid #F0EEF8; }
+    .footer a { color: #736D82; text-decoration: underline; }
     @media (max-width: 600px) {
       .content, .header, .footer { padding-left: 24px !important; padding-right: 24px !important; }
+      .content h1 { font-size: 26px !important; }
     }
   </style>
 </head>
 <body>
   <!-- preheader (hidden, appears in email clients preview) -->
-  <div style="display:none;max-height:0;overflow:hidden;color:#f4f4f5;">${opts.preheader} &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+  <div style="display:none;max-height:0;overflow:hidden;color:#f3eee6;">${opts.preheader} &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
   <div class="wrapper">
     <div class="container">
       <!-- Header -->
       <div class="header">
-        <div class="logo">SERVOS<span>.</span></div>
+        <div class="logo"><span class="logo-mark">S</span>Servos</div>
       </div>
 
       <!-- Content -->
@@ -390,7 +391,7 @@ function baseEmailLayout(opts: BaseLayoutOptions): string {
 
       <!-- Footer -->
       <div class="footer">
-        <p style="margin:0 0 6px;">© ${year} Servos App — Todos os direitos reservados.</p>
+        <p style="margin:0 0 6px;">© ${year} Servos App. Todos os direitos reservados.</p>
         <p style="margin:0;">Você recebeu este e-mail por ser parte de uma igreja que usa o Servos App.</p>
       </div>
     </div>
@@ -408,12 +409,12 @@ function detailTable(rows: [string, string][]): string {
       ([label, value]) => `
         <tr>
           <td style="padding:8px 12px;font-size:13px;color:#888;white-space:nowrap;border-bottom:1px solid #f0f0f0;">${label}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#1a1a1a;font-weight:600;border-bottom:1px solid #f0f0f0;">${value}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#1B1726;font-weight:700;border-bottom:1px solid #F0EEF8;">${value}</td>
         </tr>`
     )
     .join("");
   return `
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #ebebeb;border-radius:10px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #FFE0D9;border-radius:16px;overflow:hidden;background:#FFF1EE;">
       <tbody>${cells}</tbody>
     </table>`;
 }

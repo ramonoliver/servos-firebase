@@ -80,17 +80,63 @@ export async function POST(req: Request) {
     }
   }
 
-  // Buscar notas com o ID real da pessoa
-  const { data: notesData, error: notesError2 } = await supabase
-    .from("pastoral_notes")
-    .select("*")
-    .eq("person_id", person.id)
-    .order("date", { ascending: false });
+  const [
+    { data: notesData, error: notesError2 },
+    { data: departmentLinks, error: departmentLinksError },
+    { data: scheduleMembers, error: scheduleMembersError },
+    { data: reverseSpouse, error: reverseSpouseError },
+  ] = await Promise.all([
+    supabase
+      .from("pastoral_notes")
+      .select("*")
+      .eq("person_id", person.id)
+      .order("date", { ascending: false }),
+    supabase.from("department_members").select("*").eq("user_id", person.id),
+    supabase.from("schedule_members").select("*").eq("user_id", person.id),
+    supabase
+      .from("users")
+      .select("id, name")
+      .eq("church_id", churchId)
+      .eq("spouse_id", person.id)
+      .maybeSingle(),
+  ]);
 
   if (notesError2) {
     console.error("Erro ao buscar notas pastorais:", notesError2);
   }
+  if (departmentLinksError) console.error("Erro ao buscar ministérios da pessoa:", departmentLinksError);
+  if (scheduleMembersError) console.error("Erro ao buscar escalas da pessoa:", scheduleMembersError);
+  if (reverseSpouseError) console.error("Erro ao buscar cônjuge reverso:", reverseSpouseError);
 
-  return NextResponse.json({ person, notes: notesData || [] });
+  const scheduleIds = [...new Set((scheduleMembers || []).map((item: any) => item.schedule_id).filter(Boolean))];
+  const { data: schedules, error: schedulesError } = scheduleIds.length
+    ? await supabase
+        .from("schedules")
+        .select("*")
+        .eq("church_id", churchId)
+        .in("id", scheduleIds)
+    : { data: [], error: null };
+
+  if (schedulesError) console.error("Erro ao buscar detalhes das escalas da pessoa:", schedulesError);
+
+  const eventIds = [...new Set((schedules || []).map((item: any) => item.event_id).filter(Boolean))];
+  const { data: events, error: eventsError } = eventIds.length
+    ? await supabase
+        .from("events")
+        .select("*")
+        .eq("church_id", churchId)
+        .in("id", eventIds)
+    : { data: [], error: null };
+
+  if (eventsError) console.error("Erro ao buscar eventos das escalas da pessoa:", eventsError);
+
+  return NextResponse.json({
+    person,
+    notes: notesData || [],
+    departmentLinks: departmentLinks || [],
+    scheduleMembers: scheduleMembers || [],
+    schedules: schedules || [],
+    events: events || [],
+    reverseSpouse: reverseSpouse || null,
+  });
 }
-

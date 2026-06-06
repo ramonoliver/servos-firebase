@@ -359,18 +359,21 @@ export default function NovaEscalaPage() {
       }
 
       if (publish) {
+        const emailSentCount = data?.notifications?.email?.sent || 0;
+        const emailFailedCount = data?.notifications?.email?.failed || 0;
+        const emailSkippedCount = data?.notifications?.email?.skipped || 0;
         const smsSentCount = data?.notifications?.sms?.sent || 0;
         const smsFailedCount = data?.notifications?.sms?.failed || 0;
         const smsSkippedCount = data?.notifications?.sms?.skipped || 0;
 
-        if (smsSentCount > 0) {
+        if (emailSentCount > 0 || smsSentCount > 0) {
           toast(
-            `Escala publicada com ${selectedIds.length} membro(s). SMS enviado para ${smsSentCount}.`
+            `Escala publicada com ${selectedIds.length} membro(s). ${emailSentCount} email(s) e ${smsSentCount} SMS enviados.`
           );
-        } else if (smsSkippedCount > 0) {
-          toast("Escala publicada. SMS ainda nao configurado neste ambiente.");
-        } else if (smsFailedCount > 0) {
-          toast(`Escala publicada, mas o SMS falhou para ${smsFailedCount} membro(s).`);
+        } else if (emailSkippedCount > 0 || smsSkippedCount > 0) {
+          toast("Escala publicada. Alguns canais de notificação não estão configurados.");
+        } else if (emailFailedCount > 0 || smsFailedCount > 0) {
+          toast(`Escala publicada, mas houve falha de notificação para ${emailFailedCount + smsFailedCount} entrega(s).`);
         } else {
           toast(`Escala publicada com ${selectedIds.length} membro(s)!`);
         }

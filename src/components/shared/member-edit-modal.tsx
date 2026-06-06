@@ -16,6 +16,68 @@ type SelectedDepartment = {
   function_names: string[];
 };
 
+function formatCep(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+function inferAddressParts(member: User) {
+  if (
+    member.address_cep ||
+    member.address_street ||
+    member.address_number ||
+    member.address_neighborhood ||
+    member.address_city ||
+    member.address_state
+  ) {
+    return {
+      cep: member.address_cep || "",
+      street: member.address_street || "",
+      number: member.address_number || "",
+      complement: member.address_complement || "",
+      neighborhood: member.address_neighborhood || "",
+      city: member.address_city || "",
+      state: member.address_state || "",
+    };
+  }
+
+  const address = (member as User & { address?: string }).address || "";
+  const parts = address.split(",").map((part) => part.trim()).filter(Boolean);
+  return {
+    street: parts[0] || "",
+    number: parts[1] || "",
+    complement: parts.length > 6 ? parts[2] || "" : "",
+    neighborhood: parts.length > 6 ? parts[3] || "" : parts[2] || "",
+    city: parts.length > 6 ? parts[4] || "" : parts[3] || "",
+    state: parts.length > 6 ? parts[5] || "" : parts[4] || "",
+    cep: parts.length > 6 ? parts[6] || "" : parts[5] || "",
+  };
+}
+
+function buildAddressText(parts: {
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  cep: string;
+}) {
+  return [
+    parts.street,
+    parts.number,
+    parts.complement,
+    parts.neighborhood,
+    parts.city,
+    parts.state,
+    parts.cep,
+  ]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
 interface MemberEditModalProps {
   member: User;
   departments: Department[];
@@ -48,6 +110,14 @@ export function MemberEditModal({
   const [spouseId, setSpouseId] = useState(member.spouse_id || "");
   const [photo, setPhoto] = useState<string | null>(member.photo_url ?? null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const initialAddress = inferAddressParts(member);
+  const [addressCep, setAddressCep] = useState(formatCep(initialAddress.cep));
+  const [addressStreet, setAddressStreet] = useState(initialAddress.street);
+  const [addressNumber, setAddressNumber] = useState(initialAddress.number);
+  const [addressComplement, setAddressComplement] = useState(initialAddress.complement);
+  const [addressNeighborhood, setAddressNeighborhood] = useState(initialAddress.neighborhood);
+  const [addressCity, setAddressCity] = useState(initialAddress.city);
+  const [addressState, setAddressState] = useState(initialAddress.state);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function handlePhoto(file: File | undefined) {
@@ -113,6 +183,16 @@ export function MemberEditModal({
     if (!name.trim()) return;
     if (!email.trim()) return;
 
+    const address = buildAddressText({
+      street: addressStreet,
+      number: addressNumber,
+      complement: addressComplement,
+      neighborhood: addressNeighborhood,
+      city: addressCity,
+      state: addressState,
+      cep: addressCep,
+    });
+
     onSave(
       {
         name: name.trim(),
@@ -122,6 +202,14 @@ export function MemberEditModal({
         status,
         spouse_id: spouseId || null,
         photo_url: photo,
+        address,
+        address_cep: addressCep,
+        address_street: addressStreet.trim(),
+        address_number: addressNumber.trim(),
+        address_complement: addressComplement.trim(),
+        address_neighborhood: addressNeighborhood.trim(),
+        address_city: addressCity.trim(),
+        address_state: addressState.trim().toUpperCase(),
         ...(canAssignCellRole ? { cell_role: (cellRole || null) as User["cell_role"] } : {}),
       },
       selectedDepartments,
@@ -292,6 +380,81 @@ export function MemberEditModal({
             <p className="mt-1 text-[11px] text-ink-faint">Supervisão é definida nas Redes/Setores, não aqui.</p>
           </div>
         )}
+
+        <div>
+          <div className="mb-2">
+            <div className="font-display text-lg">Endereço</div>
+            <p className="text-sm text-ink-muted">
+              Mantenha cada parte em seu próprio campo para buscas, mapas e cadastros futuros.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="input-label">CEP</label>
+              <input
+                className="input-field"
+                value={addressCep}
+                onChange={(e) => setAddressCep(formatCep(e.target.value))}
+                placeholder="00000-000"
+              />
+            </div>
+            <div>
+              <label className="input-label">Número</label>
+              <input
+                className="input-field"
+                value={addressNumber}
+                onChange={(e) => setAddressNumber(e.target.value)}
+                placeholder="123"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="input-label">Rua</label>
+              <input
+                className="input-field"
+                value={addressStreet}
+                onChange={(e) => setAddressStreet(e.target.value)}
+                placeholder="Rua"
+              />
+            </div>
+            <div>
+              <label className="input-label">Complemento</label>
+              <input
+                className="input-field"
+                value={addressComplement}
+                onChange={(e) => setAddressComplement(e.target.value)}
+                placeholder="Apto, bloco..."
+              />
+            </div>
+            <div>
+              <label className="input-label">Bairro</label>
+              <input
+                className="input-field"
+                value={addressNeighborhood}
+                onChange={(e) => setAddressNeighborhood(e.target.value)}
+                placeholder="Bairro"
+              />
+            </div>
+            <div>
+              <label className="input-label">Cidade</label>
+              <input
+                className="input-field"
+                value={addressCity}
+                onChange={(e) => setAddressCity(e.target.value)}
+                placeholder="Cidade"
+              />
+            </div>
+            <div>
+              <label className="input-label">Estado</label>
+              <input
+                className="input-field"
+                maxLength={2}
+                value={addressState}
+                onChange={(e) => setAddressState(e.target.value.toUpperCase())}
+                placeholder="UF"
+              />
+            </div>
+          </div>
+        </div>
 
         <div>
           <div className="mb-2">

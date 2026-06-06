@@ -201,32 +201,6 @@ export async function POST(req: Request) {
       userIds: [userId],
     });
 
-    // Send in-app notification to the added member
-    try {
-      const { data: scheduleInfo } = await supabase
-        .from("schedules")
-        .select("title, date, events(title)")
-        .eq("id", scheduleId)
-        .single();
-
-      const eventTitle = Array.isArray(scheduleInfo?.events) 
-        ? (scheduleInfo.events[0] as any)?.title || "Evento"
-        : (scheduleInfo?.events as any)?.title || "Evento";
-      const scheduleDate = new Date(scheduleInfo?.date || "").toLocaleDateString("pt-BR");
-
-      await sendUserNotification({
-        userId,
-        churchId,
-        title: "Adicionado à escala",
-        body: `Você foi adicionado à escala "${scheduleInfo?.title || "Escala"}" do evento "${eventTitle}" em ${scheduleDate}.`,
-        actionUrl: `/escalas/${scheduleId}`,
-        type: "confirmation",
-      });
-    } catch (notificationError) {
-      console.error("Error sending in-app notification for schedule assignment:", notificationError);
-      // Don't fail the request if notification fails
-    }
-
     return NextResponse.json({ success: true, notifications });
   } catch (error) {
     console.error("API schedule-members POST error:", error);

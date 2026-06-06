@@ -89,6 +89,13 @@ type InvitePerson = {
   birthDate: string;
   instagram: string;
   address: string;
+  addressCep: string;
+  addressStreet: string;
+  addressNumber: string;
+  addressComplement: string;
+  addressNeighborhood: string;
+  addressCity: string;
+  addressState: string;
   photoUrl: string;
   avatarColor: string;
   churchName: string;
@@ -158,6 +165,13 @@ export default function CompleteRegistrationClient() {
           birthDate: p.birthDate || "",
           instagram: p.instagram || "",
           photoUrl: p.photoUrl || "",
+          cep: formatCep(p.addressCep || ""),
+          street: p.addressStreet || "",
+          number: p.addressNumber || "",
+          complement: p.addressComplement || "",
+          neighborhood: p.addressNeighborhood || "",
+          city: p.addressCity || "",
+          state: p.addressState || "",
         }));
         setBirthMask(toDateMask(p.birthDate || ""));
       } catch {
@@ -232,6 +246,13 @@ export default function CompleteRegistrationClient() {
       .filter((part) => part && part.trim())
       .join(", ");
     if (addr) profile.address = addr;
+    profile.addressCep = form.cep.trim();
+    profile.addressStreet = form.street.trim();
+    profile.addressNumber = form.number.trim();
+    profile.addressComplement = form.complement.trim();
+    profile.addressNeighborhood = form.neighborhood.trim();
+    profile.addressCity = form.city.trim();
+    profile.addressState = form.state.trim().toUpperCase();
 
     setSubmitting(true);
     try {

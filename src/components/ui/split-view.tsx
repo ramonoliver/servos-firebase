@@ -9,10 +9,12 @@ interface SplitViewProps {
 
 export function SplitView({ list, detail, listWidth = 260, placeholder }: SplitViewProps) {
   return (
-    <div className="flex h-full overflow-hidden bg-white/40 backdrop-blur-md rounded-[24px] border border-white/60 shadow-sm">
+    <div
+      className="flex h-full flex-col overflow-hidden rounded-[24px] border border-white/60 bg-white/55 shadow-sm backdrop-blur-md lg:flex-row"
+      style={{ "--list-width": `${listWidth}px` } as React.CSSProperties}
+    >
       <div
-        className="flex-shrink-0 border-r border-white/50 flex flex-col overflow-hidden"
-        style={{ width: listWidth }}
+        className="flex max-h-[42dvh] w-full flex-shrink-0 flex-col overflow-hidden border-b border-white/50 lg:max-h-none lg:w-[var(--list-width)] lg:border-b-0 lg:border-r"
       >
         {list}
       </div>

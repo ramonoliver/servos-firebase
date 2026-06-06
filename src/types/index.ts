@@ -105,6 +105,11 @@ export interface User {
   address_neighborhood: string;
   address_city: string;
   address_state: string;
+  address?: string;
+  instagram?: string;
+  baptized?: boolean;
+  in_discipleship?: boolean;
+  marital_status?: string;
   spouse_id: string | null;
   availability: boolean[]; // 7 days Mon-Sun
   total_schedules: number;

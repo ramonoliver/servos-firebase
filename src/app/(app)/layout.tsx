@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AppProvider, useApp } from "@/hooks/use-app";
 import { SidebarV2, type NavItem } from "@/components/layout/sidebar-v2";
-import { BottomTabBar, type MobileTab } from "@/components/layout/bottom-tab-bar";
 import { NotificationPanel } from "@/components/layout/notification-panel";
 import { Avatar } from "@/components/ui";
 import { SupportButton } from "@/components/shared/support-button";
@@ -55,6 +54,10 @@ function MoreHorizIcon() {
   return <svg width={20} height={20} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>;
 }
 
+function MenuIcon() {
+  return <svg width={20} height={20} fill="none" stroke="currentColor" strokeWidth={1.9} viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>;
+}
+
 // ── Split-view pages: fill content area edge-to-edge ───────
 const SPLIT_PAGES = ["/escalas", "/membros"];
 
@@ -64,6 +67,7 @@ function ShellV2({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const sync = () => setIsMobile(window.innerWidth < 1024);
@@ -88,22 +92,6 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     { href: "/configuracoes", label: "Configurações", icon: "settings", show: isAdmin, group: "Gestão" },
     { href: "/perfil", label: "Meu Perfil", icon: "user", show: true, group: "Gestão" },
   ].filter((n) => n.show) as NavItem[];
-
-  const mobileTabs: MobileTab[] = [
-    { href: "/dashboard", label: "Início", icon: <HomeIcon /> },
-    {
-      href: "/calendario",
-      label: "Agenda",
-      icon: <CalendarIcon />,
-    },
-    { href: isMember ? "/ministerios" : "/pessoas", label: isMember ? "Ministérios" : "Pessoas", icon: <UsersIcon /> },
-    {
-      href: "/notificacoes",
-      label: "Mais",
-      icon: <MoreHorizIcon />,
-      badge: unreadNotifications || undefined,
-    },
-  ];
 
   // Apenas as listas (que usam SplitView de altura cheia) ficam sem scroll de
   // página. Sub-rotas como /escalas/nova e /escalas/[id] devem rolar normalmente.
@@ -137,6 +125,13 @@ function ShellV2({ children }: { children: React.ReactNode }) {
         {/* Mobile header */}
         {isMobile && (
           <header className="h-14 bg-white border-b border-sidebar-border flex items-center px-4 gap-3 flex-shrink-0">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="rounded-full p-2 text-ink-muted transition-colors hover:bg-surface-alt hover:text-ink"
+              aria-label="Abrir menu"
+            >
+              <MenuIcon />
+            </button>
             <ServosLogoSmall />
             <span className="font-display font-bold text-[15px] text-ink">Servos</span>
             <span className="text-[11px] text-ink-faint truncate flex-1">{church.name}</span>
@@ -160,24 +155,74 @@ function ShellV2({ children }: { children: React.ReactNode }) {
 
         {/* Page content */}
         {isSplitPage ? (
-          <main className={`flex-1 overflow-hidden flex flex-col p-4 sm:p-6 lg:p-8 ${isMobile ? "pb-20" : ""}`}>
+          <main className="flex-1 overflow-hidden flex flex-col p-4 sm:p-6 lg:p-8">
             <div className="mx-auto flex min-h-0 w-full max-w-[1200px] flex-1 flex-col">{children}</div>
           </main>
         ) : (
-          <main className={`flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 xl:px-10 ${isMobile ? "pb-20" : ""}`}>
+          <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
             <div className="mx-auto w-full max-w-[1200px]">{children}</div>
           </main>
         )}
       </div>
 
-      {/* Mobile bottom nav */}
-      {isMobile && (
-        <BottomTabBar
-          tabs={mobileTabs}
-          pathname={pathname}
-          canCreateSchedule={isAdmin || isLeader}
-          canInviteMember={canDo("member.invite")}
-        />
+      {/* Mobile navigation drawer */}
+      {isMobile && mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            className="absolute inset-0 bg-ink/25 backdrop-blur-[2px]"
+            aria-label="Fechar menu"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <aside className="absolute left-0 top-0 flex h-full w-[84vw] max-w-[360px] flex-col border-r border-sidebar-border bg-white shadow-2xl">
+            <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
+              <ServosLogoSmall />
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-[16px] font-bold text-ink">Servos</div>
+                <div className="truncate text-[11px] font-semibold text-ink-faint">{church.name}</div>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-full px-3 py-2 text-sm font-bold text-ink-muted hover:bg-surface-alt"
+              >
+                Fechar
+              </button>
+            </div>
+            <nav className="flex-1 overflow-y-auto p-3">
+              {navItems.map((item) => {
+                const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`mb-1 flex min-h-[46px] items-center justify-between rounded-[14px] px-4 text-[14px] font-semibold transition-colors ${
+                      active ? "bg-brand text-white" : "text-ink-muted hover:bg-surface-alt hover:text-ink"
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {item.href === "/notificacoes" && unreadNotifications > 0 && (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] ${active ? "bg-white/20 text-white" : "bg-brand text-white"}`}>
+                        {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="border-t border-sidebar-border p-3">
+              {(isAdmin || isLeader) && (
+                <Link href="/escalas/nova" onClick={() => setMobileMenuOpen(false)} className="btn btn-primary mb-2 w-full">
+                  Nova escala
+                </Link>
+              )}
+              {canDo("member.invite") && (
+                <Link href="/membros/convidar" onClick={() => setMobileMenuOpen(false)} className="btn btn-secondary w-full">
+                  Convidar pessoa
+                </Link>
+              )}
+            </div>
+          </aside>
+        </div>
       )}
 
       {/* Notification panel */}

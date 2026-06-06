@@ -5,9 +5,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
 import { ActionDrawer } from "@/components/ui/action-drawer";
-import { Avatar, EmptyState, ConfirmDialog } from "@/components/ui";
+import { Avatar, EmptyState, ConfirmDialog, AvailabilityGrid } from "@/components/ui";
 import { supabase } from "@/lib/firebase";
 import { useApp } from "@/hooks/use-app";
+import type { DepartmentMember, Event, Schedule, ScheduleMember } from "@/types";
 
 import {
   CareCaseCard,
@@ -74,6 +75,63 @@ function toDateMask(iso: string): string {
   if (!iso || iso.length !== 10) return iso;
   const [yyyy, mm, dd] = iso.split("-");
   return `${dd}/${mm}/${yyyy}`;
+}
+
+function buildAddressText(parts: {
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  cep: string;
+  fallback?: string;
+}) {
+  const structured = [
+    parts.street,
+    parts.number,
+    parts.complement,
+    parts.neighborhood,
+    parts.city,
+    parts.state,
+    parts.cep,
+  ]
+    .map((part) => (part || "").trim())
+    .filter(Boolean)
+    .join(", ");
+  return structured || parts.fallback || "";
+}
+
+function inferAddressFields(source: any) {
+  if (
+    source.address_cep ||
+    source.address_street ||
+    source.address_number ||
+    source.address_neighborhood ||
+    source.address_city ||
+    source.address_state
+  ) {
+    return {
+      cep: source.address_cep || "",
+      street: source.address_street || "",
+      number: source.address_number || "",
+      complement: source.address_complement || "",
+      neighborhood: source.address_neighborhood || "",
+      city: source.address_city || "",
+      state: source.address_state || "",
+    };
+  }
+
+  const parts = String(source.address || "").split(",").map((part) => part.trim()).filter(Boolean);
+  return {
+    street: parts[0] || "",
+    number: parts[1] || "",
+    complement: parts.length > 6 ? parts[2] || "" : "",
+    neighborhood: parts.length > 6 ? parts[3] || "" : parts[2] || "",
+    city: parts.length > 6 ? parts[4] || "" : parts[3] || "",
+    state: parts.length > 6 ? parts[5] || "" : parts[4] || "",
+    cep: parts.length > 6 ? parts[6] || "" : parts[5] || "",
+  };
 }
 
 function BackIcon() {
@@ -149,6 +207,12 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
   const [dbMembers, setDbMembers] = useState<Array<{ id: string; name: string }>>([]);
+  const [departmentLinks, setDepartmentLinks] = useState<DepartmentMember[]>([]);
+  const [personScheduleMembers, setPersonScheduleMembers] = useState<ScheduleMember[]>([]);
+  const [personSchedules, setPersonSchedules] = useState<Schedule[]>([]);
+  const [personEvents, setPersonEvents] = useState<Event[]>([]);
+  const [reverseSpouse, setReverseSpouse] = useState<{ id: string; name: string } | null>(null);
+  const [personAvailability, setPersonAvailability] = useState<boolean[]>([]);
 
   const [editForm, setEditForm] = useState({
     fullName: "",
@@ -222,6 +286,10 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       const personPayload = await personResponse.json().catch(() => null);
       const uData = personPayload?.person;
       const notesData = personPayload?.notes || [];
+      const loadedDepartmentLinks = (personPayload?.departmentLinks || []) as DepartmentMember[];
+      const loadedScheduleMembers = (personPayload?.scheduleMembers || []) as ScheduleMember[];
+      const loadedSchedules = (personPayload?.schedules || []) as Schedule[];
+      const loadedEvents = (personPayload?.events || []) as Event[];
 
       if (!uData) {
         setPerson(null);
@@ -262,7 +330,9 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
         participatesInCell: !!uData.cell_id,
         cellId: uData.cell_id || null,
         spouseId: uData.spouse_id || null,
-        ministryIds: uData.ministry_ids || [],
+        ministryIds: loadedDepartmentLinks.length
+          ? loadedDepartmentLinks.map((link) => link.department_id)
+          : uData.ministry_ids || [],
         roleTitle: uData.role === "admin" ? "Administrador" : uData.role === "leader" ? "Líder" : "Membro",
         tagIds: uData.tag_ids || [],
         notes: uData.notes || "",
@@ -273,6 +343,12 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       };
 
       setPerson(p);
+      setDepartmentLinks(loadedDepartmentLinks);
+      setPersonScheduleMembers(loadedScheduleMembers);
+      setPersonSchedules(loadedSchedules);
+      setPersonEvents(loadedEvents);
+      setReverseSpouse(personPayload?.reverseSpouse || null);
+      setPersonAvailability(uData.availability || []);
 
       // Set Cell
       if (p.cellId) {
@@ -324,6 +400,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
           ? "leader"
           : "member";
 
+      const addressFields = inferAddressFields(uData);
+
       // Populate edit form
       setEditForm({
         fullName: p.fullName,
@@ -334,18 +412,18 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
         cellId: p.cellId || "",
         instagram: p.instagram,
         address: p.address || "",
-        cep: "",
-        street: "",
-        number: "",
-        complement: "",
-        neighborhood: "",
-        city: "",
-        state: "",
+        cep: formatCep(addressFields.cep),
+        street: addressFields.street,
+        number: addressFields.number,
+        complement: addressFields.complement,
+        neighborhood: addressFields.neighborhood,
+        city: addressFields.city,
+        state: addressFields.state,
         roleTitle: p.roleTitle,
         notes: p.notes,
         baptized: p.baptized,
         inDiscipleship: p.inDiscipleship,
-        spouseId: uData.spouse_id || "",
+        spouseId: uData.spouse_id || personPayload?.reverseSpouse?.id || "",
       });
       setEditBirthDateMask(toDateMask(p.birthDate));
     } catch (err) {
@@ -391,8 +469,29 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   }
 
   const cell = dbCell;
-  const ministries = (person.ministryIds || []).map(id => departments.find(d => d.id === id)).filter(Boolean);
-  const spouseName = person.spouseId ? (dbMembers.find((m) => m.id === person.spouseId)?.name || null) : null;
+  const ministries = departmentLinks
+    .map((link) => ({
+      link,
+      department: departments.find((department) => department.id === link.department_id),
+    }))
+    .filter((item) => item.department);
+  const spouseId = person.spouseId || reverseSpouse?.id || null;
+  const spouseName = spouseId ? (dbMembers.find((m) => m.id === spouseId)?.name || reverseSpouse?.name || null) : null;
+  const orderedSchedules = personScheduleMembers
+    .map((scheduleMember) => {
+      const schedule = personSchedules.find((item) => item.id === scheduleMember.schedule_id);
+      if (!schedule) return null;
+      const event = personEvents.find((item) => item.id === schedule.event_id);
+      const department = departments.find((item) => item.id === schedule.department_id);
+      return { scheduleMember, schedule, event, department };
+    })
+    .filter(Boolean)
+    .sort((a: any, b: any) => `${b.schedule.date} ${b.schedule.time}`.localeCompare(`${a.schedule.date} ${a.schedule.time}`)) as Array<{
+      scheduleMember: ScheduleMember;
+      schedule: Schedule;
+      event?: Event;
+      department?: { id: string; name: string };
+    }>;
   const prayers = [];
   const relationships = [];
   
@@ -418,8 +517,13 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       if (!res.ok) return;
       const data = await res.json() as { erro?: boolean; logradouro?: string; bairro?: string; localidade?: string; uf?: string };
       if (data.erro) return;
-      const suggested = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean).join(", ");
-      setEditForm((f) => ({ ...f, address: suggested || f.address }));
+      setEditForm((f) => ({
+        ...f,
+        street: data.logradouro || f.street,
+        neighborhood: data.bairro || f.neighborhood,
+        city: data.localidade || f.city,
+        state: data.uf || f.state,
+      }));
     } catch {
       // silently ignore
     } finally {
@@ -432,7 +536,17 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     try {
       setLoading(true);
       const { kind, cellId, fullName, phone, email, instagram, notes } = editForm;
-      const address = (editForm.address || "").trim() || person.address;
+      const role = kind === "leader" || kind === "pastor" ? "leader" : "member";
+      const address = buildAddressText({
+        street: editForm.street,
+        number: editForm.number,
+        complement: editForm.complement,
+        neighborhood: editForm.neighborhood,
+        city: editForm.city,
+        state: editForm.state,
+        cep: editForm.cep,
+        fallback: person.address,
+      });
 
       const res = await fetch("/api/members/update", {
         method: "POST",
@@ -445,19 +559,30 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             name: fullName.trim(),
             email: email.trim().toLowerCase(),
             phone: phone.trim(),
-            role: kind,
+            role,
             status: "active",
             spouse_id: editForm.spouseId || null,
             cell_id: cellId || null,
             birth_date: editForm.birthDate || null,
             instagram: instagram.trim(),
             address,
+            address_cep: editForm.cep,
+            address_street: editForm.street.trim(),
+            address_number: editForm.number.trim(),
+            address_complement: editForm.complement.trim(),
+            address_neighborhood: editForm.neighborhood.trim(),
+            address_city: editForm.city.trim(),
+            address_state: editForm.state.trim().toUpperCase(),
             notes: notes.trim(),
             baptized: editForm.baptized,
             in_discipleship: editForm.inDiscipleship,
           },
           spouseId: editForm.spouseId || "",
-          selectedDepartments: person.ministryIds.map(id => ({ department_id: id, function_name: "", function_names: [] })),
+          selectedDepartments: departmentLinks.map((link) => ({
+            department_id: link.department_id,
+            function_name: link.function_name || "",
+            function_names: link.function_names || (link.function_name ? [link.function_name] : []),
+          })),
         }),
       });
 
@@ -747,10 +872,10 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                 trueLabel="Em andamento"
                 falseLabel="Não iniciado"
               />
-              {spouseName && (
+              {spouseName && spouseId && (
                 <div className="flex items-center justify-between text-[13px]">
                   <span className="text-ink-muted">Cônjuge</span>
-                  <Link href={`/pessoas/${person.spouseId}`} className="font-semibold text-ink hover:text-brand">
+                  <Link href={`/pessoas/${spouseId}`} className="font-semibold text-ink hover:text-brand">
                     {spouseName}
                   </Link>
                 </div>
@@ -786,18 +911,27 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             </div>
           </SoftCard>
 
+          <SoftCard className="p-4">
+            <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-ink-faint">Disponibilidade geral</h3>
+            <AvailabilityGrid availability={personAvailability} />
+          </SoftCard>
+
           {/* Ministries */}
           {ministries.length > 0 && (
             <SoftCard className="p-4">
               <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-ink-faint">Ministérios</h3>
               <div className="space-y-1.5">
-                {ministries.map((m) => m && (
-                  <div
-                    key={m.id}
-                    className="rounded-[10px] bg-surface-alt px-3 py-2 text-[13px] font-medium text-ink"
+                {ministries.map(({ link, department }) => department && (
+                  <Link
+                    key={link.id}
+                    href={`/ministerios/${department.id}`}
+                    className="block rounded-[10px] bg-surface-alt px-3 py-2 transition-colors hover:bg-brand-glow"
                   >
-                    {m.name}
-                  </div>
+                    <div className="text-[13px] font-semibold text-ink">{department.name}</div>
+                    <div className="mt-0.5 text-[11px] text-ink-faint">
+                      {(link.function_names?.length ? link.function_names : link.function_name ? [link.function_name] : ["Sem função"]).join(", ")}
+                    </div>
+                  </Link>
                 ))}
               </div>
             </SoftCard>
@@ -856,11 +990,37 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
           )}
 
           {activeTab === "Escalas" && (
-            <EmptyState
-              icon="▣"
-              title="Escalas integradas em breve"
-              description="As confirmações e ausências de escala serão exibidas neste histórico pastoral."
-            />
+            <div className="space-y-3">
+              {orderedSchedules.map(({ scheduleMember, schedule, event, department }) => (
+                <Link
+                  key={scheduleMember.id}
+                  href={`/escalas/${schedule.id}`}
+                  className="block rounded-[18px] border border-border-soft bg-white/80 px-4 py-3 transition-colors hover:border-brand/30 hover:bg-brand-glow"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-bold text-ink">{event?.name || "Escala"}</div>
+                      <div className="mt-1 text-[12px] text-ink-muted">
+                        {[department?.name, scheduleMember.function_name || "Função não informada"].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="badge badge-secondary">{schedule.date} · {schedule.time}</span>
+                      <span className={`badge ${scheduleMember.status === "confirmed" ? "badge-green" : scheduleMember.status === "declined" ? "badge-red" : "badge-amber"}`}>
+                        {scheduleMember.status === "confirmed" ? "Confirmado" : scheduleMember.status === "declined" ? "Recusado" : "Pendente"}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {orderedSchedules.length === 0 && (
+                <EmptyState
+                  icon="▣"
+                  title="Nenhuma escala"
+                  description="Quando esta pessoa for incluída em uma escala, o histórico aparecerá aqui."
+                />
+              )}
+            </div>
           )}
 
           {activeTab === "Observações" && (
@@ -1015,13 +1175,32 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                 </div>
               </div>
               <div>
-                <label className="input-label">Endereço completo</label>
-                <textarea
-                  className="input-field min-h-[80px]"
-                  placeholder="Rua, número, bairro, cidade - UF"
-                  value={editForm.address}
-                  onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
-                />
+                <label className="input-label">Rua</label>
+                <input className="input-field" value={editForm.street} onChange={(e) => setEditForm((f) => ({ ...f, street: e.target.value }))} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="input-label">Número</label>
+                  <input className="input-field" value={editForm.number} onChange={(e) => setEditForm((f) => ({ ...f, number: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="input-label">Complemento</label>
+                  <input className="input-field" value={editForm.complement} onChange={(e) => setEditForm((f) => ({ ...f, complement: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="input-label">Bairro</label>
+                <input className="input-field" value={editForm.neighborhood} onChange={(e) => setEditForm((f) => ({ ...f, neighborhood: e.target.value }))} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[1fr_80px]">
+                <div>
+                  <label className="input-label">Cidade</label>
+                  <input className="input-field" value={editForm.city} onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="input-label">UF</label>
+                  <input className="input-field" maxLength={2} value={editForm.state} onChange={(e) => setEditForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
+                </div>
               </div>
             </div>
           </div>

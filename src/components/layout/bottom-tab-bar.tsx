@@ -38,7 +38,7 @@ export function BottomTabBar({ tabs, pathname, canCreateSchedule, canInviteMembe
   const router = useRouter();
 
   const actions = [
-    canCreateSchedule && { label: "Nova Escala", emoji: "📅", href: "/escalas?new=1" },
+    canCreateSchedule && { label: "Nova Escala", emoji: "📅", href: "/escalas/nova" },
     canInviteMember && { label: "Convidar Membro", emoji: "👤", href: "/membros/convidar" },
     { label: "Registrar Indisponibilidade", emoji: "🚫", href: "/indisponibilidade" },
   ].filter(Boolean) as { label: string; emoji: string; href: string }[];

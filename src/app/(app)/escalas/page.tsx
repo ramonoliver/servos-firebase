@@ -74,18 +74,7 @@ function EscalasPageInner() {
   }, [user.church_id, departments.length]);
 
   async function openCreationDrawer() {
-    if (drawerEvents.length === 0) {
-      const { data } = await supabase
-        .from("events")
-        .select("*")
-        .eq("church_id", user.church_id)
-        .eq("active", true);
-      const evts = (data || []) as Event[];
-      setDrawerEvents(evts);
-      if (evts.length > 0 && !newEventId) setNewEventId(evts[0].id);
-    }
-    if (!newDeptId && departments.length > 0) setNewDeptId(departments[0].id);
-    setDrawerOpen(true);
+    router.push("/escalas/nova");
   }
 
   async function createSchedule() {
@@ -158,30 +147,30 @@ function EscalasPageInner() {
   const listPanel = (
     <div className="flex flex-col h-full">
       {/* List header */}
-      <div className="px-4 py-3 border-b border-white/50 flex items-center justify-between flex-shrink-0">
+      <div className="px-5 py-4 border-b border-white/50 flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="font-display text-[15px] font-bold text-ink">Escalas</h1>
-          <p className="text-[11px] text-ink-faint">{schedules.length} no total</p>
+          <h1 className="font-display text-[20px] font-bold text-ink">Escalas</h1>
+          <p className="text-[12px] text-ink-faint">{schedules.length} escala{schedules.length === 1 ? "" : "s"} no total</p>
         </div>
         {canDo("schedule.create") && (
           <button
             onClick={openCreationDrawer}
-            className="w-7 h-7 rounded-lg bg-brand text-white flex items-center justify-center hover:opacity-90 transition-opacity text-lg leading-none"
+            className="btn btn-primary btn-sm"
             title="Nova Escala"
             aria-label="Nova Escala"
           >
-            +
+            Nova escala
           </button>
         )}
       </div>
 
       {/* Filter tabs */}
-      <div className="px-3 py-2 border-b border-white/50 flex gap-0.5 flex-shrink-0">
+      <div className="px-4 py-3 border-b border-white/50 flex gap-1 flex-shrink-0">
         {(["all", "active", "draft"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
               filter === f ? "bg-white/60 text-ink shadow-sm" : "text-ink-muted hover:bg-white/40 hover:text-ink"
             }`}
           >
@@ -191,11 +180,15 @@ function EscalasPageInner() {
       </div>
 
       {/* Schedule list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-3">
         {loading ? (
-          <div className="px-4 py-8 text-center text-sm text-ink-faint">Carregando...</div>
+          <div className="space-y-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="h-28 animate-pulse rounded-[18px] bg-white/55" />
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="px-4 py-8 text-center">
+          <div className="rounded-[18px] border border-dashed border-border-soft bg-white/55 px-4 py-8 text-center">
             <p className="text-sm text-ink-faint mb-2">Nenhuma escala</p>
             {canDo("schedule.create") && (
               <button onClick={openCreationDrawer} className="text-sm font-semibold text-brand hover:underline">
@@ -215,36 +208,36 @@ function EscalasPageInner() {
               <button
                 key={s.id}
                 onClick={() => router.push(`/escalas?id=${s.id}`)}
-                className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-white/40 transition-colors group ${
-                  isSelected ? "bg-white/40" : "hover:bg-white/30"
+                className={`group mb-3 w-full rounded-[18px] border p-3.5 text-left transition-all ${
+                  isSelected ? "border-brand/30 bg-brand-glow shadow-sm" : "border-white/60 bg-white/62 hover:border-brand/20 hover:bg-white/85"
                 }`}
               >
-                <div className="w-9 h-[38px] rounded-lg bg-white/50 border border-white/60 flex flex-col items-center justify-center flex-shrink-0 backdrop-blur-sm">
-                  <span className="text-[7px] font-bold uppercase text-ink-faint">{getDayName(s.date)}</span>
-                  <span className="font-display text-[14px] text-ink leading-none">{s.date.split("-")[2]}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-ink truncate">{ev?.name || "Escala"}</div>
-                  <div className="text-[11px] text-ink-faint truncate">{dept?.name} · {s.time}</div>
-                  {s.status === "draft" && (
-                    <span className="inline-block mt-0.5 text-[9px] font-semibold text-info bg-info/10 px-1.5 py-0.5 rounded-full">
-                      Rascunho
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  {sm.length > 0 && (
-                    <span className={`text-[10px] font-semibold ${confirmed === sm.length ? "text-success" : "text-amber"}`}>
-                      {confirmed}/{sm.length}
-                    </span>
-                  )}
+                <div className="flex items-start gap-3">
+                  <div className="flex h-14 w-12 flex-shrink-0 flex-col items-center justify-center rounded-[14px] border border-white/70 bg-white/70 backdrop-blur-sm">
+                    <span className="text-[8px] font-bold uppercase text-ink-faint">{getDayName(s.date)}</span>
+                    <span className="font-display text-[18px] leading-none text-ink">{s.date.split("-")[2]}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[14px] font-bold text-ink">{ev?.name || "Escala"}</div>
+                    <div className="mt-1 truncate text-[12px] text-ink-faint">{dept?.name || "Ministério"} · {s.time}</div>
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      <span className={`badge ${s.status === "active" ? "badge-green" : "badge-info"}`}>
+                        {s.status === "active" ? "Publicada" : "Rascunho"}
+                      </span>
+                      {sm.length > 0 && (
+                        <span className={`badge ${confirmed === sm.length ? "badge-green" : "badge-amber"}`}>
+                          {confirmed}/{sm.length} confirmados
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   {canDo("schedule.delete") && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setScheduleToDelete(s.id); }}
-                      className="text-[10px] text-danger opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
+                      className="rounded-full px-2 py-1 text-[11px] font-semibold text-danger opacity-0 transition-opacity hover:bg-danger-light group-hover:opacity-100"
                       title="Excluir"
                     >
-                      excluir
+                      Excluir
                     </button>
                   )}
                 </div>
@@ -266,12 +259,15 @@ function EscalasPageInner() {
 
   const placeholder = (
     <div className="flex-1 flex items-center justify-center text-center p-8">
-      <div>
-        <p className="text-4xl mb-3 opacity-20">📅</p>
-        <p className="text-sm text-ink-faint">Selecione uma escala para ver os detalhes</p>
+      <div className="max-w-[320px]">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-brand-light text-brand">
+          <span className="text-2xl">▣</span>
+        </div>
+        <p className="font-display text-lg text-ink">Selecione uma escala</p>
+        <p className="mt-1 text-sm text-ink-faint">Veja participantes, confirmações, anexos e chat em um só painel.</p>
         {canDo("schedule.create") && (
-          <button onClick={openCreationDrawer} className="mt-3 text-sm font-semibold text-brand hover:underline">
-            + Nova Escala
+          <button onClick={openCreationDrawer} className="btn btn-primary btn-sm mt-4">
+            Nova escala
           </button>
         )}
       </div>
@@ -280,7 +276,7 @@ function EscalasPageInner() {
 
   return (
     <>
-      <SplitView list={listPanel} detail={detailPanel} listWidth={280} placeholder={placeholder} />
+      <SplitView list={listPanel} detail={detailPanel} listWidth={360} placeholder={placeholder} />
 
       {/* Creation drawer */}
       <ActionDrawer

@@ -22,13 +22,48 @@ const bodySchema = z.object({
   gender: z.enum(["feminino", "masculino", "nao_informado"]).default("nao_informado"),
   kind: z.enum(["member", "visitor", "volunteer", "leader", "pastor"]).default("visitor"),
   cellId: z.string().nullable().optional(),
+  ministryId: z.string().nullable().optional(),
+  photoUrl: z.string().nullable().optional(),
   address: z.string().trim().default(""),
+  addressCep: z.string().trim().default(""),
+  addressStreet: z.string().trim().default(""),
+  addressNumber: z.string().trim().default(""),
+  addressComplement: z.string().trim().default(""),
+  addressNeighborhood: z.string().trim().default(""),
+  addressCity: z.string().trim().default(""),
+  addressState: z.string().trim().max(2).default(""),
   instagram: z.string().trim().default(""),
   notes: z.string().default(""),
 });
 
 function randomEmail(prefix: string) {
   return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@people.local`;
+}
+
+function buildAddressText(input: {
+  address?: string;
+  addressCep?: string;
+  addressStreet?: string;
+  addressNumber?: string;
+  addressComplement?: string;
+  addressNeighborhood?: string;
+  addressCity?: string;
+  addressState?: string;
+}) {
+  const structured = [
+    input.addressStreet,
+    input.addressNumber,
+    input.addressComplement,
+    input.addressNeighborhood,
+    input.addressCity,
+    input.addressState,
+    input.addressCep,
+  ]
+    .map((part) => (part || "").trim())
+    .filter(Boolean)
+    .join(", ");
+
+  return structured || (input.address || "").trim();
 }
 
 export async function POST(req: Request) {
@@ -48,7 +83,28 @@ export async function POST(req: Request) {
     }
 
     const churchId = session!.church_id;
-    const { name, email, phone, birthDate, gender, kind, cellId, address, instagram, notes } = parsed.data;
+    const invitedByUserId = session!.user_id;
+    const {
+      name,
+      email,
+      phone,
+      birthDate,
+      gender,
+      kind,
+      cellId,
+      ministryId,
+      photoUrl,
+      address,
+      addressCep,
+      addressStreet,
+      addressNumber,
+      addressComplement,
+      addressNeighborhood,
+      addressCity,
+      addressState,
+      instagram,
+      notes,
+    } = parsed.data;
     const supabase = getFirebaseAdminClient();
 
     const emailProvided = Boolean(email.trim());
@@ -117,11 +173,28 @@ export async function POST(req: Request) {
       role,
       status: "active",
       avatar_color: `hsl(${Math.floor(Math.random() * 360)}, 40%, 55%)`,
-      photo_url: null,
+      photo_url: photoUrl || null,
       birth_date: birthDate || null,
       gender,
       cell_id: cellId || null,
-      address: address || "",
+      ministry_ids: ministryId ? [ministryId] : [],
+      address: buildAddressText({
+        address,
+        addressCep,
+        addressStreet,
+        addressNumber,
+        addressComplement,
+        addressNeighborhood,
+        addressCity,
+        addressState,
+      }),
+      address_cep: addressCep,
+      address_street: addressStreet,
+      address_number: addressNumber,
+      address_complement: addressComplement,
+      address_neighborhood: addressNeighborhood,
+      address_city: addressCity,
+      address_state: addressState,
       instagram: instagram || "",
       spouse_id: null,
       availability: [true, true, true, true, true, true, true],
@@ -156,6 +229,30 @@ export async function POST(req: Request) {
       }
     }
 
+    if (ministryId) {
+      const { data: department } = await supabase
+        .from("departments")
+        .select("id, function_names")
+        .eq("id", ministryId)
+        .eq("church_id", churchId)
+        .maybeSingle();
+
+      if (department) {
+        const primaryFunction = (department.function_names || [])[0] || "";
+        const { error: departmentMemberError } = await supabase.from("department_members").insert({
+          id: genId(),
+          department_id: ministryId,
+          user_id: id,
+          function_name: primaryFunction,
+          function_names: primaryFunction ? [primaryFunction] : [],
+          joined_at: now,
+        });
+        if (departmentMemberError) {
+          console.error("Erro ao vincular pessoa ao ministério:", departmentMemberError);
+        }
+      }
+    }
+
     // If email is provided, generate token and send password reset email
     if (emailProvided) {
       const rawToken = createPasswordResetToken();
@@ -180,7 +277,28 @@ export async function POST(req: Request) {
       if (tokenInsertError) {
         console.error("Erro ao salvar token de convite:", tokenInsertError);
       } else {
+        const invitationId = genId();
+        try {
+          await supabase.from("member_invitations").insert({
+            id: invitationId,
+            church_id: churchId,
+            user_id: id,
+            invited_by_user_id: invitedByUserId,
+            email: normalizedEmail,
+            phone: phone.trim() || null,
+            tracking_token: rawToken,
+            email_status: "pending",
+            sms_status: "skipped",
+            sent_at: now,
+            created_at: now,
+          });
+        } catch (inviteErr) {
+          console.error("Erro ao registrar convite da pessoa:", inviteErr);
+        }
+
         const inviteUrl = `${getAppBaseUrl()}/concluir-cadastro?token=${rawToken}`;
+        let emailStatus: "sent" | "failed" = "sent";
+        let emailError: string | null = null;
         try {
           await sendInviteEmail({
             to: normalizedEmail,
@@ -189,7 +307,18 @@ export async function POST(req: Request) {
             churchName: church?.name,
           });
         } catch (emailErr) {
+          emailStatus = "failed";
+          emailError = emailErr instanceof Error ? emailErr.message : "Falha ao enviar email";
           console.error("Erro ao enviar email de convite:", emailErr);
+        }
+
+        try {
+          await supabase
+            .from("member_invitations")
+            .update({ email_status: emailStatus, email_error: emailError })
+            .eq("id", invitationId);
+        } catch (inviteUpdateErr) {
+          console.error("Erro ao atualizar entrega do convite:", inviteUpdateErr);
         }
       }
     }

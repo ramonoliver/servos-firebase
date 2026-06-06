@@ -32,7 +32,7 @@ type DeliveryPanelState = {
   emailSkippedCount: number;
   smsSentCount: number;
   smsSkippedCount: number;
-  failed: Array<{ userId: string; channel: "email" | "sms"; error: string }>;
+  failed: Array<{ userId: string; channel: "email" | "sms" | "push"; error: string }>;
 } | null;
 
 function formatFileSize(bytes: number) {
@@ -340,7 +340,7 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
     payload?: {
       email?: { sent?: number; skipped?: number };
       sms?: { sent?: number; skipped?: number };
-      failed?: Array<{ userId: string; channel: "email" | "sms"; error: string }>;
+      failed?: Array<{ userId: string; channel: "email" | "sms" | "push"; error: string }>;
     } | null
   ) {
     setDeliveryPanel({
@@ -390,13 +390,14 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
         toast(data?.error || "Erro ao adicionar membro.");
         return;
       }
+      const emailSentCount = data?.notifications?.email?.sent || 0;
       const smsSentCount = data?.notifications?.sms?.sent || 0;
       const smsSkippedCount = data?.notifications?.sms?.skipped || 0;
       toast(
-        smsSentCount > 0
-          ? `Membro adicionado. SMS enviado para ${smsSentCount}.`
+        emailSentCount > 0 || smsSentCount > 0
+          ? `Membro adicionado. ${emailSentCount} email(s) e ${smsSentCount} SMS enviados.`
           : smsSkippedCount > 0
-          ? "Membro adicionado. SMS não configurado."
+          ? "Membro adicionado. SMS não configurado e e-mail indisponível."
           : "Membro adicionado!"
       );
       openDeliveryPanel("Entrega ao adicionar membro", data?.notifications || null);
@@ -444,8 +445,9 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
         toast(data?.error || "Erro ao adicionar substituto.");
         return;
       }
+      const emailSentCount = data?.notifications?.email?.sent || 0;
       const smsSentCount = data?.notifications?.sms?.sent || 0;
-      toast(smsSentCount > 0 ? `${sub.name} adicionado como substituto. SMS enviado.` : `${sub.name} adicionado como substituto!`);
+      toast(emailSentCount > 0 || smsSentCount > 0 ? `${sub.name} adicionado como substituto. Notificação enviada.` : `${sub.name} adicionado como substituto!`);
       openDeliveryPanel("Entrega ao adicionar substituto", data?.notifications || null);
       await loadData();
     } catch {

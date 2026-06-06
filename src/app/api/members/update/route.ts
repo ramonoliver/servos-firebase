@@ -28,6 +28,13 @@ const bodySchema = z.object({
     birth_date: z.string().nullable().optional(),
     instagram: z.string().trim().default(""),
     address: z.string().trim().default(""),
+    address_cep: z.string().trim().optional(),
+    address_street: z.string().trim().optional(),
+    address_number: z.string().trim().optional(),
+    address_complement: z.string().trim().optional(),
+    address_neighborhood: z.string().trim().optional(),
+    address_city: z.string().trim().optional(),
+    address_state: z.string().trim().max(2).optional(),
     notes: z.string().trim().default(""),
     baptized: z.boolean().optional(),
     in_discipleship: z.boolean().optional(),
@@ -268,10 +275,15 @@ export async function POST(req: Request) {
       slugUpdate = { slug: newSlug };
     }
 
+    const normalizedAddress = {
+      ...updates,
+      address_state: updates.address_state?.toUpperCase() || updates.address_state,
+    };
+
     const { error: updateUserError } = await supabase
       .from("users")
       .update({
-        ...updates,
+        ...normalizedAddress,
         ...slugUpdate,
         email: normalizedEmail,
         spouse_id: spouseId || null,

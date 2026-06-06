@@ -336,21 +336,26 @@ export async function sendScheduleReminderEmail({
   time,
   departmentName,
 }: ScheduleReminderInput) {
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
-      <h2>Lembrete de Escala</h2>
-      <p>Olá, <strong>${memberName}</strong>!</p>
-      <p>Você está escalado para servir:</p>
-      <div style="background:#f3f4f6;padding:16px;border-radius:12px;">
-        <p style="margin:0 0 8px;"><strong>Evento:</strong> ${eventName}</p>
-        <p style="margin:0 0 8px;"><strong>Data:</strong> ${date}</p>
-        <p style="margin:0 0 8px;"><strong>Horário:</strong> ${time}</p>
-        <p style="margin:0;"><strong>Ministério:</strong> ${departmentName}</p>
-      </div>
-      <p style="margin-top:16px;">Confirme sua presença no app 🙏</p>
-      <p>Que Deus abençoe seu servir!</p>
-    </div>
-  `;
+  const safeMemberName = escapeHtml(memberName);
+  const safeEventName = escapeHtml(eventName);
+  const safeDate = escapeHtml(date);
+  const safeTime = escapeHtml(time);
+  const safeDepartmentName = escapeHtml(departmentName);
+
+  const html = renderServosEmail({
+    preheader: `Lembrete da sua escala em ${departmentName}`,
+    eyebrow: "Servos · Escala",
+    title: "Lembrete de escala",
+    intro: `${safeMemberName}, passando para lembrar da sua participação em <strong>${safeDepartmentName}</strong>.`,
+    contentHtml: `
+      <div style="background:#FFF1EE;border:1px solid #FFE0D9;border-radius:18px;padding:20px 22px;">
+        <p style="margin:0;font-size:14px;color:#736D82;"><strong style="color:#1B1726;">Evento:</strong> ${safeEventName}</p>
+        <p style="margin:8px 0 0;font-size:14px;color:#736D82;"><strong style="color:#1B1726;">Data:</strong> ${safeDate}</p>
+        <p style="margin:8px 0 0;font-size:14px;color:#736D82;"><strong style="color:#1B1726;">Horário:</strong> ${safeTime}</p>
+        <p style="margin:8px 0 0;font-size:14px;color:#736D82;"><strong style="color:#1B1726;">Ministério:</strong> ${safeDepartmentName}</p>
+      </div>`,
+    footnote: "Abra o Servos para confirmar sua presença ou avisar a liderança se precisar de substituição.",
+  });
 
   return sendEmail({ to, subject: "Lembrete de escala — Servos", html });
 }
@@ -371,19 +376,18 @@ export async function sendSupportEmail({
   const safeSubject = escapeHtml(subject);
   const safeMessage = escapeHtml(message);
 
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
-      <h2>Nova mensagem de suporte — Servos</h2>
-      <p><strong>Usuário:</strong> ${safeUserName}</p>
-      <p><strong>Email:</strong> ${safeUserEmail}</p>
-      <p><strong>Igreja:</strong> ${safeChurchName}</p>
-      <p><strong>Assunto:</strong> ${safeSubject}</p>
-      <div style="background:#f3f4f6;padding:16px;border-radius:12px;margin:16px 0;">
-        <p style="margin:0;"><strong>Mensagem:</strong></p>
-        <p style="margin:8px 0 0;white-space:pre-wrap;">${safeMessage}</p>
-      </div>
-    </div>
-  `;
+  const html = renderServosEmail({
+    preheader: `Suporte de ${safeUserName}`,
+    eyebrow: "Servos · Suporte",
+    title: safeSubject,
+    intro: `${safeUserName} enviou uma mensagem de suporte pela igreja <strong>${safeChurchName}</strong>.`,
+    contentHtml: `
+      <div style="background:#FFF1EE;border:1px solid #FFE0D9;border-radius:18px;padding:20px 22px;">
+        <p style="margin:0;font-size:14px;color:#736D82;"><strong style="color:#1B1726;">Usuário:</strong> ${safeUserName}</p>
+        <p style="margin:8px 0 0;font-size:14px;color:#736D82;"><strong style="color:#1B1726;">Email:</strong> ${safeUserEmail}</p>
+        <p style="margin:18px 0 0;font-size:14px;color:#736D82;white-space:pre-wrap;">${safeMessage}</p>
+      </div>`,
+  });
 
   return sendEmail({
     to,

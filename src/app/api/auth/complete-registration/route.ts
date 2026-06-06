@@ -19,6 +19,13 @@ const bodySchema = z.object({
       birthDate: z.string().trim().optional(),
       instagram: z.string().trim().optional(),
       address: z.string().trim().optional(),
+      addressCep: z.string().trim().optional(),
+      addressStreet: z.string().trim().optional(),
+      addressNumber: z.string().trim().optional(),
+      addressComplement: z.string().trim().optional(),
+      addressNeighborhood: z.string().trim().optional(),
+      addressCity: z.string().trim().optional(),
+      addressState: z.string().trim().max(2).optional(),
       photoUrl: z.string().optional(),
     })
     .default({}),
@@ -98,6 +105,13 @@ export async function POST(req: Request) {
     if (profile.birthDate !== undefined) updates.birth_date = profile.birthDate.trim() || null;
     if (profile.instagram !== undefined) updates.instagram = profile.instagram.trim();
     if (profile.address !== undefined) updates.address = profile.address.trim();
+    if (profile.addressCep !== undefined) updates.address_cep = profile.addressCep.trim();
+    if (profile.addressStreet !== undefined) updates.address_street = profile.addressStreet.trim();
+    if (profile.addressNumber !== undefined) updates.address_number = profile.addressNumber.trim();
+    if (profile.addressComplement !== undefined) updates.address_complement = profile.addressComplement.trim();
+    if (profile.addressNeighborhood !== undefined) updates.address_neighborhood = profile.addressNeighborhood.trim();
+    if (profile.addressCity !== undefined) updates.address_city = profile.addressCity.trim();
+    if (profile.addressState !== undefined) updates.address_state = profile.addressState.trim().toUpperCase();
     if (profile.photoUrl !== undefined && profile.photoUrl) updates.photo_url = profile.photoUrl;
 
     // (Re)gera o slug amigável se o nome mudou ou se ainda não há slug.
