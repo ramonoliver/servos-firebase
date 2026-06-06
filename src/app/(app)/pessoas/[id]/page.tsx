@@ -501,6 +501,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         toast(data?.error || "Erro ao reenviar convite.");
+      } else if (data?.email?.status !== "sent") {
+        toast(data?.email?.error ? `Falha no envio do e-mail: ${data.email.error}` : "Não foi possível enviar o e-mail de convite.");
       } else {
         toast("Convite reenviado com sucesso!");
       }

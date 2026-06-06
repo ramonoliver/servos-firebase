@@ -1,14 +1,26 @@
 import { Resend } from "resend";
 
-const FALLBACK_FROM = "Servos App <noreply@servosapp.com>";
+// Domínio verificado no Resend. SÓ é possível enviar a partir dele.
+const VERIFIED_DOMAIN = "servosapp.com";
+const DEFAULT_SENDER = `Servos <noreply@${VERIFIED_DOMAIN}>`;
 
-// Em ambientes como Cloud Run/App Hosting o valor de EMAIL_FROM pode chegar
-// com aspas literais (ao contrário do dotenv local, que as remove). Aspas no
-// campo `from` fazem o Resend rejeitar com 422 "Invalid `from` field". Aqui
-// removemos aspas externas e espaços para garantir um remetente válido.
+/**
+ * Resolve o remetente garantindo que SEMPRE usamos o domínio verificado.
+ * Em produção o EMAIL_FROM chegou com aspas literais (erro 422 "Invalid from")
+ * e/ou apontando para um domínio não verificado como gmail.com (erro 403
+ * "domain is not verified") — ambos faziam o Resend recusar o envio. Aqui:
+ *  1) removemos aspas/espaços externos;
+ *  2) se o domínio do endereço não for o verificado, usamos o remetente padrão.
+ * Assim nenhuma configuração equivocada de ambiente derruba o envio.
+ */
 export function normalizeEmailFrom(raw?: string): string {
   const cleaned = (raw ?? "").trim().replace(/^['"]+|['"]+$/g, "").trim();
-  return cleaned || FALLBACK_FROM;
+  if (!cleaned) return DEFAULT_SENDER;
+  const match = cleaned.match(/<([^>]+)>/);
+  const address = (match ? match[1] : cleaned).trim().toLowerCase();
+  const domain = address.split("@")[1] || "";
+  if (domain !== VERIFIED_DOMAIN) return DEFAULT_SENDER;
+  return cleaned;
 }
 
 // Instanciação preguiçosa: a RESEND_API_KEY só existe em RUNTIME (não no build).
@@ -79,6 +91,70 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
+// ── Template base da Servos ──────────────────────────────────────────────────
+
+/** Botão de ação (CTA) compatível com clientes de e-mail (tabela + inline). */
+function ctaButton(label: string, url: string): string {
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px auto 0;">
+      <tr><td style="border-radius:14px;background:#2f241c;">
+        <a href="${url}" style="display:inline-block;padding:14px 32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#fff7ef;text-decoration:none;border-radius:14px;">${label}</a>
+      </td></tr>
+    </table>`;
+}
+
+/** Layout base com a identidade visual da Servos. */
+function renderServosEmail(params: {
+  preheader?: string;
+  eyebrow?: string;
+  title: string;
+  intro: string;
+  contentHtml?: string;
+  footnote?: string;
+  trackingPixelUrl?: string;
+}): string {
+  const {
+    preheader = "",
+    eyebrow = "Servos",
+    title,
+    intro,
+    contentHtml = "",
+    footnote = "",
+    trackingPixelUrl,
+  } = params;
+  const pixel = trackingPixelUrl
+    ? `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;" />`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4efe7;">
+  <span style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f4efe7;">${preheader}</span>
+  <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
+    <div style="max-width:600px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
+      <div style="padding:36px 36px 28px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
+        <div style="font-size:12px;letter-spacing:.30em;text-transform:uppercase;color:#8a6441;font-family:Arial,Helvetica,sans-serif;font-weight:700;">${eyebrow}</div>
+        <h1 style="margin:14px 0 12px;font-size:30px;line-height:1.12;font-weight:700;color:#24170f;">${title}</h1>
+        <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${intro}</p>
+      </div>
+      ${contentHtml ? `<div style="padding:30px 36px 10px;">${contentHtml}</div>` : ""}
+      <div style="padding:20px 36px 32px;border-top:1px solid #eadfcd;background:#fffcf6;">
+        ${footnote ? `<p style="margin:0 0 10px;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">${footnote}</p>` : ""}
+        <p style="margin:0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">Que Deus abençoe o seu servir. — Equipe <strong>Servos</strong></p>
+      </div>
+    </div>
+    ${pixel}
+  </div>
+</body>
+</html>`;
+}
+
 // ── Envio via Resend ───────────────────────────────────────────────────────
 
 async function sendEmail(params: {
@@ -115,45 +191,26 @@ export async function sendWelcomeEmail({
   const safeChurchName = escapeHtml(churchName);
   const safeEmail = escapeHtml(to);
   const safePassword = escapeHtml(tempPassword);
-  const trackingPixel = trackingPixelUrl
-    ? `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;" />`
-    : "";
 
-  const html = `
-    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
-      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
-        <div style="padding:32px 32px 24px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
-          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
-          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Seu convite chegou</h1>
-          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, você foi convidado(a) para entrar no Servos e servir com <strong>${safeChurchName}</strong>.</p>
-        </div>
-
-        <div style="padding:28px 32px 10px;">
-          <div style="background:#2f241c;border-radius:24px;padding:24px 24px 20px;color:#fff7ef;">
-            <div style="font-size:11px;letter-spacing:.22em;text-transform:uppercase;opacity:.72;font-family:Arial,sans-serif;font-weight:700;">Acesso inicial</div>
-            <div style="margin-top:16px;">
-              <div style="font-size:12px;opacity:.72;margin-bottom:6px;font-family:Arial,sans-serif;">Email</div>
-              <div style="font-size:18px;font-weight:700;line-height:1.4;">${safeEmail}</div>
-            </div>
-            <div style="margin-top:18px;">
-              <div style="font-size:12px;opacity:.72;margin-bottom:6px;font-family:Arial,sans-serif;">Senha temporária</div>
-              <div style="display:inline-block;background:#fff7ef;color:#2f241c;padding:10px 14px;border-radius:14px;font-size:24px;font-weight:700;letter-spacing:.08em;">${safePassword}</div>
-            </div>
-          </div>
-
-          <div style="padding:22px 2px 4px;">
-            <p style="margin:0 0 10px;font-size:15px;line-height:1.8;color:#4d3a2b;">No primeiro acesso, troque sua senha para manter a conta segura.</p>
-            <p style="margin:0;font-size:15px;line-height:1.8;color:#4d3a2b;">Se você recebeu este email por engano, basta ignorar a mensagem.</p>
-          </div>
-        </div>
-
-        <div style="padding:18px 32px 28px;border-top:1px solid #eadfcd;background:#fffcf6;">
-          <p style="margin:0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,sans-serif;">Que Deus abençoe seu servir. Nos vemos no app.</p>
-        </div>
-      </div>
-      ${trackingPixel}
+  const contentHtml = `
+    <div style="background:#2f241c;border-radius:22px;padding:24px;color:#fff7ef;">
+      <div style="font-size:11px;letter-spacing:.22em;text-transform:uppercase;opacity:.72;font-family:Arial,Helvetica,sans-serif;font-weight:700;">Acesso inicial</div>
+      <div style="margin-top:16px;font-size:12px;opacity:.72;font-family:Arial,Helvetica,sans-serif;">E-mail</div>
+      <div style="margin-top:4px;font-size:17px;font-weight:700;line-height:1.4;">${safeEmail}</div>
+      <div style="margin-top:18px;font-size:12px;opacity:.72;font-family:Arial,Helvetica,sans-serif;">Senha temporária</div>
+      <div style="display:inline-block;margin-top:6px;background:#fff7ef;color:#2f241c;padding:10px 16px;border-radius:12px;font-size:22px;font-weight:700;letter-spacing:.08em;font-family:'Courier New',monospace;">${safePassword}</div>
     </div>
-  `;
+    <p style="margin:22px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;font-family:Georgia,serif;">No primeiro acesso, troque sua senha para manter a sua conta segura.</p>`;
+
+  const html = renderServosEmail({
+    preheader: `Seu acesso ao Servos em ${churchName}`,
+    eyebrow: "Servos · Convite",
+    title: "Seu convite chegou",
+    intro: `${safeMemberName}, você foi convidado(a) para entrar no Servos e servir com <strong>${safeChurchName}</strong>.`,
+    contentHtml,
+    footnote: "Se você recebeu este e-mail por engano, basta ignorar a mensagem.",
+    trackingPixelUrl,
+  });
 
   return sendEmail({
     to,
@@ -181,26 +238,22 @@ export async function sendPasswordResetEmail({
   const safeChurchName = churchName ? escapeHtml(churchName) : "sua igreja";
   const safeResetUrl = resetUrl; // URLs não devem ser escapadas em hrefs
 
-  const html = `
-    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
-      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
-        <div style="padding:32px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
-          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
-          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Redefina sua senha</h1>
-          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, recebemos um pedido para redefinir o seu acesso em <strong>${safeChurchName}</strong>.</p>
-        </div>
-        <div style="padding:28px 32px;">
-          <div style="background:#2f241c;border-radius:24px;padding:24px;color:#fff7ef;">
-            <div style="font-size:12px;opacity:.72;margin-bottom:10px;font-family:Arial,sans-serif;">Use o botão abaixo para criar uma nova senha com segurança.</div>
-            <a href="${safeResetUrl}" style="display:inline-block;background:#fff7ef;color:#2f241c;padding:12px 18px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;">Redefinir senha</a>
-          </div>
-          <p style="margin:18px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;">Se o botão não funcionar, copie este link no navegador:</p>
-          <p style="margin:8px 0 0;font-size:14px;line-height:1.7;color:#8a6441;word-break:break-all;">${safeResetUrl}</p>
-          <p style="margin:14px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;">Esse link expira em 7 dias. Se você não solicitou a alteração, ignore este email.</p>
-        </div>
-      </div>
+  const contentHtml = `
+    <div style="text-align:center;">
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#4d3a2b;font-family:Georgia,serif;">Use o botão abaixo para criar uma nova senha com segurança.</p>
+      ${ctaButton("Redefinir senha", safeResetUrl)}
     </div>
-  `;
+    <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">Se o botão não funcionar, copie e cole este link no navegador:</p>
+    <p style="margin:6px 0 0;font-size:13px;line-height:1.6;color:#8a6441;word-break:break-all;font-family:Arial,Helvetica,sans-serif;">${safeResetUrl}</p>`;
+
+  const html = renderServosEmail({
+    preheader: "Redefina sua senha de acesso ao Servos",
+    eyebrow: "Servos · Segurança",
+    title: "Redefina sua senha",
+    intro: `${safeMemberName}, recebemos um pedido para redefinir o seu acesso em <strong>${safeChurchName}</strong>.`,
+    contentHtml,
+    footnote: "Este link expira em 7 dias. Se você não solicitou a alteração, ignore este e-mail.",
+  });
 
   return sendEmail({
     to,
@@ -226,26 +279,22 @@ export async function sendInviteEmail({
   const safeMemberName = escapeHtml(memberName);
   const safeChurchName = churchName ? escapeHtml(churchName) : "sua igreja";
 
-  const html = `
-    <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
-      <div style="max-width:640px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
-        <div style="padding:32px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
-          <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a6441;font-family:Arial,sans-serif;font-weight:700;">Servos</div>
-          <h1 style="margin:14px 0 10px;font-size:34px;line-height:1.05;font-weight:700;color:#24170f;">Seu cadastro está pronto</h1>
-          <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${safeMemberName}, você foi convidado(a) a se cadastrar no Servos para servir com a equipe de <strong>${safeChurchName}</strong>.</p>
-        </div>
-        <div style="padding:28px 32px;">
-          <div style="background:#2f241c;border-radius:24px;padding:24px;color:#fff7ef;text-align:center;">
-            <div style="font-size:14px;opacity:.85;margin-bottom:18px;font-family:Arial,sans-serif;line-height:1.5;">Clique no botão abaixo para concluir seu cadastro e escolher a sua senha de acesso.</div>
-            <a href="${inviteUrl}" style="display:inline-block;background:#fff7ef;color:#2f241c;padding:14px 28px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">Concluir Cadastro</a>
-          </div>
-          <p style="margin:24px 0 0;font-size:14px;line-height:1.8;color:#4d3a2b;">Se o botão não funcionar, copie e cole o link abaixo no seu navegador:</p>
-          <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#8a6441;word-break:break-all;">${inviteUrl}</p>
-          <p style="margin:20px 0 0;font-size:13px;line-height:1.8;color:#8a6441;font-family:Arial,sans-serif;opacity:.8;">Este link de cadastro expira em 7 dias. Se você não esperava este convite, desconsidere esta mensagem.</p>
-        </div>
-      </div>
+  const contentHtml = `
+    <div style="text-align:center;">
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#4d3a2b;font-family:Georgia,serif;">Clique no botão abaixo para concluir seu cadastro e escolher a sua senha de acesso.</p>
+      ${ctaButton("Concluir cadastro", inviteUrl)}
     </div>
-  `;
+    <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">Se o botão não funcionar, copie e cole este link no navegador:</p>
+    <p style="margin:6px 0 0;font-size:13px;line-height:1.6;color:#8a6441;word-break:break-all;font-family:Arial,Helvetica,sans-serif;">${inviteUrl}</p>`;
+
+  const html = renderServosEmail({
+    preheader: `Conclua seu cadastro no Servos para servir com ${churchName || "sua igreja"}`,
+    eyebrow: "Servos · Convite",
+    title: "Seu cadastro está pronto",
+    intro: `${safeMemberName}, você foi convidado(a) a se cadastrar no Servos para servir com a equipe de <strong>${safeChurchName}</strong>.`,
+    contentHtml,
+    footnote: "Este link de cadastro expira em 7 dias. Se você não esperava este convite, desconsidere esta mensagem.",
+  });
 
   return sendEmail({
     to,
