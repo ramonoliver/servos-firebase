@@ -52,19 +52,18 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # ── WhatsApp (Evolution API) — preencher para ativar o canal ──
-  - variable: EVOLUTION_API_URL
-    value: ""
-    availability:
-      - RUNTIME
-  - variable: EVOLUTION_API_KEY
-    value: ""
-    availability:
-      - RUNTIME
-  - variable: EVOLUTION_INSTANCE
-    value: ""
-    availability:
-      - RUNTIME
+  # ── WhatsApp (Evolution API) ──
+  # Quando tiver os valores, adicione aqui (NÃO deixe value vazio — o App
+  # Hosting recusa value:""). A chave deve ir como `secret`. Ex.:
+  #   - variable: EVOLUTION_API_URL
+  #     value: https://evo.suodominio.com
+  #     availability: [RUNTIME]
+  #   - variable: EVOLUTION_API_KEY
+  #     secret: evolution_api_key
+  #     availability: [RUNTIME]
+  #   - variable: EVOLUTION_INSTANCE
+  #     value: servos
+  #     availability: [RUNTIME]
   # ── E-mail (Resend) ──
   - variable: RESEND_API_KEY
     secret: resend_api_key
