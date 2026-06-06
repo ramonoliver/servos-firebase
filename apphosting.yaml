@@ -48,7 +48,7 @@ env:
       - RUNTIME
   # ── Push (FCM Web) — chave VAPID (Console Firebase → Cloud Messaging) ──
   - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
-    value: ""
+    value: BOyI7DmEZ9U8lK1R4Rcoj7hk-ZANgAU3qklfdX0OZWkb0ASYQMIXoVsJO_DPZc6bO0P30vRyED-U6MlNO40XSSE
     availability:
       - BUILD
       - RUNTIME
