@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useApp } from "@/hooks/use-app";
 import { PageHeader } from "@/components/ui";
 
@@ -124,6 +125,17 @@ export default function ConfiguraçõesPage() {
         title="Configurações"
         subtitle="Ajustes gerais da igreja e orientações de uso"
       />
+
+      <Link
+        href="/configuracoes/notificacoes"
+        className="card mb-5 flex items-center justify-between gap-4 p-5 transition-colors hover:bg-surface-alt"
+      >
+        <div>
+          <h3 className="font-display text-lg">Notificações</h3>
+          <p className="text-sm text-ink-muted">Canais (push, e-mail, WhatsApp) e categorias de avisos</p>
+        </div>
+        <span aria-hidden className="text-ink-faint">→</span>
+      </Link>
 
       <div className="card p-6 mb-5">
         <h3 className="font-display text-lg mb-4">Igreja</h3>

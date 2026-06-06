@@ -5,6 +5,7 @@ import { AUTH_COOKIE_NAME, createSessionPayload, encodeSessionToken } from "@/li
 import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 import { hashPasswordResetToken, isPasswordResetExpired } from "@/lib/auth/password-reset";
 import { firstLastSlug, resolveUniqueSlug } from "@/lib/utils/slug";
+import { notifyUser } from "@/services/notification.service";
 import type { User } from "@/types";
 
 const bodySchema = z.object({
@@ -125,6 +126,21 @@ export async function POST(req: Request) {
     // Invalida o token usado e limpa os demais do usuário.
     await supabase.from("password_reset_tokens").update({ used_at: new Date().toISOString() }).eq("id", entry.id);
     await supabase.from("password_reset_tokens").delete().eq("user_id", entry.user_id).neq("id", entry.id);
+
+    // Notificação centralizada: cadastro concluído (não-fatal).
+    try {
+      await notifyUser({
+        userId: entry.user_id,
+        churchId: entry.church_id,
+        category: "system",
+        title: "Cadastro concluído! 🎉",
+        message: `Que bom ter você no Servos${finalName ? ", " + finalName.split(" ")[0] : ""}! Seu acesso está liberado.`,
+        dedupeKey: `welcome:${entry.user_id}`,
+        content: { clickUrl: "/dashboard" },
+      });
+    } catch (notifyErr) {
+      console.error("Falha ao notificar cadastro concluído:", notifyErr);
+    }
 
     // Busca o usuário já atualizado e cria a sessão (auto-login).
     const { data: user } = await supabase

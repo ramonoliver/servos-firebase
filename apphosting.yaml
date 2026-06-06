@@ -46,6 +46,25 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # ── Push (FCM Web) — chave VAPID (Console Firebase → Cloud Messaging) ──
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  # ── WhatsApp (Evolution API) — preencher para ativar o canal ──
+  - variable: EVOLUTION_API_URL
+    value: ""
+    availability:
+      - RUNTIME
+  - variable: EVOLUTION_API_KEY
+    value: ""
+    availability:
+      - RUNTIME
+  - variable: EVOLUTION_INSTANCE
+    value: ""
+    availability:
+      - RUNTIME
   # ── E-mail (Resend) ──
   - variable: RESEND_API_KEY
     secret: resend_api_key

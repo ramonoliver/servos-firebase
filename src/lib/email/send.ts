@@ -97,7 +97,7 @@ function escapeHtml(value: string) {
 const EMAIL_FONT = "'Helvetica Neue',Helvetica,Arial,sans-serif";
 
 /** Botão de ação (CTA) coral arredondado, igual ao botão "Entrar" do login. */
-function ctaButton(label: string, url: string): string {
+export function ctaButton(label: string, url: string): string {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px auto 0;">
       <tr><td align="center" style="border-radius:999px;background:#FF6B57;">
@@ -116,7 +116,7 @@ const SERVOS_LOGO = `
   </tr></table>`;
 
 /** Layout base com a identidade visual do app (login). */
-function renderServosEmail(params: {
+export function renderServosEmail(params: {
   preheader?: string;
   eyebrow?: string;
   title: string;
@@ -163,6 +163,15 @@ function renderServosEmail(params: {
 }
 
 // ── Envio via Resend ───────────────────────────────────────────────────────
+
+export async function sendRawEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}) {
+  return sendEmail(params);
+}
 
 async function sendEmail(params: {
   to: string;

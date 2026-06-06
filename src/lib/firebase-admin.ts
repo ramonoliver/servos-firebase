@@ -35,6 +35,8 @@ const COLLECTION_MAPPING: Record<string, string> = {
   cell_meetings: "cellMeetings",
   pastoral_notes: "pastoralNotes",
   push_tokens: "pushTokens",
+  notification_preferences: "notificationPreferences",
+  device_tokens: "deviceTokens",
 };
 
 function prepareDocumentForWrite(data: any, isUpdate = false) {
