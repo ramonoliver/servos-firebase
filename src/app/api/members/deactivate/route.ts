@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
 import { can } from "@/lib/auth/permissions";
-import { getFirebaseAdminClient } from "@/lib/firebase-admin";
+import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 
 const bodySchema = z.object({
   targetUserId: z.string().min(1),
@@ -217,11 +217,45 @@ export async function POST(req: Request) {
         }
       }
 
+      // Remove o usuário da liderança de qualquer célula (leader/co-leader).
+      const { data: cells } = await supabase
+        .from("cells")
+        .select("id, leader_ids, co_leader_ids")
+        .eq("church_id", churchId);
+
+      for (const cell of cells || []) {
+        const nextLeaders = (cell.leader_ids || []).filter((id: string) => id !== targetUserId);
+        const nextCoLeaders = (cell.co_leader_ids || []).filter((id: string) => id !== targetUserId);
+        if (
+          nextLeaders.length !== (cell.leader_ids || []).length ||
+          nextCoLeaders.length !== (cell.co_leader_ids || []).length
+        ) {
+          const { error: cellUpdateError } = await supabase
+            .from("cells")
+            .update({ leader_ids: nextLeaders, co_leader_ids: nextCoLeaders })
+            .eq("id", cell.id)
+            .eq("church_id", churchId);
+          if (cellUpdateError) throw cellUpdateError;
+        }
+      }
+
       const cleanupSteps: Array<{ label: string; run: () => Promise<{ error: any }> }> = [
         {
           label: "member_invitations.user_id",
           run: async () =>
             supabase.from("member_invitations").delete().eq("user_id", targetUserId).eq("church_id", churchId),
+        },
+        {
+          label: "pastoral_notes.person_id",
+          run: async () => supabase.from("pastoral_notes").delete().eq("person_id", targetUserId),
+        },
+        {
+          label: "pastoral_notes.author_id",
+          run: async () => supabase.from("pastoral_notes").update({ author_id: null }).eq("author_id", targetUserId),
+        },
+        {
+          label: "push_tokens",
+          run: async () => supabase.from("push_tokens").delete().eq("user_id", targetUserId),
         },
         {
           label: "member_invitations.invited_by_user_id",
@@ -326,6 +360,16 @@ export async function POST(req: Request) {
             ? "O usuário não pôde ser apagado fisicamente, mas foi desativado."
             : "O ambiente não possui SUPABASE_SERVICE_ROLE_KEY. O usuário foi desativado e saiu da listagem, mas não pôde ser apagado fisicamente do banco.",
         });
+      }
+
+      // Exclui a conta do Firebase Auth — sem isso o e-mail continuaria
+      // registrado e não poderia ser convidado/cadastrado novamente.
+      try {
+        await adminAuth.deleteUser(targetUserId);
+      } catch (authErr: any) {
+        if (authErr?.code !== "auth/user-not-found") {
+          console.error("Erro ao excluir usuário do Firebase Auth:", authErr);
+        }
       }
 
       return NextResponse.json({ success: true, mode: "hard_delete" });

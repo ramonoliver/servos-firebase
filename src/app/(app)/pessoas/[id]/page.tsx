@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
 import { ActionDrawer } from "@/components/ui/action-drawer";
-import { Avatar, EmptyState } from "@/components/ui";
+import { Avatar, EmptyState, ConfirmDialog } from "@/components/ui";
 import { useApp } from "@/hooks/use-app";
 
 import {
@@ -143,6 +143,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   const [dbCell, setDbCell] = useState<any>(null);
   const [dbNetworks, setDbNetworks] = useState<any[]>([]);
   const [resendingInvite, setResendingInvite] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [editForm, setEditForm] = useState({
     fullName: "",
@@ -443,50 +445,56 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     }
   }
 
-  async function changeMemberState(action: "deactivate" | "reactivate" | "hard_delete") {
-    if (!person) return;
-    const confirmed = window.confirm(
-      action === "reactivate"
-        ? `Reativar ${person.fullName}?`
-        : action === "hard_delete"
-        ? `Excluir ${person.fullName} permanentemente e apagar os dados relacionados?`
-        : `Desativar ${person.fullName}?`
-    );
-    if (!confirmed) return;
-
+  async function performMemberAction(action: "deactivate" | "reactivate" | "hard_delete") {
+    if (!person) return false;
     try {
-      setLoading(true);
       const response = await fetch("/api/members/deactivate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          targetUserId: person.id,
-          action,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: person.id, action }),
       });
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         toast(data?.error || "Não foi possível realizar esta ação.");
-        setLoading(false);
-        return;
+        return false;
+      }
+
+      if (action === "hard_delete") {
+        toast(data?.mode === "hard_delete" ? "Usuário excluído permanentemente." : data?.warning || "Usuário removido.");
+        router.push("/pessoas");
+        return true;
       }
 
       toast(data?.warning || "Ação realizada com sucesso!");
-      if (action === "hard_delete") {
-        router.push("/pessoas");
-        return;
-      }
-
       await loadPerson();
+      return true;
     } catch (error) {
       console.error("Erro ao alterar estado do membro:", error);
       toast("Erro ao processar requisição.");
-    } finally {
-      setLoading(false);
+      return false;
     }
+  }
+
+  async function changeMemberState(action: "deactivate" | "reactivate") {
+    if (!person) return;
+    const confirmed = window.confirm(
+      action === "reactivate" ? `Reativar ${person.fullName}?` : `Desativar ${person.fullName}?`
+    );
+    if (!confirmed) return;
+    setLoading(true);
+    await performMemberAction(action);
+    setLoading(false);
+  }
+
+  async function confirmHardDelete() {
+    setDeleting(true);
+    const ok = await performMemberAction("hard_delete");
+    if (!ok) {
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+    // Em caso de sucesso, a navegação para /pessoas desmonta esta página.
   }
 
   async function handleResendInvite() {
@@ -647,7 +655,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
               </button>
             )}
             {user.role === "admin" && (
-              <button className="btn btn-danger btn-sm" onClick={() => changeMemberState("hard_delete")}>
+              <button className="btn btn-danger btn-sm" onClick={() => setDeleteOpen(true)}>
                 Excluir permanente
               </button>
             )}
@@ -1063,8 +1071,26 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
           <button className="btn btn-primary w-full" onClick={createCareCase}>Criar acompanhamento</button>
         </div>
       </ActionDrawer>
+
+      {/* Confirmação de exclusão permanente */}
+      {deleteOpen && (
+        <ConfirmDialog
+          title="Excluir permanentemente?"
+          variant="danger"
+          message={`<strong>${escapeForHtml(person.fullName)}</strong> será removido(a) por completo do sistema, junto com os dados relacionados, e o e-mail ficará livre para um novo convite.<br/><br/><strong>Esta ação não poderá ser desfeita.</strong>`}
+          confirmLabel="Excluir permanentemente"
+          cancelLabel="Cancelar"
+          loading={deleting}
+          onConfirm={confirmHardDelete}
+          onCancel={() => setDeleteOpen(false)}
+        />
+      )}
     </div>
   );
+}
+
+function escapeForHtml(value: string): string {
+  return value.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] || c));
 }
 
 function ContactRow({ icon, value }: { icon: React.ReactNode; value: string }) {

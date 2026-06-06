@@ -60,6 +60,8 @@ export default function MembroDetailPage({ params }: { params: { id: string } })
   const [careNotes, setCareNotes] = useState<PastoralNote[]>([]);
   const [showCareForm, setShowCareForm] = useState(false);
   const [deleteNote, setDeleteNote] = useState<PastoralNote | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const canCare = user.role !== "member";
 
   async function loadCare() {
@@ -255,16 +257,26 @@ export default function MembroDetailPage({ params }: { params: { id: string } })
     }
   }
 
-  async function changeMemberState(action: "deactivate" | "reactivate" | "hard_delete") {
+  async function changeMemberState(action: "deactivate" | "reactivate") {
     if (!member || !canDo("member.remove") || member.id === user.id) return;
     const confirmed = window.confirm(
-      action === "reactivate"
-        ? `Reativar ${member.name}?`
-        : action === "hard_delete"
-        ? `Excluir ${member.name} permanentemente e apagar os dados relacionados?`
-        : `Desativar ${member.name}?`
+      action === "reactivate" ? `Reativar ${member.name}?` : `Desativar ${member.name}?`
     );
     if (!confirmed) return;
+    await performMemberAction(action);
+  }
+
+  async function confirmHardDelete() {
+    setDeleting(true);
+    const ok = await performMemberAction("hard_delete");
+    if (!ok) {
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  }
+
+  async function performMemberAction(action: "deactivate" | "reactivate" | "hard_delete") {
+    if (!member || !canDo("member.remove") || member.id === user.id) return false;
 
     try {
       const response = await fetch("/api/members/deactivate", {
@@ -293,7 +305,7 @@ export default function MembroDetailPage({ params }: { params: { id: string } })
               ? "Este membro ja estava ativo. A tela foi sincronizada."
               : "Este membro ja estava desativado. A tela foi sincronizada."
           );
-          return;
+          return false;
         }
         toast(
           data?.error ||
@@ -303,23 +315,21 @@ export default function MembroDetailPage({ params }: { params: { id: string } })
               ? "Não foi possível excluir este membro."
               : "Não foi possível desativar este membro.")
         );
-        return;
+        return false;
+      }
+
+      if (action === "hard_delete") {
+        toast(data?.mode === "hard_delete" ? "Usuário excluído permanentemente." : data?.warning || "Usuário removido.");
+        router.push("/membros");
+        return true;
       }
 
       toast(
         data?.warning ||
-          (action === "reactivate"
-            ? "Membro reativado com sucesso."
-            : action === "hard_delete"
-            ? "Usuário excluído com sucesso."
-            : "Membro desativado com sucesso.")
+          (action === "reactivate" ? "Membro reativado com sucesso." : "Membro desativado com sucesso.")
       );
-      if (action === "hard_delete") {
-        router.push("/membros");
-        return;
-      }
-
       await loadData();
+      return true;
     } catch (error) {
       console.error("Erro ao atualizar membro:", error);
       toast(
@@ -329,6 +339,7 @@ export default function MembroDetailPage({ params }: { params: { id: string } })
           ? "Não foi possível excluir este membro."
           : "Não foi possível desativar este membro."
       );
+      return false;
     }
   }
 
@@ -379,7 +390,7 @@ export default function MembroDetailPage({ params }: { params: { id: string } })
                 </button>
               )}
               {canDo("member.remove") && member.id !== user.id && user.role === "admin" && (
-                <button onClick={() => changeMemberState("hard_delete")} className="btn btn-danger btn-sm">
+                <button onClick={() => setDeleteOpen(true)} className="btn btn-danger btn-sm">
                   Excluir permanente
                 </button>
               )}
@@ -645,6 +656,23 @@ export default function MembroDetailPage({ params }: { params: { id: string } })
           onConfirm={() => void handleDeleteNote(deleteNote)}
         />
       )}
+
+      {deleteOpen && member && (
+        <ConfirmDialog
+          title="Excluir permanentemente?"
+          variant="danger"
+          message={`<strong>${escapeForHtml(member.name)}</strong> será removido(a) por completo do sistema, junto com os dados relacionados, e o e-mail ficará livre para um novo convite.<br/><br/><strong>Esta ação não poderá ser desfeita.</strong>`}
+          confirmLabel="Excluir permanentemente"
+          cancelLabel="Cancelar"
+          loading={deleting}
+          onConfirm={confirmHardDelete}
+          onCancel={() => setDeleteOpen(false)}
+        />
+      )}
     </div>
   );
+}
+
+function escapeForHtml(value: string): string {
+  return value.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] || c));
 }

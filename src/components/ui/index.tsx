@@ -53,10 +53,10 @@ export function Modal({
 // ============================================
 export function ConfirmDialog({
   title, message, confirmLabel = "Confirmar", cancelLabel = "Cancelar",
-  variant = "danger", onConfirm, onCancel
+  variant = "danger", loading = false, onConfirm, onCancel
 }: {
   title: string; message: string; confirmLabel?: string; cancelLabel?: string;
-  variant?: "danger" | "warning" | "success"; onConfirm: () => void; onCancel: () => void;
+  variant?: "danger" | "warning" | "success"; loading?: boolean; onConfirm: () => void; onCancel: () => void;
 }) {
   const colors = {
     danger: { bg: "bg-danger-light", text: "text-danger", border: "border-danger/10", btn: "btn btn-danger" },
@@ -65,8 +65,11 @@ export function ConfirmDialog({
   }[variant];
 
   return (
-    <Modal title={title} close={onCancel} width={420}
-      footer={<><button onClick={onCancel} className="btn btn-secondary">{cancelLabel}</button><button onClick={onConfirm} className={colors.btn}>{confirmLabel}</button></>}>
+    <Modal title={title} close={() => { if (!loading) onCancel(); }} width={420}
+      footer={<>
+        <button onClick={onCancel} disabled={loading} className="btn btn-secondary">{cancelLabel}</button>
+        <button onClick={onConfirm} disabled={loading} className={colors.btn}>{loading ? "Processando..." : confirmLabel}</button>
+      </>}>
       <div className={`${colors.bg} ${colors.text} text-sm px-4 py-3 rounded-[10px] border ${colors.border}`} dangerouslySetInnerHTML={{ __html: message }} />
     </Modal>
   );
