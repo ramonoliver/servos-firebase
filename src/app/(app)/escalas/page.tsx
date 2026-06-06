@@ -164,6 +164,9 @@ function EscalasPageInner() {
   }, [schedules, events, departments, scheduleMembersById, search, statusFilter, departmentFilter, dateFilter]);
 
   const hasFilters = Boolean(search || statusFilter !== "all" || departmentFilter !== "all" || dateFilter !== "all");
+  const selectedSchedule = selectedScheduleId
+    ? schedules.find((schedule) => schedule.id === selectedScheduleId) || null
+    : null;
 
   function clearFilters() {
     setSearch("");
@@ -344,6 +347,7 @@ function EscalasPageInner() {
             <EscalaDetailPanel
               key={selectedScheduleId}
               scheduleId={selectedScheduleId}
+              initialSchedule={selectedSchedule}
               onRefreshList={loadData}
             />
           </div>

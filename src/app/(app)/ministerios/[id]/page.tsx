@@ -99,6 +99,9 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
     () => allMembers.filter((m) => !deptMemberIds.includes(m.id)),
     [allMembers, deptMemberIds]
   );
+  const selectedSchedule = selectedScheduleId
+    ? schedules.find((schedule) => schedule.id === selectedScheduleId) || null
+    : null;
 
   async function addMembersToDept(selectedMembers: { userId: string; functionName: string; functionNames: string[] }[]) {
     if (!dept) return;
@@ -363,6 +366,7 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
             <EscalaDetailPanel
               key={selectedScheduleId}
               scheduleId={selectedScheduleId}
+              initialSchedule={selectedSchedule}
               onRefreshList={loadData}
             />
           </div>
@@ -396,4 +400,3 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
     </PageShell>
   );
 }
-

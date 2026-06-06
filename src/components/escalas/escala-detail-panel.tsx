@@ -73,10 +73,11 @@ function sortChatMessages(messages: ScheduleChat[]) {
 
 interface EscalaDetailPanelProps {
   scheduleId: string;
+  initialSchedule?: Schedule | null;
   onRefreshList?: () => void;
 }
 
-export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPanelProps) {
+export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }: EscalaDetailPanelProps) {
   const { user, toast, canDo, departments } = useApp();
 
   const [showAddMember, setShowAddMember] = useState(false);
@@ -111,13 +112,17 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   async function loadScheduleById(id: string) {
+    if (initialSchedule && initialSchedule.id === id) {
+      return { data: initialSchedule, error: null };
+    }
+
     const directResult = await supabase
       .from("schedules")
       .select("*")
       .eq("id", id)
       .maybeSingle();
 
-    if (directResult.data || directResult.error) return directResult;
+    if (directResult.data) return directResult;
 
     const fallbackResult = await supabase
       .from("schedules")
@@ -130,7 +135,7 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
 
     return {
       data: scheduleByStoredId || null,
-      error: fallbackResult.error,
+      error: fallbackResult.error || directResult.error,
     };
   }
 
@@ -209,15 +214,17 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
         return;
       }
 
+      setSchedule(scheduleData as Schedule);
+
       const [
-        { data: eventData },
-        { data: smData, error: smError },
-        { data: slotsData },
-        { data: usersData },
-        { data: deptMembersData },
-        { data: unavailableData },
-        { data: allSchedulesData },
-        { data: allSMData },
+        eventResult,
+        smResult,
+        slotsResult,
+        usersResult,
+        deptMembersResult,
+        unavailableResult,
+        allSchedulesResult,
+        allSMResult,
       ] = await Promise.all([
         supabase.from("events").select("*").eq("id", scheduleData.event_id).maybeSingle(),
         supabase.from("schedule_members").select("*").eq("schedule_id", scheduleData.id),
@@ -229,21 +236,27 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
         supabase.from("schedule_members").select("*"),
       ]);
 
-      if (smError) {
-        toast("Erro ao carregar detalhes da escala.");
-        setLoading(false);
-        return;
-      }
+      [
+        ["event", eventResult.error],
+        ["schedule_members", smResult.error],
+        ["schedule_slots", slotsResult.error],
+        ["users", usersResult.error],
+        ["department_members", deptMembersResult.error],
+        ["unavailable_dates", unavailableResult.error],
+        ["schedules", allSchedulesResult.error],
+        ["all_schedule_members", allSMResult.error],
+      ].forEach(([label, error]) => {
+        if (error) console.warn(`EscalaDetailPanel related query failed: ${label}`, error);
+      });
 
-      setSchedule(scheduleData as Schedule);
-      setEv((eventData || null) as Event | null);
-      setSm((smData || []) as ScheduleMember[]);
-      setSlots((slotsData || []) as ScheduleSlot[]);
-      setMembers((usersData || []) as User[]);
-      setDeptMembers((deptMembersData || []) as DepartmentMember[]);
-      setAllUD((unavailableData || []) as UnavailableDate[]);
-      setAllSchedules((allSchedulesData || []) as Schedule[]);
-      setAllSM((allSMData || []) as ScheduleMember[]);
+      setEv((eventResult.data || null) as Event | null);
+      setSm((smResult.data || []) as ScheduleMember[]);
+      setSlots((slotsResult.data || []) as ScheduleSlot[]);
+      setMembers((usersResult.data || []) as User[]);
+      setDeptMembers((deptMembersResult.data || []) as DepartmentMember[]);
+      setAllUD((unavailableResult.data || []) as UnavailableDate[]);
+      setAllSchedules((allSchedulesResult.data || []) as Schedule[]);
+      setAllSM((allSMResult.data || []) as ScheduleMember[]);
       setLoading(false);
 
       void Promise.allSettled([
@@ -264,7 +277,7 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
     setActiveTab("escalados");
     setDeliveryPanel(null);
     loadData();
-  }, [scheduleId, user.church_id]);
+  }, [scheduleId, user.church_id, initialSchedule?.id]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
