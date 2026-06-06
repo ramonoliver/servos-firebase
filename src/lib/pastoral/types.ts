@@ -60,6 +60,7 @@ export interface PastoralPerson {
   inDiscipleship: boolean;
   participatesInCell: boolean;
   cellId: string | null;
+  spouseId?: string | null;
   ministryIds: string[];
   roleTitle: string;
   tagIds: string[]

@@ -158,6 +158,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     kind: "member" as PersonKind,
     cellId: "",
     instagram: "",
+    address: "",
     cep: "",
     street: "",
     number: "",
@@ -260,6 +261,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
         inDiscipleship: uData.in_discipleship || false,
         participatesInCell: !!uData.cell_id,
         cellId: uData.cell_id || null,
+        spouseId: uData.spouse_id || null,
         ministryIds: uData.ministry_ids || [],
         roleTitle: uData.role === "admin" ? "Administrador" : uData.role === "leader" ? "Líder" : "Membro",
         tagIds: uData.tag_ids || [],
@@ -314,15 +316,24 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       setTimelineItems(tItems);
       setCareItems(cItems);
 
+      // Tipo derivado do papel real (evita mostrar "Membro" para um líder).
+      const kindFromRole: PersonKind =
+        uData.cell_role === "pastor"
+          ? "pastor"
+          : uData.role === "leader" || uData.role === "admin"
+          ? "leader"
+          : "member";
+
       // Populate edit form
       setEditForm({
         fullName: p.fullName,
         phone: p.phone,
         email: p.email,
         birthDate: p.birthDate,
-        kind: (p.kinds[0] || "member") as PersonKind,
+        kind: kindFromRole,
         cellId: p.cellId || "",
         instagram: p.instagram,
+        address: p.address || "",
         cep: "",
         street: "",
         number: "",
@@ -381,6 +392,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
 
   const cell = dbCell;
   const ministries = (person.ministryIds || []).map(id => departments.find(d => d.id === id)).filter(Boolean);
+  const spouseName = person.spouseId ? (dbMembers.find((m) => m.id === person.spouseId)?.name || null) : null;
   const prayers = [];
   const relationships = [];
   
@@ -406,13 +418,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       if (!res.ok) return;
       const data = await res.json() as { erro?: boolean; logradouro?: string; bairro?: string; localidade?: string; uf?: string };
       if (data.erro) return;
-      setEditForm((f) => ({
-        ...f,
-        street: data.logradouro || f.street,
-        neighborhood: data.bairro || f.neighborhood,
-        city: data.localidade || f.city,
-        state: data.uf || f.state,
-      }));
+      const suggested = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean).join(", ");
+      setEditForm((f) => ({ ...f, address: suggested || f.address }));
     } catch {
       // silently ignore
     } finally {
@@ -424,9 +431,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     if (!person) return;
     try {
       setLoading(true);
-      const { kind, cellId, cep, street, number, complement, neighborhood, city, state, fullName, phone, email, instagram, notes } = editForm;
-      const addressParts = [street, number, complement, neighborhood, city, state, cep].filter(Boolean);
-      const address = addressParts.length > 0 ? addressParts.join(", ") : person.address;
+      const { kind, cellId, fullName, phone, email, instagram, notes } = editForm;
+      const address = (editForm.address || "").trim() || person.address;
 
       const res = await fetch("/api/members/update", {
         method: "POST",
@@ -639,7 +645,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       </div>
 
       {/* Profile hero card */}
-      <SoftCard className="overflow-hidden">
+      <SoftCard>
         {/* Identity + actions */}
         <div className="flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -680,7 +686,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                 className="absolute right-0 z-40 mt-2 w-60 overflow-hidden rounded-2xl border border-border-soft bg-white py-1.5 shadow-xl"
               >
                 <MenuItem onClick={() => { setActionsOpen(false); setContactOpen(true); }}>Registrar contato</MenuItem>
-                <MenuItem onClick={() => { setActionsOpen(false); setCareOpen(true); }}>+ Acompanhamento</MenuItem>
+                <MenuItem onClick={() => { setActionsOpen(false); setCareOpen(true); }}>Acompanhamento</MenuItem>
                 {canEditPerson && (
                   <MenuItem onClick={() => { setActionsOpen(false); setEditOpen(true); }}>Editar dados</MenuItem>
                 )}
@@ -741,6 +747,14 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                 trueLabel="Em andamento"
                 falseLabel="Não iniciado"
               />
+              {spouseName && (
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-ink-muted">Cônjuge</span>
+                  <Link href={`/pessoas/${person.spouseId}`} className="font-semibold text-ink hover:text-brand">
+                    {spouseName}
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Cell */}
@@ -753,15 +767,17 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                 >
                   <div
                     className="h-9 w-9 flex-shrink-0 rounded-lg border border-white/40"
-                    style={{ background: cell.coverColor }}
+                    style={{ background: cell.cover_color || cell.coverColor || "#FF6B57" }}
                   />
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-semibold text-ink transition-colors group-hover:text-brand">
                       {cell.name}
                     </div>
-                    <div className="text-[11px] text-ink-faint">
-                      {cell.weekDay} · {cell.time}
-                    </div>
+                    {(cell.week_day || cell.weekDay || cell.time) && (
+                      <div className="text-[11px] text-ink-faint">
+                        {[cell.week_day || cell.weekDay, cell.time].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                   </div>
                 </Link>
               ) : (
@@ -979,7 +995,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-3">Endereço</p>
             <div className="space-y-3">
               <div>
-                <label className="input-label">CEP</label>
+                <label className="input-label">CEP (preenche o endereço)</label>
                 <div className="relative">
                   <input
                     className="input-field"
@@ -999,63 +1015,13 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                 </div>
               </div>
               <div>
-                <label className="input-label">Rua</label>
-                <input
-                  className="input-field"
-                  placeholder="Preenchido automaticamente pelo CEP"
-                  value={editForm.street}
-                  onChange={(e) => setEditForm((f) => ({ ...f, street: e.target.value }))}
+                <label className="input-label">Endereço completo</label>
+                <textarea
+                  className="input-field min-h-[80px]"
+                  placeholder="Rua, número, bairro, cidade - UF"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
                 />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="input-label">Número</label>
-                  <input
-                    className="input-field"
-                    placeholder="Ex: 123"
-                    value={editForm.number}
-                    onChange={(e) => setEditForm((f) => ({ ...f, number: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="input-label">Complemento</label>
-                  <input
-                    className="input-field"
-                    placeholder="Apto, Bloco..."
-                    value={editForm.complement}
-                    onChange={(e) => setEditForm((f) => ({ ...f, complement: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="input-label">Bairro</label>
-                <input
-                  className="input-field"
-                  placeholder="Preenchido automaticamente pelo CEP"
-                  value={editForm.neighborhood}
-                  onChange={(e) => setEditForm((f) => ({ ...f, neighborhood: e.target.value }))}
-                />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-[1fr_80px]">
-                <div>
-                  <label className="input-label">Cidade</label>
-                  <input
-                    className="input-field"
-                    placeholder="Preenchido automaticamente pelo CEP"
-                    value={editForm.city}
-                    onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="input-label">Estado</label>
-                  <input
-                    className="input-field"
-                    placeholder="UF"
-                    maxLength={2}
-                    value={editForm.state}
-                    onChange={(e) => setEditForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))}
-                  />
-                </div>
               </div>
             </div>
           </div>

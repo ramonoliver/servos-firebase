@@ -243,6 +243,18 @@ export default function PessoasPage() {
 
     try {
       setLoading(true);
+      const address = [
+        newPerson.street,
+        newPerson.number,
+        newPerson.complement,
+        newPerson.neighborhood,
+        newPerson.city,
+        newPerson.state,
+        newPerson.cep,
+      ]
+        .map((part) => (part || "").trim())
+        .filter(Boolean)
+        .join(", ");
       const res = await fetch("/api/people/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -254,6 +266,7 @@ export default function PessoasPage() {
           gender: newPerson.gender,
           kind: newPerson.kind,
           cellId: newPerson.cellId || null,
+          address,
           notes: "",
         }),
       });

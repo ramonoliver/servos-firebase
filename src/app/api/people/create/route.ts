@@ -22,6 +22,8 @@ const bodySchema = z.object({
   gender: z.enum(["feminino", "masculino", "nao_informado"]).default("nao_informado"),
   kind: z.enum(["member", "visitor", "volunteer", "leader", "pastor"]).default("visitor"),
   cellId: z.string().nullable().optional(),
+  address: z.string().trim().default(""),
+  instagram: z.string().trim().default(""),
   notes: z.string().default(""),
 });
 
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
     }
 
     const churchId = session!.church_id;
-    const { name, email, phone, birthDate, gender, kind, cellId, notes } = parsed.data;
+    const { name, email, phone, birthDate, gender, kind, cellId, address, instagram, notes } = parsed.data;
     const supabase = getFirebaseAdminClient();
 
     const emailProvided = Boolean(email.trim());
@@ -118,6 +120,9 @@ export async function POST(req: Request) {
       photo_url: null,
       birth_date: birthDate || null,
       gender,
+      cell_id: cellId || null,
+      address: address || "",
+      instagram: instagram || "",
       spouse_id: null,
       availability: [true, true, true, true, true, true, true],
       total_schedules: 0,
