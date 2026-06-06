@@ -5,7 +5,7 @@ import { can } from "@/lib/auth/permissions";
 import { getFirebaseAdminClient, adminAuth } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
 import { generateTempPassword, hashPassword } from "@/lib/auth/password";
-import { sendPasswordResetEmail } from "@/lib/email/send";
+import { sendInviteEmail } from "@/lib/email/send";
 import {
   createPasswordResetToken,
   hashPasswordResetToken,
@@ -175,16 +175,16 @@ export async function POST(req: Request) {
       if (tokenInsertError) {
         console.error("Erro ao salvar token de convite:", tokenInsertError);
       } else {
-        const resetUrl = `${getAppBaseUrl()}/redefinir-senha?token=${rawToken}`;
+        const inviteUrl = `${getAppBaseUrl()}/concluir-cadastro?token=${rawToken}`;
         try {
-          await sendPasswordResetEmail({
+          await sendInviteEmail({
             to: normalizedEmail,
             memberName: name.trim(),
-            resetUrl,
+            inviteUrl,
             churchName: church?.name,
           });
         } catch (emailErr) {
-          console.error("Erro ao enviar email de redefinicao de senha:", emailErr);
+          console.error("Erro ao enviar email de convite:", emailErr);
         }
       }
     }

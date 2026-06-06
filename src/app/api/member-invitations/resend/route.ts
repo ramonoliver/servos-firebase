@@ -152,7 +152,7 @@ export async function POST(req: Request) {
       })
       .eq("id", typedMember.id);
 
-    const inviteUrl = `${getAppBaseUrl()}/redefinir-senha?token=${rawToken}`;
+    const inviteUrl = `${getAppBaseUrl()}/concluir-cadastro?token=${rawToken}`;
     let emailStatus: "sent" | "failed" = "sent";
     let emailError: string | null = null;
 

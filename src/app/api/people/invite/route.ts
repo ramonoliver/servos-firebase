@@ -164,7 +164,7 @@ export async function POST(req: Request) {
       console.error("Erro ao registrar member_invitations:", err);
     }
 
-    const inviteUrl = `${getAppBaseUrl()}/redefinir-senha?token=${rawToken}`;
+    const inviteUrl = `${getAppBaseUrl()}/concluir-cadastro?token=${rawToken}`;
     let emailStatus: "sent" | "failed" = "sent";
     let emailError: string | null = null;
 
