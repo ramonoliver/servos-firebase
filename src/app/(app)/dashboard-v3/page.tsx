@@ -185,10 +185,14 @@ export default function DashboardV3Page() {
     const myCell = cells.find((cellItem) => myCellIds.has(cellItem.id));
     const hasMinistry = departments.length > 0;
     const hasCell = Boolean(myCell);
-    const profileMode: DashboardV3Data["profileMode"] = isAdminLike
-      ? user.role === "leader"
-        ? "hybrid"
-        : "admin"
+    // Apenas pastores e admin veem a visão pastoral (cuidado + insights).
+    // Líderes de célula/ministério ficam no modo "hybrid" (sem essas seções).
+    const isPastorOrAdmin =
+      user.role === "admin" || user.cell_role === "pastor" || user.cell_role === "coordenacao";
+    const profileMode: DashboardV3Data["profileMode"] = isPastorOrAdmin
+      ? "admin"
+      : user.role === "leader"
+      ? "hybrid"
       : hasMinistry
       ? "departmentMember"
       : hasCell

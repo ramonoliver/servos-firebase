@@ -1267,6 +1267,9 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
 }
 
 function HybridHomeSections({ data }: { data: DashboardV3Data }) {
+  // Líderes de célula/ministério: sem "Pessoas precisando de cuidado" e
+  // "Insights da semana" (exclusivos de pastores/admin) e sem "Agenda pessoal"
+  // (já coberta por "Próximos encontros").
   return (
     <>
       <PriorityCards items={data.priorities} />
@@ -1276,13 +1279,6 @@ function HybridHomeSections({ data }: { data: DashboardV3Data }) {
         <ActivityTimeline items={data.timeline} />
         <UpcomingEvents items={data.upcoming} />
       </section>
-
-      <section className="grid min-w-0 items-stretch gap-5 xl:grid-cols-2">
-        <CarePeopleSection people={data.carePeople} />
-        <InsightCards items={data.insights} />
-      </section>
-
-      <MemberAgenda items={data.upcoming} />
 
       <section className="grid min-w-0 items-stretch gap-6 xl:grid-cols-2">
         <MemberCellPanel cell={data.cell} />

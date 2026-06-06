@@ -232,7 +232,10 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
         supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
         supabase.from("department_members").select("*").eq("department_id", scheduleData.department_id),
         supabase.from("unavailable_dates").select("*"),
-        supabase.from("schedules").select("*"),
+        // Precisa ser filtrado por igreja: as regras do Firestore negam o
+        // list não-escopado de `schedules` (belongsToUserChurch), o que
+        // derrubava todo o carregamento do detalhe da escala.
+        supabase.from("schedules").select("*").eq("church_id", user.church_id),
         supabase.from("schedule_members").select("*"),
       ]);
 
