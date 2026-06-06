@@ -12,34 +12,31 @@ import Link from "next/link";
 import type { Schedule, Event, ScheduleMember } from "@/types";
 
 const WEEKDAY_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-const MOCK_PRAYER_EVENT_ID = "mock_culto_oracao_quarta";
-const MOCK_BIRTHDAYS = [
-  {
-    id: "mock_birthday_ana_souza",
-    name: "Ana Souza",
-    role: "Líder de célula",
-    day: 18,
-    month: 5,
-    phone: "(85) 99999-1203",
-    color: "#F4532A",
-  },
-];
+type Birthday = { id: string; name: string; role: string; day: number; month: number; phone: string; color: string };
 
-function createMockPrayerEvent(churchId: string): Event {
-  return {
-    id: MOCK_PRAYER_EVENT_ID,
-    church_id: churchId,
-    name: "Culto de Oração",
-    description: "Encontro semanal de oração, intercessão e cuidado comunitário.",
-    type: "recurring",
-    icon: "church",
-    location: "Templo principal",
-    base_time: "19:30",
-    instructions: "Recepção 30 minutos antes. Separar equipe para acolhimento e intercessão.",
-    recurrence: "weekly:3",
-    active: true,
-    created_at: "2026-06-01T00:00:00.000Z",
-  };
+/** Deriva os aniversários reais dos membros a partir do campo birth_date. */
+function buildBirthdays(members: Array<Record<string, any>>): Birthday[] {
+  const result: Birthday[] = [];
+  for (const m of members) {
+    const iso = String(m.birth_date || "").trim();
+    const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) continue;
+    const monthIdx = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    if (monthIdx < 0 || monthIdx > 11 || day < 1 || day > 31) continue;
+    const role =
+      m.role === "admin" ? "Administrador" : m.role === "leader" ? "Líder" : "Membro";
+    result.push({
+      id: m.id,
+      name: m.name || "Sem nome",
+      role,
+      day,
+      month: monthIdx,
+      phone: m.phone || "",
+      color: m.avatar_color || "#FF6B57",
+    });
+  }
+  return result;
 }
 
 function AgendaEventIcon({ special = false }: { special?: boolean }) {
@@ -73,6 +70,7 @@ export default function CalendarioPage() {
   const [allSM, setAllSM] = useState<ScheduleMember[]>([]);
   const [cellList, setCellList] = useState<Cell[]>([]);
   const [cellMembers, setCellMembers] = useState<CellMemberRow[]>([]);
+  const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   const [loading, setLoading] = useState(true);
 
   const viewDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -100,6 +98,7 @@ export default function CalendarioPage() {
     const [
       { data: schedulesData, error: schedulesError },
       { data: eventsData, error: eventsError },
+      { data: membersData },
     ] = await Promise.all([
       supabase
         .from("schedules")
@@ -107,7 +106,10 @@ export default function CalendarioPage() {
         .eq("church_id", user.church_id)
         .neq("status", "cancelled"),
       supabase.from("events").select("*").eq("church_id", user.church_id).neq("active", false),
+      supabase.from("users").select("*").eq("church_id", user.church_id),
     ]);
+
+    setBirthdays(buildBirthdays((membersData || []) as Array<Record<string, any>>));
 
     if (schedulesError || eventsError) {
       console.error({ schedulesError, eventsError });
@@ -135,8 +137,7 @@ export default function CalendarioPage() {
     const scopedScheduleIds = new Set(scopedSchedules.map((schedule) => schedule.id));
 
     setSchedules(scopedSchedules);
-    const loadedEvents = (eventsData || []) as Event[];
-    setEvents(loadedEvents.some((event) => event.id === MOCK_PRAYER_EVENT_ID) ? loadedEvents : [createMockPrayerEvent(user.church_id), ...loadedEvents]);
+    setEvents((eventsData || []) as Event[]);
     setAllSM(((smData || []) as ScheduleMember[]).filter((scheduleMember) => scopedScheduleIds.has(scheduleMember.schedule_id)));
     setLoading(false);
   }
@@ -190,8 +191,8 @@ export default function CalendarioPage() {
   );
 
   const dayBirthdays = useMemo(
-    () => MOCK_BIRTHDAYS.filter((birthday) => birthday.month === month && birthday.day === selectedDay),
-    [selectedDay, month]
+    () => birthdays.filter((birthday) => birthday.month === month && birthday.day === selectedDay),
+    [selectedDay, month, birthdays]
   );
 
   const monthStats = useMemo(() => {
@@ -202,7 +203,7 @@ export default function CalendarioPage() {
     for (let day = 1; day <= daysInMonth; day++) {
       const dailySchedules = getSchedulesForDay(day);
       const dailyEvents = getEventsForDay(day);
-      const dailyBirthdays = MOCK_BIRTHDAYS.filter((birthday) => birthday.month === month && birthday.day === day);
+      const dailyBirthdays = birthdays.filter((birthday) => birthday.month === month && birthday.day === day);
       if (dailySchedules.length === 0 && dailyEvents.length === 0 && dailyBirthdays.length === 0) continue;
 
       const hasRecurring = dailySchedules.some((schedule) => {
@@ -327,7 +328,7 @@ export default function CalendarioPage() {
 
             const dayScheds = getSchedulesForDay(day);
             const dayEventList = getEventsForDay(day);
-            const birthdayList = MOCK_BIRTHDAYS.filter((birthday) => birthday.month === month && birthday.day === day);
+            const birthdayList = birthdays.filter((birthday) => birthday.month === month && birthday.day === day);
             const eventTypes = dayScheds.map((schedule) =>
               events.find((event) => event.id === schedule.event_id)?.type
             );

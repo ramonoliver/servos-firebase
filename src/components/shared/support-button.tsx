@@ -10,7 +10,7 @@ export function SupportButton() {
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-brand text-white rounded-full shadow-lg hover:bg-brand-dark transition-colors flex items-center justify-center z-40"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-brand text-white rounded-full shadow-lg hover:bg-brand-dark transition-colors hidden sm:flex items-center justify-center z-40"
         title="Suporte"
       >
         <svg

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
 import { ActionDrawer } from "@/components/ui/action-drawer";
 import { Avatar, EmptyState, ConfirmDialog } from "@/components/ui";
+import { supabase } from "@/lib/firebase";
 import { useApp } from "@/hooks/use-app";
 
 import {
@@ -145,6 +146,9 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   const [resendingInvite, setResendingInvite] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [dbMembers, setDbMembers] = useState<Array<{ id: string; name: string }>>([]);
 
   const [editForm, setEditForm] = useState({
     fullName: "",
@@ -165,6 +169,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     notes: "",
     baptized: false,
     inDiscipleship: false,
+    spouseId: "",
   });
   const [editBirthDateMask, setEditBirthDateMask] = useState("");
   const [editCepLoading, setEditCepLoading] = useState(false);
@@ -191,6 +196,19 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       const loadedNetworks = (cellsPayload?.networks || []) as any[];
       setDbCells(loadedCells);
       setDbNetworks(loadedNetworks);
+
+      // Lista de pessoas para o seletor de cônjuge.
+      supabase
+        .from("users")
+        .select("id, name, active")
+        .eq("church_id", user.church_id)
+        .then(({ data }: { data: any[] | null }) => {
+          setDbMembers(
+            ((data || []) as any[])
+              .filter((u) => u.active !== false)
+              .map((u) => ({ id: u.id, name: u.name || "Sem nome" }))
+          );
+        });
 
       if (!personResponse || !personResponse.ok) {
         const errData = personResponse ? await personResponse.json().catch(() => null) : null;
@@ -316,6 +334,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
         notes: p.notes,
         baptized: p.baptized,
         inDiscipleship: p.inDiscipleship,
+        spouseId: uData.spouse_id || "",
       });
       setEditBirthDateMask(toDateMask(p.birthDate));
     } catch (err) {
@@ -329,6 +348,15 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   useEffect(() => {
     void loadPerson();
   }, [params.id]);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) setActionsOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [actionsOpen]);
 
   if (loading) {
     return (
@@ -413,7 +441,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             phone: phone.trim(),
             role: kind,
             status: "active",
-            spouse_id: null,
+            spouse_id: editForm.spouseId || null,
             cell_id: cellId || null,
             birth_date: editForm.birthDate || null,
             instagram: instagram.trim(),
@@ -422,6 +450,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             baptized: editForm.baptized,
             in_discipleship: editForm.inDiscipleship,
           },
+          spouseId: editForm.spouseId || "",
           selectedDepartments: person.ministryIds.map(id => ({ department_id: id, function_name: "", function_names: [] })),
         }),
       });
@@ -633,38 +662,50 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {canEditPerson && (
-              <button className="btn btn-secondary btn-sm" onClick={() => setEditOpen(true)}>
-                Editar dados
-              </button>
-            )}
-            {canEditPerson && person.mustChangePassword && (
-              <button className="btn btn-secondary btn-sm" onClick={handleResendInvite} disabled={resendingInvite}>
-                {resendingInvite ? "Reenviando..." : "Reenviar convite"}
-              </button>
-            )}
-            {canEditPerson && person.active && (
-              <button className="btn btn-secondary btn-sm" onClick={() => changeMemberState("deactivate")}>
-                Desativar membro
-              </button>
-            )}
-            {canEditPerson && !person.active && (
-              <button className="btn btn-primary btn-sm" onClick={() => changeMemberState("reactivate")}>
-                Reativar membro
-              </button>
-            )}
-            {user.role === "admin" && (
-              <button className="btn btn-danger btn-sm" onClick={() => setDeleteOpen(true)}>
-                Excluir permanente
-              </button>
-            )}
-            <button className="btn btn-secondary btn-sm" onClick={() => setContactOpen(true)}>
-              Registrar contato
+          <div className="relative self-start" ref={actionsRef}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => setActionsOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={actionsOpen}
+            >
+              Ações
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={`ml-1 transition-transform ${actionsOpen ? "rotate-180" : ""}`}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
             </button>
-            <button className="btn btn-primary btn-sm" onClick={() => setCareOpen(true)}>
-              + Acompanhamento
-            </button>
+            {actionsOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 z-40 mt-2 w-60 overflow-hidden rounded-2xl border border-border-soft bg-white py-1.5 shadow-xl"
+              >
+                <MenuItem onClick={() => { setActionsOpen(false); setContactOpen(true); }}>Registrar contato</MenuItem>
+                <MenuItem onClick={() => { setActionsOpen(false); setCareOpen(true); }}>+ Acompanhamento</MenuItem>
+                {canEditPerson && (
+                  <MenuItem onClick={() => { setActionsOpen(false); setEditOpen(true); }}>Editar dados</MenuItem>
+                )}
+                {canEditPerson && person.mustChangePassword && (
+                  <MenuItem
+                    disabled={resendingInvite}
+                    onClick={() => { setActionsOpen(false); void handleResendInvite(); }}
+                  >
+                    {resendingInvite ? "Reenviando..." : "Reenviar convite"}
+                  </MenuItem>
+                )}
+                {canEditPerson && person.active && (
+                  <MenuItem onClick={() => { setActionsOpen(false); void changeMemberState("deactivate"); }}>Desativar membro</MenuItem>
+                )}
+                {canEditPerson && !person.active && (
+                  <MenuItem onClick={() => { setActionsOpen(false); void changeMemberState("reactivate"); }}>Reativar membro</MenuItem>
+                )}
+                {user.role === "admin" && (
+                  <>
+                    <div className="my-1 border-t border-border-soft" />
+                    <MenuItem danger onClick={() => { setActionsOpen(false); setDeleteOpen(true); }}>Excluir permanente</MenuItem>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </SoftCard>
@@ -896,6 +937,15 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
                   {dbCells.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="input-label">Cônjuge</label>
+                <select className="input-field" value={editForm.spouseId} onChange={(e) => setEditForm((f) => ({ ...f, spouseId: e.target.value }))}>
+                  <option value="">Sem cônjuge</option>
+                  {dbMembers
+                    .filter((m) => m.id !== person.id)
+                    .map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -1091,6 +1141,32 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
 
 function escapeForHtml(value: string): string {
   return value.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] || c));
+}
+
+function MenuItem({
+  children,
+  onClick,
+  danger = false,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      disabled={disabled}
+      className={`block w-full px-4 py-2.5 text-left text-[13px] font-medium transition-colors disabled:opacity-50 ${
+        danger ? "text-danger hover:bg-danger-light" : "text-ink hover:bg-surface-alt"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 function ContactRow({ icon, value }: { icon: React.ReactNode; value: string }) {

@@ -41,11 +41,7 @@ const emptyReport: ReportFormState = {
 
 const MOCK_PRAYER_EVENT_ID = "mock_culto_oracao_quarta";
 
-const initialPrayerRequests: PrayerItem[] = [
-  { id: "prayer-ana", name: "Ana Souza", type: "Pedido de oração", text: "Pediu oração pela família e demonstrou interesse em acompanhamento." },
-  { id: "thanks-bruno", name: "Bruno Lima", type: "Agradecimento", text: "Agradeceu pela reconciliação familiar e pediu contato com a liderança." },
-  { id: "prayer-carla", name: "Carla Mendes", type: "Pedido de oração", text: "Solicitou oração por uma decisão profissional importante." },
-];
+const initialPrayerRequests: PrayerItem[] = [];
 
 const mockScheduleMinistries = ["Louvor", "Recepção", "Kids", "Intercessão"];
 

@@ -93,17 +93,29 @@ function escapeHtml(value: string) {
 
 // ── Template base da Servos ──────────────────────────────────────────────────
 
-/** Botão de ação (CTA) compatível com clientes de e-mail (tabela + inline). */
+// Paleta alinhada à tela de login.
+const EMAIL_FONT = "'Helvetica Neue',Helvetica,Arial,sans-serif";
+
+/** Botão de ação (CTA) coral arredondado, igual ao botão "Entrar" do login. */
 function ctaButton(label: string, url: string): string {
   return `
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px auto 0;">
-      <tr><td style="border-radius:14px;background:#2f241c;">
-        <a href="${url}" style="display:inline-block;padding:14px 32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#fff7ef;text-decoration:none;border-radius:14px;">${label}</a>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px auto 0;">
+      <tr><td align="center" style="border-radius:999px;background:#FF6B57;">
+        <a href="${url}" style="display:inline-block;padding:16px 40px;font-family:${EMAIL_FONT};font-size:15px;font-weight:800;color:#ffffff;text-decoration:none;border-radius:999px;">${label}</a>
       </td></tr>
     </table>`;
 }
 
-/** Layout base com a identidade visual da Servos. */
+/** Logo da Servos: badge coral arredondado + wordmark (robusto em clientes de e-mail). */
+const SERVOS_LOGO = `
+  <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+    <td style="width:44px;height:44px;background:#FF6B57;border-radius:14px;text-align:center;vertical-align:middle;">
+      <span style="color:#ffffff;font-family:${EMAIL_FONT};font-weight:800;font-size:24px;line-height:44px;">S</span>
+    </td>
+    <td style="padding-left:12px;font-family:${EMAIL_FONT};font-weight:800;font-size:19px;color:#1B1726;letter-spacing:.01em;">Servos</td>
+  </tr></table>`;
+
+/** Layout base com a identidade visual do app (login). */
 function renderServosEmail(params: {
   preheader?: string;
   eyebrow?: string;
@@ -113,15 +125,7 @@ function renderServosEmail(params: {
   footnote?: string;
   trackingPixelUrl?: string;
 }): string {
-  const {
-    preheader = "",
-    eyebrow = "Servos",
-    title,
-    intro,
-    contentHtml = "",
-    footnote = "",
-    trackingPixelUrl,
-  } = params;
+  const { preheader = "", eyebrow = "", title, intro, contentHtml = "", footnote = "", trackingPixelUrl } = params;
   const pixel = trackingPixelUrl
     ? `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;" />`
     : "";
@@ -134,19 +138,22 @@ function renderServosEmail(params: {
   <meta name="x-apple-disable-message-reformatting">
   <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4efe7;">
-  <span style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f4efe7;">${preheader}</span>
-  <div style="margin:0;padding:24px;background:#f4efe7;font-family:Georgia,'Times New Roman',serif;color:#24170f;">
-    <div style="max-width:600px;margin:0 auto;background:#fffdf8;border:1px solid #eadfcd;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(67,41,19,.08);">
-      <div style="padding:36px 36px 28px;background:linear-gradient(135deg,#f4e4c9 0%,#f7efe3 55%,#fffdf8 100%);border-bottom:1px solid #eadfcd;">
-        <div style="font-size:12px;letter-spacing:.30em;text-transform:uppercase;color:#8a6441;font-family:Arial,Helvetica,sans-serif;font-weight:700;">${eyebrow}</div>
-        <h1 style="margin:14px 0 12px;font-size:30px;line-height:1.12;font-weight:700;color:#24170f;">${title}</h1>
-        <p style="margin:0;font-size:16px;line-height:1.7;color:#5e4632;">${intro}</p>
+<body style="margin:0;padding:0;background:#f3eee6;">
+  <span style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f3eee6;">${preheader}</span>
+  <div style="margin:0;padding:28px 16px;background:#f3eee6;font-family:${EMAIL_FONT};color:#1B1726;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #eadfce;border-radius:30px;overflow:hidden;box-shadow:0 34px 90px rgba(92,64,37,.16);">
+      <div style="padding:36px 40px 8px;">${SERVOS_LOGO}</div>
+      <div style="padding:8px 40px 4px;">
+        ${eyebrow ? `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#FF6B57;font-weight:800;">${eyebrow}</div>` : ""}
+        <h1 style="margin:10px 0 14px;font-size:30px;line-height:1.1;font-weight:800;color:#1B1726;">${title}</h1>
+        <p style="margin:0;font-size:16px;line-height:1.7;color:#736D82;">${intro}</p>
       </div>
-      ${contentHtml ? `<div style="padding:30px 36px 10px;">${contentHtml}</div>` : ""}
-      <div style="padding:20px 36px 32px;border-top:1px solid #eadfcd;background:#fffcf6;">
-        ${footnote ? `<p style="margin:0 0 10px;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">${footnote}</p>` : ""}
-        <p style="margin:0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">Que Deus abençoe o seu servir. — Equipe <strong>Servos</strong></p>
+      ${contentHtml ? `<div style="padding:24px 40px 4px;">${contentHtml}</div>` : ""}
+      <div style="padding:24px 40px 34px;">
+        ${footnote ? `<p style="margin:18px 0 0;font-size:13px;line-height:1.7;color:#A39DAE;">${footnote}</p>` : ""}
+        <div style="margin-top:24px;border-top:1px solid #F0EEF8;padding-top:18px;">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#A39DAE;">Organize. Sirva. Viva o propósito. — Equipe <strong style="color:#736D82;">Servos</strong></p>
+        </div>
       </div>
     </div>
     ${pixel}
@@ -193,14 +200,14 @@ export async function sendWelcomeEmail({
   const safePassword = escapeHtml(tempPassword);
 
   const contentHtml = `
-    <div style="background:#2f241c;border-radius:22px;padding:24px;color:#fff7ef;">
-      <div style="font-size:11px;letter-spacing:.22em;text-transform:uppercase;opacity:.72;font-family:Arial,Helvetica,sans-serif;font-weight:700;">Acesso inicial</div>
-      <div style="margin-top:16px;font-size:12px;opacity:.72;font-family:Arial,Helvetica,sans-serif;">E-mail</div>
-      <div style="margin-top:4px;font-size:17px;font-weight:700;line-height:1.4;">${safeEmail}</div>
-      <div style="margin-top:18px;font-size:12px;opacity:.72;font-family:Arial,Helvetica,sans-serif;">Senha temporária</div>
-      <div style="display:inline-block;margin-top:6px;background:#fff7ef;color:#2f241c;padding:10px 16px;border-radius:12px;font-size:22px;font-weight:700;letter-spacing:.08em;font-family:'Courier New',monospace;">${safePassword}</div>
+    <div style="background:#FFF1EE;border:1px solid #FFE0D9;border-radius:18px;padding:22px 24px;">
+      <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#FF6B57;font-weight:800;">Acesso inicial</div>
+      <div style="margin-top:16px;font-size:12px;color:#A39DAE;font-weight:700;">E-mail</div>
+      <div style="margin-top:4px;font-size:16px;font-weight:700;line-height:1.4;color:#1B1726;">${safeEmail}</div>
+      <div style="margin-top:18px;font-size:12px;color:#A39DAE;font-weight:700;">Senha temporária</div>
+      <div style="display:inline-block;margin-top:6px;background:#ffffff;border:1px solid #FFE0D9;color:#1B1726;padding:10px 16px;border-radius:12px;font-size:22px;font-weight:800;letter-spacing:.08em;font-family:'Courier New',monospace;">${safePassword}</div>
     </div>
-    <p style="margin:22px 0 0;font-size:15px;line-height:1.8;color:#4d3a2b;font-family:Georgia,serif;">No primeiro acesso, troque sua senha para manter a sua conta segura.</p>`;
+    <p style="margin:22px 0 0;font-size:15px;line-height:1.7;color:#736D82;">No primeiro acesso, troque sua senha para manter a sua conta segura.</p>`;
 
   const html = renderServosEmail({
     preheader: `Seu acesso ao Servos em ${churchName}`,
@@ -240,11 +247,11 @@ export async function sendPasswordResetEmail({
 
   const contentHtml = `
     <div style="text-align:center;">
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#4d3a2b;font-family:Georgia,serif;">Use o botão abaixo para criar uma nova senha com segurança.</p>
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#736D82;">Use o botão abaixo para criar uma nova senha com segurança.</p>
       ${ctaButton("Redefinir senha", safeResetUrl)}
     </div>
-    <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">Se o botão não funcionar, copie e cole este link no navegador:</p>
-    <p style="margin:6px 0 0;font-size:13px;line-height:1.6;color:#8a6441;word-break:break-all;font-family:Arial,Helvetica,sans-serif;">${safeResetUrl}</p>`;
+    <p style="margin:26px 0 0;font-size:13px;line-height:1.7;color:#A39DAE;">Se o botão não funcionar, copie e cole este link no navegador:</p>
+    <p style="margin:6px 0 0;font-size:13px;line-height:1.6;color:#FF6B57;word-break:break-all;">${safeResetUrl}</p>`;
 
   const html = renderServosEmail({
     preheader: "Redefina sua senha de acesso ao Servos",
@@ -281,11 +288,11 @@ export async function sendInviteEmail({
 
   const contentHtml = `
     <div style="text-align:center;">
-      <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#4d3a2b;font-family:Georgia,serif;">Clique no botão abaixo para concluir seu cadastro e escolher a sua senha de acesso.</p>
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#736D82;">Clique no botão abaixo para concluir seu cadastro e escolher a sua senha de acesso.</p>
       ${ctaButton("Concluir cadastro", inviteUrl)}
     </div>
-    <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#8a6441;font-family:Arial,Helvetica,sans-serif;">Se o botão não funcionar, copie e cole este link no navegador:</p>
-    <p style="margin:6px 0 0;font-size:13px;line-height:1.6;color:#8a6441;word-break:break-all;font-family:Arial,Helvetica,sans-serif;">${inviteUrl}</p>`;
+    <p style="margin:26px 0 0;font-size:13px;line-height:1.7;color:#A39DAE;">Se o botão não funcionar, copie e cole este link no navegador:</p>
+    <p style="margin:6px 0 0;font-size:13px;line-height:1.6;color:#FF6B57;word-break:break-all;">${inviteUrl}</p>`;
 
   const html = renderServosEmail({
     preheader: `Conclua seu cadastro no Servos para servir com ${churchName || "sua igreja"}`,
