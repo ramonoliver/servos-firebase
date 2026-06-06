@@ -110,6 +110,30 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
   const chatEndRef = useRef<HTMLDivElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
+  async function loadScheduleById(id: string) {
+    const directResult = await supabase
+      .from("schedules")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (directResult.data || directResult.error) return directResult;
+
+    const fallbackResult = await supabase
+      .from("schedules")
+      .select("*")
+      .eq("church_id", user.church_id);
+
+    const scheduleByStoredId = ((fallbackResult.data || []) as Schedule[]).find(
+      (item) => item.id === id
+    );
+
+    return {
+      data: scheduleByStoredId || null,
+      error: fallbackResult.error,
+    };
+  }
+
   async function loadAttachments(sid: string) {
     try {
       const response = await fetch(`/api/schedule-attachments?scheduleId=${encodeURIComponent(sid)}`);
@@ -177,11 +201,7 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
     setChatErrorMessage(null);
 
     try {
-      const { data: scheduleData, error: scheduleError } = await supabase
-        .from("schedules")
-        .select("*")
-        .eq("id", scheduleId)
-        .maybeSingle();
+      const { data: scheduleData, error: scheduleError } = await loadScheduleById(scheduleId);
 
       if (scheduleError || !scheduleData) {
         setSchedule(null);
