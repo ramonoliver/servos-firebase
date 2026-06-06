@@ -172,56 +172,71 @@ export function EscalaDetailPanel({ scheduleId, onRefreshList }: EscalaDetailPan
 
   async function loadData() {
     setLoading(true);
+    setAttachments([]);
+    setChatMessages([]);
+    setChatErrorMessage(null);
 
-    const { data: scheduleData, error: scheduleError } = await supabase
-      .from("schedules")
-      .select("*")
-      .eq("id", scheduleId)
-      .maybeSingle();
+    try {
+      const { data: scheduleData, error: scheduleError } = await supabase
+        .from("schedules")
+        .select("*")
+        .eq("id", scheduleId)
+        .maybeSingle();
 
-    if (scheduleError || !scheduleData) {
+      if (scheduleError || !scheduleData) {
+        setSchedule(null);
+        setLoading(false);
+        return;
+      }
+
+      const [
+        { data: eventData },
+        { data: smData, error: smError },
+        { data: slotsData },
+        { data: usersData },
+        { data: deptMembersData },
+        { data: unavailableData },
+        { data: allSchedulesData },
+        { data: allSMData },
+      ] = await Promise.all([
+        supabase.from("events").select("*").eq("id", scheduleData.event_id).maybeSingle(),
+        supabase.from("schedule_members").select("*").eq("schedule_id", scheduleData.id),
+        supabase.from("schedule_slots").select("*").eq("schedule_id", scheduleData.id),
+        supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
+        supabase.from("department_members").select("*").eq("department_id", scheduleData.department_id),
+        supabase.from("unavailable_dates").select("*"),
+        supabase.from("schedules").select("*"),
+        supabase.from("schedule_members").select("*"),
+      ]);
+
+      if (smError) {
+        toast("Erro ao carregar detalhes da escala.");
+        setLoading(false);
+        return;
+      }
+
+      setSchedule(scheduleData as Schedule);
+      setEv((eventData || null) as Event | null);
+      setSm((smData || []) as ScheduleMember[]);
+      setSlots((slotsData || []) as ScheduleSlot[]);
+      setMembers((usersData || []) as User[]);
+      setDeptMembers((deptMembersData || []) as DepartmentMember[]);
+      setAllUD((unavailableData || []) as UnavailableDate[]);
+      setAllSchedules((allSchedulesData || []) as Schedule[]);
+      setAllSM((allSMData || []) as ScheduleMember[]);
       setLoading(false);
-      return;
-    }
 
-    const [
-      { data: eventData },
-      { data: smData, error: smError },
-      { data: slotsData },
-      { data: usersData },
-      { data: deptMembersData },
-      { data: unavailableData },
-      { data: allSchedulesData },
-      { data: allSMData },
-    ] = await Promise.all([
-      supabase.from("events").select("*").eq("id", scheduleData.event_id).maybeSingle(),
-      supabase.from("schedule_members").select("*").eq("schedule_id", scheduleData.id),
-      supabase.from("schedule_slots").select("*").eq("schedule_id", scheduleData.id),
-      supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
-      supabase.from("department_members").select("*").eq("department_id", scheduleData.department_id),
-      supabase.from("unavailable_dates").select("*"),
-      supabase.from("schedules").select("*"),
-      supabase.from("schedule_members").select("*"),
-    ]);
-
-    if (smError) {
+      void Promise.allSettled([
+        loadAttachments(scheduleData.id),
+        loadChatMessages(scheduleData.id),
+      ]);
+    } catch (error) {
+      console.error("EscalaDetailPanel loadData error:", error);
+      setSchedule(null);
       toast("Erro ao carregar detalhes da escala.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setSchedule(scheduleData as Schedule);
-    setEv((eventData || null) as Event | null);
-    setSm((smData || []) as ScheduleMember[]);
-    setSlots((slotsData || []) as ScheduleSlot[]);
-    setMembers((usersData || []) as User[]);
-    setDeptMembers((deptMembersData || []) as DepartmentMember[]);
-    setAllUD((unavailableData || []) as UnavailableDate[]);
-    setAllSchedules((allSchedulesData || []) as Schedule[]);
-    setAllSM((allSMData || []) as ScheduleMember[]);
-    await loadAttachments(scheduleData.id);
-    await loadChatMessages(scheduleData.id);
-    setLoading(false);
   }
 
   useEffect(() => {
