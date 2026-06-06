@@ -1,36 +1,56 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/hooks/use-app";
 import { supabase } from "@/lib/firebase";
-import { getDayName } from "@/lib/utils/helpers";
-import { ConfirmDialog, DateField } from "@/components/ui";
-import { ActionDrawer } from "@/components/ui/action-drawer";
-import { SplitView } from "@/components/ui/split-view";
+import { formatDate, getDayName } from "@/lib/utils/helpers";
+import { ActionDrawer, ConfirmDialog, PageHeader, PageShell } from "@/components/ui";
+import { SoftCard } from "@/components/pastoral/pastoral-ui";
 import { EscalaDetailPanel } from "@/components/escalas/escala-detail-panel";
 import type { Schedule, ScheduleMember, Event } from "@/types";
+
+function Icon({ name, size = 15 }: { name: string; size?: number }) {
+  const s = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const paths: Record<string, React.ReactNode> = {
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+    check: <><path d="M20 6L9 17l-5-5" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    eye: <><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" /></>,
+    plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+    trash: <><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></>,
+    users: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></>,
+    x: <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>,
+  };
+  return <svg {...s}>{paths[name] ?? null}</svg>;
+}
+
+function StatChip({ value, label, color }: { value: number; label: string; color?: "success" | "amber" | "info" | "purple" }) {
+  const cls = color === "success" ? "bg-success-light text-success" : color === "amber" ? "bg-amber-light text-amber" : color === "info" ? "bg-info-light text-info" : color === "purple" ? "bg-[#f4ecff] text-[#8B5BD6]" : "bg-surface-alt text-ink-muted";
+  return (
+    <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold ${cls}`}>
+      <span className="font-display text-[15px] font-bold">{value}</span>
+      {label}
+    </div>
+  );
+}
 
 function EscalasPageInner() {
   const { user, canDo, toast, departments } = useApp();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const selectedId = searchParams.get("id");
 
-  const [filter, setFilter] = useState<"all" | "active" | "draft">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft">("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "upcoming" | "past">("all");
+  const [search, setSearch] = useState("");
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [allSM, setAllSM] = useState<ScheduleMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerEvents, setDrawerEvents] = useState<Event[]>([]);
-  const [creating, setCreating] = useState(false);
-  const [newEventId, setNewEventId] = useState("");
-  const [newDeptId, setNewDeptId] = useState("");
-  const [newDate, setNewDate] = useState("");
-  const [newTime, setNewTime] = useState("18:00");
 
   async function loadData() {
     setLoading(true);
@@ -61,7 +81,7 @@ function EscalasPageInner() {
           );
     const scopedScheduleIds = new Set(scopedSchedules.map((s) => s.id));
 
-    setSchedules(scopedSchedules);
+    setSchedules(scopedSchedules.filter((s) => s.status !== "cancelled"));
     setEvents((eventsData || []) as Event[]);
     setAllSM(
       ((smData || []) as ScheduleMember[]).filter((sm) => scopedScheduleIds.has(sm.schedule_id))
@@ -73,47 +93,14 @@ function EscalasPageInner() {
     loadData();
   }, [user.church_id, departments.length]);
 
-  async function openCreationDrawer() {
-    router.push("/escalas/nova");
-  }
+  useEffect(() => {
+    const idFromQuery = searchParams.get("id");
+    if (idFromQuery) setSelectedScheduleId(idFromQuery);
+  }, [searchParams]);
 
-  async function createSchedule() {
-    if (!newEventId || !newDeptId || !newDate) {
-      toast("Preencha todos os campos.");
-      return;
-    }
-    setCreating(true);
-    try {
-      const response = await fetch("/api/schedules/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventId: newEventId,
-          departmentId: newDeptId,
-          date: newDate,
-          time: newTime,
-          arrivalTime: "",
-          instructions: "",
-          publish: false,
-          selectedIds: [],
-          functionTargets: {},
-        }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        toast(data?.error || "Erro ao criar escala.");
-        return;
-      }
-      toast("Rascunho criado!");
-      setDrawerOpen(false);
-      setNewDate("");
-      await loadData();
-      router.push(`/escalas?id=${data.scheduleId}`);
-    } catch {
-      toast("Erro ao criar escala.");
-    } finally {
-      setCreating(false);
-    }
+  function closeDetail() {
+    setSelectedScheduleId(null);
+    if (searchParams.get("id")) router.replace("/escalas", { scroll: false });
   }
 
   async function deleteSchedule(id: string) {
@@ -129,7 +116,7 @@ function EscalasPageInner() {
         return;
       }
       toast("Escala excluída.");
-      if (selectedId === id) router.push("/escalas");
+      if (selectedScheduleId === id) closeDetail();
       await loadData();
     } catch {
       toast("Erro ao excluir escala.");
@@ -138,209 +125,229 @@ function EscalasPageInner() {
     }
   }
 
-  const filtered = useMemo(() => {
-    return schedules
-      .filter((s) => filter === "all" || s.status === filter)
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [schedules, filter]);
+  const scheduleMembersById = useMemo(() => {
+    const map = new Map<string, ScheduleMember[]>();
+    allSM.forEach((member) => {
+      const current = map.get(member.schedule_id) || [];
+      current.push(member);
+      map.set(member.schedule_id, current);
+    });
+    return map;
+  }, [allSM]);
 
-  const listPanel = (
-    <div className="flex flex-col h-full">
-      {/* List header */}
-      <div className="px-5 py-4 border-b border-white/50 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 className="font-display text-[20px] font-bold text-ink">Escalas</h1>
-          <p className="text-[12px] text-ink-faint">{schedules.length} escala{schedules.length === 1 ? "" : "s"} no total</p>
+  const stats = useMemo(() => {
+    const published = schedules.filter((s) => s.status === "active").length;
+    const draft = schedules.filter((s) => s.status === "draft").length;
+    const pending = allSM.filter((m) => m.status !== "confirmed").length;
+    return { published, draft, pending };
+  }, [schedules, allSM]);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const today = new Date().toISOString().slice(0, 10);
+    return schedules
+      .filter((schedule) => {
+        const event = events.find((e) => e.id === schedule.event_id);
+        const dept = departments.find((d) => d.id === schedule.department_id);
+        const members = scheduleMembersById.get(schedule.id) || [];
+        const matchesSearch = !term ||
+          (event?.name || "").toLowerCase().includes(term) ||
+          (dept?.name || "").toLowerCase().includes(term) ||
+          (schedule.instructions || "").toLowerCase().includes(term) ||
+          members.some((m) => (m.function_name || "").toLowerCase().includes(term));
+        const matchesStatus = statusFilter === "all" || schedule.status === statusFilter;
+        const matchesDepartment = departmentFilter === "all" || schedule.department_id === departmentFilter;
+        const matchesDate = dateFilter === "all" || (dateFilter === "upcoming" ? schedule.date >= today : schedule.date < today);
+        return matchesSearch && matchesStatus && matchesDepartment && matchesDate;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  }, [schedules, events, departments, scheduleMembersById, search, statusFilter, departmentFilter, dateFilter]);
+
+  const hasFilters = Boolean(search || statusFilter !== "all" || departmentFilter !== "all" || dateFilter !== "all");
+
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setDepartmentFilter("all");
+    setDateFilter("all");
+  }
+
+  return (
+    <PageShell>
+      <PageHeader
+        eyebrow="Operação"
+        title="Escalas"
+        subtitle="Acompanhe publicações, equipes escaladas e confirmações por ministério."
+        actions={
+          canDo("schedule.create") ? (
+            <Link href="/escalas/nova" className="btn btn-primary btn-sm flex items-center gap-1.5">
+              <Icon name="plus" size={14} /> Nova escala
+            </Link>
+          ) : null
+        }
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <StatChip value={schedules.length} label="escalas" />
+        {stats.published > 0 && <StatChip value={stats.published} label="Publicadas" color="success" />}
+        {stats.draft > 0 && <StatChip value={stats.draft} label="Rascunhos" color="info" />}
+        {stats.pending > 0 && <StatChip value={stats.pending} label="pendências" color="amber" />}
+      </div>
+
+      <SoftCard className="mb-0 p-3">
+        <div className="grid gap-2 md:grid-cols-[1fr_160px_190px_160px]">
+          <input
+            className="input-field"
+            placeholder="Buscar por evento, ministério ou função..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select className="input-field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
+            <option value="all">Todos os status</option>
+            <option value="active">Publicadas</option>
+            <option value="draft">Rascunhos</option>
+          </select>
+          <select className="input-field" value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+            <option value="all">Todos os ministérios</option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>{department.name}</option>
+            ))}
+          </select>
+          <select className="input-field" value={dateFilter} onChange={(e) => setDateFilter(e.target.value as typeof dateFilter)}>
+            <option value="all">Todas as datas</option>
+            <option value="upcoming">Próximas</option>
+            <option value="past">Anteriores</option>
+          </select>
         </div>
-        {canDo("schedule.create") && (
-          <button
-            onClick={openCreationDrawer}
-            className="btn btn-primary btn-sm"
-            title="Nova Escala"
-            aria-label="Nova Escala"
-          >
-            Nova escala
+      </SoftCard>
+
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-semibold text-ink-faint">
+          {loading ? "Carregando..." : `${filtered.length} ${filtered.length === 1 ? "escala encontrada" : "escalas encontradas"}`}
+        </span>
+        {hasFilters && (
+          <button className="btn btn-ghost btn-sm flex items-center gap-1 text-ink-faint" onClick={clearFilters}>
+            <Icon name="x" size={13} /> Limpar filtros
           </button>
         )}
       </div>
 
-      {/* Filter tabs */}
-      <div className="px-4 py-3 border-b border-white/50 flex gap-1 flex-shrink-0">
-        {(["all", "active", "draft"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
-              filter === f ? "bg-white/60 text-ink shadow-sm" : "text-ink-muted hover:bg-white/40 hover:text-ink"
-            }`}
-          >
-            {f === "all" ? "Todas" : f === "active" ? "Ativas" : "Rascunhos"}
-          </button>
-        ))}
-      </div>
-
-      {/* Schedule list */}
-      <div className="flex-1 overflow-y-auto p-3">
-        {loading ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((item) => (
-              <div key={item} className="h-28 animate-pulse rounded-[18px] bg-white/55" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="rounded-[18px] border border-dashed border-border-soft bg-white/55 px-4 py-8 text-center">
-            <p className="text-sm text-ink-faint mb-2">Nenhuma escala</p>
-            {canDo("schedule.create") && (
-              <button onClick={openCreationDrawer} className="text-sm font-semibold text-brand hover:underline">
-                + Criar
-              </button>
-            )}
-          </div>
-        ) : (
-          filtered.map((s) => {
-            const ev = events.find((e) => e.id === s.event_id);
-            const dept = departments.find((d) => d.id === s.department_id);
-            const sm = allSM.filter((m) => m.schedule_id === s.id);
-            const confirmed = sm.filter((m) => m.status === "confirmed").length;
-            const isSelected = selectedId === s.id;
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-[210px] rounded-[18px] bg-surface-alt animate-pulse" />
+          ))}
+        </div>
+      ) : filtered.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((schedule) => {
+            const event = events.find((e) => e.id === schedule.event_id);
+            const department = departments.find((d) => d.id === schedule.department_id);
+            const members = scheduleMembersById.get(schedule.id) || [];
+            const confirmed = members.filter((m) => m.status === "confirmed").length;
+            const progress = members.length ? Math.round((confirmed / members.length) * 100) : 0;
+            const statusCls = schedule.status === "active" ? "bg-success-light text-success" : "bg-info-light text-info";
+            const progressCls = members.length === 0 ? "bg-ink-ghost" : progress === 100 ? "bg-success" : progress >= 50 ? "bg-info" : "bg-amber";
 
             return (
-              <button
-                key={s.id}
-                onClick={() => router.push(`/escalas?id=${s.id}`)}
-                className={`group mb-3 w-full rounded-[18px] border p-3.5 text-left transition-all ${
-                  isSelected ? "border-brand/30 bg-brand-glow shadow-sm" : "border-white/60 bg-white/62 hover:border-brand/20 hover:bg-white/85"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex h-14 w-12 flex-shrink-0 flex-col items-center justify-center rounded-[14px] border border-white/70 bg-white/70 backdrop-blur-sm">
-                    <span className="text-[8px] font-bold uppercase text-ink-faint">{getDayName(s.date)}</span>
-                    <span className="font-display text-[18px] leading-none text-ink">{s.date.split("-")[2]}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-bold text-ink">{ev?.name || "Escala"}</div>
-                    <div className="mt-1 truncate text-[12px] text-ink-faint">{dept?.name || "Ministério"} · {s.time}</div>
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      <span className={`badge ${s.status === "active" ? "badge-green" : "badge-info"}`}>
-                        {s.status === "active" ? "Publicada" : "Rascunho"}
-                      </span>
-                      {sm.length > 0 && (
-                        <span className={`badge ${confirmed === sm.length ? "badge-green" : "badge-amber"}`}>
-                          {confirmed}/{sm.length} confirmados
-                        </span>
-                      )}
+              <div key={schedule.id} className="group flex flex-col rounded-[18px] border border-border-soft bg-white/70 p-4 shadow-soft backdrop-blur transition-all hover:border-white hover:bg-white/85 hover:shadow-lift">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <div className="flex h-14 w-12 flex-shrink-0 flex-col items-center justify-center rounded-[14px] border border-white/70 bg-white/70 backdrop-blur-sm">
+                      <span className="text-[8px] font-bold uppercase text-ink-faint">{getDayName(schedule.date)}</span>
+                      <span className="font-display text-[18px] leading-none text-ink">{schedule.date.split("-")[2]}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedScheduleId(schedule.id)}
+                        className="block max-w-full truncate text-left font-display text-[16px] font-bold text-ink transition-colors hover:text-brand-deep"
+                      >
+                        {event?.name || "Escala"}
+                      </button>
+                      <p className="mt-0.5 text-[12px] text-ink-muted">
+                        {[department?.name || "Ministério", formatDate(schedule.date), schedule.time].filter(Boolean).join(" · ")}
+                      </p>
                     </div>
                   </div>
+                  <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${statusCls}`}>
+                    {schedule.status === "active" ? "Publicada" : "Rascunho"}
+                  </span>
+                </div>
+
+                <p className="mt-3 line-clamp-2 min-h-[34px] text-[12px] leading-relaxed text-ink-muted">
+                  {schedule.instructions || "Sem observações cadastradas para esta escala."}
+                </p>
+
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-alt">
+                  <div className={`h-1.5 rounded-full transition-all ${progressCls}`} style={{ width: `${members.length ? progress : 100}%` }} />
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-alt px-2 py-1 text-[10px] font-bold text-ink-faint">
+                    <Icon name="users" size={11} /> {members.length} pessoa{members.length === 1 ? "" : "s"}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${progress === 100 && members.length > 0 ? "bg-success-light text-success" : "bg-amber-light text-amber"}`}>
+                    <Icon name="check" size={11} /> {confirmed}/{members.length} confirmados
+                  </span>
+                  {schedule.arrival_time && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-alt px-2 py-1 text-[10px] font-bold text-ink-faint">
+                      <Icon name="clock" size={11} /> Chegada {schedule.arrival_time}
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-3 flex gap-2 border-t border-border-soft pt-3">
+                  <button onClick={() => setSelectedScheduleId(schedule.id)} className="btn btn-primary btn-sm flex flex-1 items-center justify-center gap-1.5">
+                    <Icon name="eye" size={13} /> Ver detalhes
+                  </button>
                   {canDo("schedule.delete") && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setScheduleToDelete(s.id); }}
-                      className="rounded-full px-2 py-1 text-[11px] font-semibold text-danger opacity-0 transition-opacity hover:bg-danger-light group-hover:opacity-100"
-                      title="Excluir"
-                    >
-                      Excluir
+                    <button onClick={() => setScheduleToDelete(schedule.id)} className="btn btn-danger btn-sm flex items-center gap-1" aria-label="Excluir escala">
+                      <Icon name="trash" size={13} />
                     </button>
                   )}
                 </div>
-              </button>
+              </div>
             );
-          })
-        )}
-      </div>
-    </div>
-  );
-
-  const detailPanel = selectedId ? (
-    <EscalaDetailPanel
-      key={selectedId}
-      scheduleId={selectedId}
-      onRefreshList={loadData}
-    />
-  ) : null;
-
-  const placeholder = (
-    <div className="flex-1 flex items-center justify-center text-center p-8">
-      <div className="max-w-[320px]">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-brand-light text-brand">
-          <span className="text-2xl">▣</span>
+          })}
         </div>
-        <p className="font-display text-lg text-ink">Selecione uma escala</p>
-        <p className="mt-1 text-sm text-ink-faint">Veja participantes, confirmações, anexos e chat em um só painel.</p>
-        {canDo("schedule.create") && (
-          <button onClick={openCreationDrawer} className="btn btn-primary btn-sm mt-4">
-            Nova escala
-          </button>
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <>
-      <SplitView list={listPanel} detail={detailPanel} listWidth={360} placeholder={placeholder} />
-
-      {/* Creation drawer */}
-      <ActionDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title="Nova Escala"
-        width={360}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="input-label">Evento</label>
-            <select
-              className="input-field"
-              value={newEventId}
-              onChange={(e) => setNewEventId(e.target.value)}
-            >
-              {drawerEvents.length === 0 && <option value="">Nenhum evento ativo</option>}
-              {drawerEvents.map((ev) => (
-                <option key={ev.id} value={ev.id}>{ev.name}</option>
-              ))}
-            </select>
+      ) : (
+        <div className="rounded-[20px] border border-border-soft bg-white/70 px-6 py-16 text-center backdrop-blur">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-surface-alt text-ink-faint">
+            <Icon name="calendar" size={26} />
           </div>
-
-          <div>
-            <label className="input-label">Ministério</label>
-            <select
-              className="input-field"
-              value={newDeptId}
-              onChange={(e) => setNewDeptId(e.target.value)}
-            >
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="input-label">Data</label>
-              <DateField value={newDate} onChange={setNewDate} />
-            </div>
-            <div>
-              <label className="input-label">Horário</label>
-              <input
-                type="time"
-                className="input-field"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <p className="text-[12px] text-ink-faint">
-            A escala será criada como rascunho. Adicione membros e publique no painel de detalhes.
+          <p className="font-display text-[17px] font-bold text-ink">
+            {hasFilters ? "Nenhuma escala encontrada" : "Nenhuma escala cadastrada ainda"}
           </p>
-
-          <button
-            onClick={createSchedule}
-            disabled={creating || !newEventId || !newDeptId || !newDate}
-            className="btn btn-primary w-full"
-          >
-            {creating ? "Criando..." : "Criar rascunho"}
-          </button>
+          <p className="mx-auto mt-1.5 max-w-[340px] text-sm text-ink-muted">
+            {hasFilters ? "Tente ajustar os filtros de busca." : "Crie a primeira escala para organizar equipes, funções e confirmações em um só lugar."}
+          </p>
+          <div className="mt-5 flex justify-center gap-3">
+            {hasFilters && <button onClick={clearFilters} className="btn btn-secondary btn-sm">Limpar filtros</button>}
+            {!hasFilters && canDo("schedule.create") && (
+              <Link href="/escalas/nova" className="btn btn-primary btn-sm flex items-center gap-1.5">
+                <Icon name="plus" size={14} /> Criar primeira escala
+              </Link>
+            )}
+          </div>
         </div>
+      )}
+
+      <ActionDrawer
+        open={Boolean(selectedScheduleId)}
+        onClose={closeDetail}
+        title="Visualizar escala"
+        width={920}
+      >
+        {selectedScheduleId && (
+          <div className="min-h-[70dvh]">
+            <EscalaDetailPanel
+              key={selectedScheduleId}
+              scheduleId={selectedScheduleId}
+              onRefreshList={loadData}
+            />
+          </div>
+        )}
       </ActionDrawer>
 
       {scheduleToDelete && (
@@ -352,7 +359,7 @@ function EscalasPageInner() {
           onConfirm={() => void deleteSchedule(scheduleToDelete)}
         />
       )}
-    </>
+    </PageShell>
   );
 }
 

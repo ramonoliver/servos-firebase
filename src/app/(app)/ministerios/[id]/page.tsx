@@ -4,16 +4,18 @@ import { useMemo, useState, useEffect } from "react";
 import { useApp } from "@/hooks/use-app";
 import { supabase } from "@/lib/firebase";
 import { getInitials, getIconEmoji } from "@/lib/utils/helpers";
-import { Modal, PageShell } from "@/components/ui";
+import { ActionDrawer, PageShell } from "@/components/ui";
 import Link from "next/link";
 import type { Department, User, DepartmentMember, Schedule, Event } from "@/types";
 import { DeptForm } from "@/components/shared/dept-form";
 import { AddMemberForm } from "@/components/shared/add-member-form";
+import { EscalaDetailPanel } from "@/components/escalas/escala-detail-panel";
 
 export default function MinisterioDetailPage({ params }: { params: { id: string } }) {
   const { user, departments, canDo, toast, refresh } = useApp();
   const [showAddMember, setShowAddMember] = useState(false);
   const [showEditDept, setShowEditDept] = useState(false);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
 
   const [allMembers, setAllMembers] = useState<User[]>([]);
   const [dms, setDms] = useState<DepartmentMember[]>([]);
@@ -333,21 +335,39 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
             schedules.map((s) => {
               const event = events.find((e) => e.id === s.event_id);
               return (
-                <Link
+                <button
                   key={s.id}
-                  href={`/escalas/${s.id}`}
-                  className="block px-5 py-3 border-t border-border-soft first:border-t-0 hover:bg-brand-glow transition-colors"
+                  type="button"
+                  onClick={() => setSelectedScheduleId(s.id)}
+                  className="block w-full px-5 py-3 text-left border-t border-border-soft first:border-t-0 hover:bg-brand-glow transition-colors"
                 >
                   <div className="text-sm font-medium">{event?.name || "Evento"}</div>
                   <div className="text-[11px] text-ink-faint">
                     {s.date} · {s.time}
                   </div>
-                </Link>
+                </button>
               );
             })
           )}
         </div>
       </div>
+
+      <ActionDrawer
+        open={Boolean(selectedScheduleId)}
+        onClose={() => setSelectedScheduleId(null)}
+        title="Visualizar escala"
+        width={920}
+      >
+        {selectedScheduleId && (
+          <div className="min-h-[70dvh]">
+            <EscalaDetailPanel
+              key={selectedScheduleId}
+              scheduleId={selectedScheduleId}
+              onRefreshList={loadData}
+            />
+          </div>
+        )}
+      </ActionDrawer>
 
       {showAddMember && (
         <AddMemberForm
@@ -376,5 +396,4 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
     </PageShell>
   );
 }
-
 
