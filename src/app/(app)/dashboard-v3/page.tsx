@@ -465,7 +465,7 @@ export default function DashboardV3Page() {
         reason: care.description || care.title,
         lastPresence: person?.last_served_at ? formatShortDate(person.last_served_at) : "sem contato recente",
         badge: "Atenção pastoral",
-        avatarColor: person?.avatar_color || "#F4532A",
+        avatarColor: person?.avatar_color || "#FF6B57",
         photoUrl: person?.photo_url || null,
       };
     });

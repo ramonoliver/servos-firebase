@@ -142,7 +142,7 @@ const toneSurface: Record<Tone, string> = {
 };
 
 const toneIcon: Record<Tone, string> = {
-  coral: "bg-white/75 text-[#F4532A]",
+  coral: "bg-white/75 text-[#FF6B57]",
   care: "bg-white/80 text-[#D99025]",
   cell: "bg-white/80 text-[#7B61FF]",
   visitor: "bg-white/80 text-[#33995B]",
@@ -150,7 +150,7 @@ const toneIcon: Record<Tone, string> = {
 };
 
 const toneActionButton: Record<Tone, string> = {
-  coral: "bg-[#F4532A] text-white shadow-[0_16px_30px_-20px_rgba(244,83,42,0.9)] hover:bg-[#D94420]",
+  coral: "bg-[#FF6B57] text-white shadow-[0_16px_30px_-20px_rgba(255,107,87,0.9)] hover:bg-[#F0492F]",
   care: "bg-[#E7A13A] text-white shadow-[0_16px_30px_-20px_rgba(215,143,36,0.85)] hover:bg-[#C07B1A]",
   cell: "bg-[#6D5DF0] text-white shadow-[0_16px_30px_-20px_rgba(109,93,240,0.88)] hover:bg-[#4A5ADE]",
   visitor: "bg-[#2A9A57] text-white shadow-[0_16px_30px_-20px_rgba(42,154,87,0.85)] hover:bg-[#1F8044]",
@@ -158,7 +158,7 @@ const toneActionButton: Record<Tone, string> = {
 };
 
 const toneDot: Record<Tone, string> = {
-  coral: "bg-[#F4532A]",
+  coral: "bg-[#FF6B57]",
   care: "bg-[#E7A13A]",
   cell: "bg-[#8C72FF]",
   visitor: "bg-[#45A86B]",
@@ -166,7 +166,7 @@ const toneDot: Record<Tone, string> = {
 };
 
 const toneIconStyle: Record<Tone, string> = {
-  coral:   "bg-[#FFF0EC] text-[#F4532A]",
+  coral:   "bg-[#FFF0EC] text-[#FF6B57]",
   care:    "bg-[#FFF8ED] text-[#C07B1A]",
   cell:    "bg-[#EEF1FF] text-[#4A5ADE]",
   visitor: "bg-[#EEFAF2] text-[#1F8044]",
@@ -339,14 +339,14 @@ export function DashboardHero({
           >
             <Icon name="bell" size={17} />
             {unreadNotifications > 0 && (
-              <span className="absolute right-2 top-2.5 h-2 w-2 rounded-full bg-[#F4532A]" />
+              <span className="absolute right-2 top-2.5 h-2 w-2 rounded-full bg-[#FF6B57]" />
             )}
           </Link>
 
           <div ref={actionsRef} className="relative">
             <button
               onClick={() => setQuickActionsOpen((v) => !v)}
-              className="flex h-11 items-center gap-2 rounded-full bg-[#F4532A] px-5 text-[13px] font-semibold text-white shadow-[0_16px_34px_-18px_rgba(244,83,42,0.55)] transition hover:brightness-[0.97]"
+              className="flex h-11 items-center gap-2 rounded-full bg-[#FF6B57] px-5 text-[13px] font-semibold text-white shadow-[0_16px_34px_-18px_rgba(255,107,87,0.55)] transition hover:brightness-[0.97]"
             >
               <Icon name="plus" size={16} />
               <span>Ações rápidas</span>
@@ -423,19 +423,19 @@ export function PriorityCards({ items }: { items: PriorityCard[] }) {
 }
 
 const priorityBadgeColors: Record<string, string> = {
-  Escalas: "bg-[#FFF0EC] text-[#D94420]",
+  Escalas: "bg-[#FFF0EC] text-[#F0492F]",
   Cuidado: "bg-[#FFF8ED] text-[#C07B1A]",
   Células: "bg-[#EEF1FF] text-[#4A5ADE]",
   Pessoas: "bg-[#EEFAF2] text-[#1F8044]",
-  Hoje: "bg-[#FFF0EC] text-[#F4532A] font-bold",
+  Hoje: "bg-[#FFF0EC] text-[#FF6B57] font-bold",
 };
 
 const priorityIconColors: Record<string, string> = {
-  Escalas: "bg-[#FFF0EC] text-[#F4532A]",
+  Escalas: "bg-[#FFF0EC] text-[#FF6B57]",
   Cuidado: "bg-[#FFF8ED] text-[#C07B1A]",
   Células: "bg-[#EEF1FF] text-[#4A5ADE]",
   Pessoas: "bg-[#EEFAF2] text-[#1F8044]",
-  Hoje: "bg-[#FFF0EC] text-[#F4532A]",
+  Hoje: "bg-[#FFF0EC] text-[#FF6B57]",
 };
 
 const priorityFallbackColors = { badge: "bg-[#F0EFEB] text-[#777777]", icon: "bg-[#FAFAF8] text-[#777777]" };
@@ -497,7 +497,7 @@ export function ActivityTimeline({ items }: { items: TimelineItem[] }) {
 }
 
 const eventIconColors: Record<string, { bg: string; text: string }> = {
-  calendar: { bg: "bg-[#FFF0EC]", text: "text-[#F4532A]" },
+  calendar: { bg: "bg-[#FFF0EC]", text: "text-[#FF6B57]" },
   home: { bg: "bg-[#EEF1FF]", text: "text-[#4A5ADE]" },
   spark: { bg: "bg-[#FFF8ED]", text: "text-[#C07B1A]" },
 };
@@ -530,7 +530,7 @@ export function UpcomingEvents({ items }: { items: UpcomingEventItem[] }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="truncate text-[14px] font-semibold text-[#191919]">{item.title}</div>
-                    <span className="flex-shrink-0 rounded-full bg-[#FFF0EC] px-2 py-0.5 text-[10px] font-semibold text-[#D94420]">
+                    <span className="flex-shrink-0 rounded-full bg-[#FFF0EC] px-2 py-0.5 text-[10px] font-semibold text-[#F0492F]">
                       {item.badge}
                     </span>
                   </div>
@@ -559,7 +559,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
         </div>
         <Link
           href="/escalas"
-          className="shrink-0 text-[13px] font-semibold text-[#F4532A] transition hover:opacity-75"
+          className="shrink-0 text-[13px] font-semibold text-[#FF6B57] transition hover:opacity-75"
         >
           Ver todos
         </Link>
@@ -567,7 +567,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
 
       {items.length === 0 ? (
         <div className="rounded-[24px] border border-dashed border-[#E6E0D7] bg-[#FAFAF8] px-5 py-10 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[18px] bg-white text-[#F4532A]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[18px] bg-white text-[#FF6B57]">
             <Icon name="calendar" size={20} />
           </div>
           <div className="mt-4 text-[15px] font-bold text-[#191919]">Nenhum compromisso publicado</div>
@@ -582,12 +582,12 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
             const isPending = isEscala && item.badge === "Confirmar";
             const isConfirmed = isEscala && !isPending;
             const surface = isPending
-              ? "bg-[#FFF0EC] border-[rgba(244,83,42,0.18)]"
+              ? "bg-[#FFF0EC] border-[rgba(255,107,87,0.18)]"
               : isConfirmed
               ? "bg-[#EEF9F1] border-[#C8EDD5]"
               : "bg-[#EEF1FF] border-[rgba(74,90,222,0.14)]";
             const iconColor = isPending
-              ? "text-[#F4532A]"
+              ? "text-[#FF6B57]"
               : isConfirmed
               ? "text-[#1F8044]"
               : "text-[#4A5ADE]";
@@ -616,7 +616,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
                     <div className="flex gap-2">
                       <Link
                         href={item.href}
-                        className="rounded-full bg-[#F4532A] px-3 py-1.5 text-[10px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(244,83,42,0.55)] transition hover:bg-[#D94420]"
+                        className="rounded-full bg-[#FF6B57] px-3 py-1.5 text-[10px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(255,107,87,0.55)] transition hover:bg-[#F0492F]"
                       >
                         ✓ Vou
                       </Link>
@@ -650,7 +650,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
 }
 
 const careBadgeColors: Record<string, string> = {
-  "Atenção pastoral": "bg-[#FFF0EC] text-[#D94420]",
+  "Atenção pastoral": "bg-[#FFF0EC] text-[#F0492F]",
   "Participação baixa": "bg-[#FFF8ED] text-[#C07B1A]",
   "Visitante":         "bg-[#EEF1FF] text-[#4A5ADE]",
   "Reconectado":       "bg-[#EEFAF2] text-[#1F8044]",
@@ -701,7 +701,7 @@ export function CarePeopleSection({ people }: { people: CarePerson[] }) {
         <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-[#191919] md:text-[22px]">
           Pessoas precisando de cuidado
         </h2>
-        <Link href="/pessoas" className="shrink-0 text-[13px] font-semibold text-[#F4532A] transition hover:opacity-75">
+        <Link href="/pessoas" className="shrink-0 text-[13px] font-semibold text-[#FF6B57] transition hover:opacity-75">
           Ver todas
         </Link>
       </div>
@@ -747,7 +747,7 @@ export function CarePeopleSection({ people }: { people: CarePerson[] }) {
             <button
               key={i}
               onClick={() => goTo(i)}
-              className={cn("h-2 rounded-full transition-all duration-200", i === active ? "w-5 bg-[#F4532A]" : "w-2 bg-[#E5E3DE]")}
+              className={cn("h-2 rounded-full transition-all duration-200", i === active ? "w-5 bg-[#FF6B57]" : "w-2 bg-[#E5E3DE]")}
               aria-label={`Pessoa ${i + 1}`}
             />
           ))}
@@ -816,7 +816,7 @@ export function InsightCards({ items, className }: { items: Insight[]; className
         </h2>
         <Link
           href="/relatorios"
-          className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-[#F4532A] transition hover:opacity-75"
+          className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-[#FF6B57] transition hover:opacity-75"
         >
           Ver relatório completo
           <Icon name="arrow" size={13} />
@@ -1016,7 +1016,7 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
               </p>
               <Link
                 href="/celulas"
-                className="mt-4 inline-flex rounded-full bg-[#F4532A] px-4 py-2.5 text-[13px] font-bold text-white shadow-[0_10px_24px_-14px_rgba(244,83,42,0.7)] transition hover:bg-[#D94420]"
+                className="mt-4 inline-flex rounded-full bg-[#FF6B57] px-4 py-2.5 text-[13px] font-bold text-white shadow-[0_10px_24px_-14px_rgba(255,107,87,0.7)] transition hover:bg-[#F0492F]"
               >
                 Ver células
               </Link>
@@ -1028,7 +1028,7 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
   );
 }
 
-const prayerAvatarColors = ["#C07B1A", "#4A5ADE", "#1F8044", "#D94420"];
+const prayerAvatarColors = ["#C07B1A", "#4A5ADE", "#1F8044", "#F0492F"];
 
 function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
   return (
@@ -1044,7 +1044,7 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
         </div>
         <Link
           href="/pedidos-oracao"
-          className="shrink-0 text-[13px] font-semibold text-[#F4532A] transition hover:opacity-75"
+          className="shrink-0 text-[13px] font-semibold text-[#FF6B57] transition hover:opacity-75"
         >
           Ver todos
         </Link>
@@ -1151,7 +1151,7 @@ function MemberMinistryGrid() {
         </div>
         <Link
           href="/ministerios"
-          className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold text-[#F4532A] transition hover:opacity-75"
+          className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold text-[#FF6B57] transition hover:opacity-75"
         >
           Ver ministérios
           <Icon name="arrow" size={13} />
@@ -1208,7 +1208,7 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
         </div>
         <Link
           href="/escalas"
-          className="shrink-0 text-[13px] font-semibold text-[#F4532A] transition hover:opacity-75"
+          className="shrink-0 text-[13px] font-semibold text-[#FF6B57] transition hover:opacity-75"
         >
           Ver todas
         </Link>
@@ -1222,14 +1222,14 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
               className={cn(
                 "flex items-center gap-3 rounded-[16px] p-3",
                 isPending
-                  ? "border border-[rgba(244,83,42,0.18)] bg-[#FFF0EC]"
+                  ? "border border-[rgba(255,107,87,0.18)] bg-[#FFF0EC]"
                   : "border border-[#F0EFEB] bg-white",
               )}
             >
               <div
                 className={cn(
                   "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[12px] bg-white",
-                  isPending ? "text-[#F4532A]" : "text-[#1F8044]",
+                  isPending ? "text-[#FF6B57]" : "text-[#1F8044]",
                 )}
               >
                 <Icon name="calendar" size={16} />
@@ -1242,7 +1242,7 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
                 <div className="flex flex-shrink-0 gap-1.5">
                   <Link
                     href={item.href}
-                    className="rounded-full bg-[#F4532A] px-3 py-1.5 text-[10px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(244,83,42,0.5)] transition hover:bg-[#D94420]"
+                    className="rounded-full bg-[#FF6B57] px-3 py-1.5 text-[10px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(255,107,87,0.5)] transition hover:bg-[#F0492F]"
                   >
                     ✓ Vou
                   </Link>
@@ -1339,7 +1339,7 @@ export function PersonalizedEmptyState() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/celulas" className="rounded-full bg-[linear-gradient(135deg,#F4532A_0%,#F4532A_100%)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_14px_30px_-16px_rgba(244,83,42,0.75)]">Encontrar célula</Link>
+          <Link href="/celulas" className="rounded-full bg-[linear-gradient(135deg,#FF6B57_0%,#FF6B57_100%)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_14px_30px_-16px_rgba(255,107,87,0.75)]">Encontrar célula</Link>
           <Link href="/ministerios" className="rounded-full border border-[#F0EFEB] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#191919]">Quero servir</Link>
         </div>
       </div>
