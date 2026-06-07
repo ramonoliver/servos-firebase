@@ -146,7 +146,7 @@ const toneIcon: Record<Tone, string> = {
   care: "bg-white/80 text-[#D99025]",
   cell: "bg-white/80 text-[#7B61FF]",
   visitor: "bg-white/80 text-[#33995B]",
-  neutral: "bg-[#FAFAF8] text-[#777777]",
+  neutral: "bg-[#FAFAF8] text-[#6E6E6E]",
 };
 
 const toneActionButton: Record<Tone, string> = {
@@ -170,7 +170,7 @@ const toneIconStyle: Record<Tone, string> = {
   care:    "bg-[#FFF8ED] text-[#C07B1A]",
   cell:    "bg-[#EEF1FF] text-[#4A5ADE]",
   visitor: "bg-[#EEFAF2] text-[#1F8044]",
-  neutral: "bg-[#FAFAF8] text-[#777777]",
+  neutral: "bg-[#FAFAF8] text-[#6E6E6E]",
 };
 
 function Icon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
@@ -210,7 +210,7 @@ function SectionTitle({ eyebrow, title, action }: { eyebrow?: string; title: str
   return (
     <div className="mb-5 flex items-end justify-between gap-4">
       <div>
-        {eyebrow && <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#AAAAAA]">{eyebrow}</div>}
+        {eyebrow && <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">{eyebrow}</div>}
         <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-[#191919] md:text-[24px]">{title}</h2>
       </div>
       {action}
@@ -311,20 +311,20 @@ export function DashboardHero({
           <div ref={searchWrapperRef} className="relative">
             <button
               onClick={() => setSearchOpen((prev) => !prev)}
-              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/40 text-[#888888] backdrop-blur transition hover:bg-white/70"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/40 text-[#6B6B6B] backdrop-blur transition hover:bg-white/70"
               aria-label="Abrir busca"
             >
               <Icon name="search" size={16} />
             </button>
             {searchOpen && (
               <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[min(92vw,380px)] rounded-[16px] border border-[#F0EFEB] bg-white p-2 shadow-[0_18px_45px_-25px_rgba(25,25,25,0.35)]">
-                <label className="flex h-10 items-center gap-2 rounded-full border border-[#F0EFEB] bg-white px-3 text-[13px] text-[#777777]">
+                <label className="flex h-10 items-center gap-2 rounded-full border border-[#F0EFEB] bg-white px-3 text-[13px] text-[#6E6E6E]">
                   <Icon name="search" size={15} />
                   <input
                     ref={searchInputRef}
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
-                    className="min-w-0 flex-1 border-0 bg-transparent text-[#191919] outline-none placeholder:text-[#AAAAAA]"
+                    className="min-w-0 flex-1 border-0 bg-transparent text-[#191919] outline-none placeholder:text-[#767676]"
                     placeholder="Buscar pessoas, escalas, células, ministérios..."
                   />
                 </label>
@@ -334,7 +334,7 @@ export function DashboardHero({
 
           <Link
             href="/notificacoes"
-            className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/40 text-[#888888] backdrop-blur transition hover:bg-white/70"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/40 text-[#6B6B6B] backdrop-blur transition hover:bg-white/70"
             aria-label="Notificações"
           >
             <Icon name="bell" size={17} />
@@ -408,7 +408,7 @@ export function PriorityCards({ items }: { items: PriorityCard[] }) {
                 {item.value}
               </div>
               <div className="mt-0.5 truncate text-[13px] font-semibold text-[#191919]">{item.label}</div>
-              <div className="mt-0.5 truncate text-[11px] text-[#888888]">{item.description}</div>
+              <div className="mt-0.5 truncate text-[11px] text-[#6B6B6B]">{item.description}</div>
             </div>
             <Icon
               name="arrow"
@@ -438,7 +438,7 @@ const priorityIconColors: Record<string, string> = {
   Hoje: "bg-[#FFF0EC] text-[#FF6B57]",
 };
 
-const priorityFallbackColors = { badge: "bg-[#F0EFEB] text-[#777777]", icon: "bg-[#FAFAF8] text-[#777777]" };
+const priorityFallbackColors = { badge: "bg-[#F0EFEB] text-[#6E6E6E]", icon: "bg-[#FAFAF8] text-[#6E6E6E]" };
 
 export function PriorityList({ items }: { items: PriorityListItem[] }) {
   return (
@@ -459,10 +459,10 @@ export function PriorityList({ items }: { items: PriorityListItem[] }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-semibold text-[#191919]">{item.title}</div>
-                <div className="truncate text-[12px] text-[#777777]">{item.meta}</div>
+                <div className="truncate text-[12px] text-[#6E6E6E]">{item.meta}</div>
               </div>
               <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold", badgeClass)}>{item.badge}</span>
-              <Icon name="chevron" size={16} className="text-[#AAAAAA] transition group-hover:text-[#191919]" />
+              <Icon name="chevron" size={16} className="text-[#767676] transition group-hover:text-[#191919]" />
             </Link>
           );
         })}
@@ -485,9 +485,9 @@ export function ActivityTimeline({ items }: { items: TimelineItem[] }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
                 <div className="truncate text-[14px] font-semibold text-[#191919]">{item.title}</div>
-                <div className="flex-shrink-0 text-[11px] font-medium text-[#AAAAAA]">{item.time}</div>
+                <div className="flex-shrink-0 text-[11px] font-medium text-[#767676]">{item.time}</div>
               </div>
-              <p className="mt-1 text-[12px] leading-5 text-[#777777]">{item.meta}</p>
+              <p className="mt-1 text-[12px] leading-5 text-[#6E6E6E]">{item.meta}</p>
             </div>
           </div>
         ))}
@@ -502,7 +502,7 @@ const eventIconColors: Record<string, { bg: string; text: string }> = {
   spark: { bg: "bg-[#FFF8ED]", text: "text-[#C07B1A]" },
 };
 
-const eventIconFallback = { bg: "bg-[#FAFAF8]", text: "text-[#777777]" };
+const eventIconFallback = { bg: "bg-[#FAFAF8]", text: "text-[#6E6E6E]" };
 
 export function UpcomingEvents({ items }: { items: UpcomingEventItem[] }) {
   return (
@@ -534,7 +534,7 @@ export function UpcomingEvents({ items }: { items: UpcomingEventItem[] }) {
                       {item.badge}
                     </span>
                   </div>
-                  <div className="mt-1 text-[12px] font-medium text-[#777777]">{item.time}</div>
+                  <div className="mt-1 text-[12px] font-medium text-[#6E6E6E]">{item.time}</div>
                 </div>
               </div>
             </Link>
@@ -550,7 +550,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
     <Panel className="p-6" dataSectionId="member-agenda">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#AAAAAA]">
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
             Agenda pessoal
           </div>
           <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-[#191919] md:text-[24px]">
@@ -571,7 +571,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
             <Icon name="calendar" size={20} />
           </div>
           <div className="mt-4 text-[15px] font-bold text-[#191919]">Nenhum compromisso publicado</div>
-          <p className="mx-auto mt-1 max-w-[300px] text-[13px] leading-5 text-[#777777]">
+          <p className="mx-auto mt-1 max-w-[300px] text-[13px] leading-5 text-[#6E6E6E]">
             Quando houver escala, encontro de célula ou evento para você, aparece aqui.
           </p>
         </div>
@@ -609,7 +609,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
                     <Icon name={item.icon} size={17} />
                   </div>
                   <div className="text-[14px] font-bold leading-tight text-[#191919]">{item.title}</div>
-                  <div className="mt-1.5 text-[11px] leading-5 text-[#777777]">{item.time}</div>
+                  <div className="mt-1.5 text-[11px] leading-5 text-[#6E6E6E]">{item.time}</div>
                 </div>
                 <div className="mt-3">
                   {isPending ? (
@@ -622,7 +622,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
                       </Link>
                       <Link
                         href={item.href}
-                        className="rounded-full border border-[#F0EFEB] bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[#777777] transition hover:bg-[#FAFAF8]"
+                        className="rounded-full border border-[#F0EFEB] bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[#6E6E6E] transition hover:bg-[#FAFAF8]"
                       >
                         ✕
                       </Link>
@@ -656,7 +656,7 @@ const careBadgeColors: Record<string, string> = {
   "Reconectado":       "bg-[#EEFAF2] text-[#1F8044]",
   "3 faltas seguidas": "bg-[#EEF1FF] text-[#4A5ADE]",
 };
-const careBadgeFallback = "bg-[#F0EFEB] text-[#777777]";
+const careBadgeFallback = "bg-[#F0EFEB] text-[#6E6E6E]";
 
 export function CarePeopleSection({ people }: { people: CarePerson[] }) {
   const [active, setActive] = useState(0);
@@ -840,7 +840,7 @@ export function InsightCards({ items, className }: { items: Insight[]; className
                   {item.value}
                 </div>
                 <div className="mt-1.5 text-[13px] font-semibold text-[#191919]">{item.label}</div>
-                <div className="mt-0.5 text-[11px] text-[#AAAAAA]">{item.description}</div>
+                <div className="mt-0.5 text-[11px] text-[#767676]">{item.description}</div>
               </div>
               {item.trend && item.trend.length > 1 && (
                 <div className="px-3 pb-3">
@@ -865,7 +865,7 @@ export function CellCard({ cell }: { cell?: CellSummary }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-[22px] font-bold tracking-[-0.035em] text-[#191919]">{cell.name}</div>
-              <p className="mt-2 text-[13px] leading-6 text-[#777777]">{cell.nextMeeting}</p>
+              <p className="mt-2 text-[13px] leading-6 text-[#6E6E6E]">{cell.nextMeeting}</p>
             </div>
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-[#F5F0FF] text-[#7B61FF]">
               <Icon name="home" size={24} />
@@ -873,19 +873,19 @@ export function CellCard({ cell }: { cell?: CellSummary }) {
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="rounded-[18px] bg-[#FAFAF8] p-4 sm:col-span-2">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#AAAAAA]">Aviso da célula</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#767676]">Aviso da célula</div>
               <div className="mt-1 text-[13px] leading-5 text-[#191919]">{cell.notice}</div>
             </div>
             <div className="rounded-[18px] bg-[#FAFAF8] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#AAAAAA]">Pedidos</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#767676]">Pedidos</div>
               <div className="mt-1 text-[26px] font-bold leading-none tracking-[-0.04em] text-[#7B61FF]">{cell.prayerCount}</div>
-              <div className="mt-1 text-[12px] text-[#777777]">em oração</div>
+              <div className="mt-1 text-[12px] text-[#6E6E6E]">em oração</div>
             </div>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] bg-white/45 px-4 py-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#AAAAAA]">Liderança</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#767676]">Liderança</div>
             <div className="mt-0.5 text-[13px] font-semibold text-[#191919]">{cell.leader}</div>
           </div>
           <Link href={cell.href} className="rounded-full bg-[#6D5DF0] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_14px_28px_-18px_rgba(109,93,240,0.85)]">Abrir célula</Link>
@@ -909,8 +909,8 @@ export function PrayerRequestCard({ items }: { items: PrayerRequestCardData[] })
               </div>
               <div>
                 <div className="text-[14px] font-semibold text-[#191919]">{item.title}</div>
-                <p className="mt-1 text-[12px] leading-5 text-[#777777]">{item.description}</p>
-                <div className="mt-2 text-[11px] font-medium text-[#AAAAAA]">{item.person}</div>
+                <p className="mt-1 text-[12px] leading-5 text-[#6E6E6E]">{item.description}</p>
+                <div className="mt-2 text-[11px] font-medium text-[#767676]">{item.person}</div>
               </div>
             </div>
           </Link>
@@ -932,7 +932,7 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
           <>
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9A95BB]">
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6E6A82]">
                   Minha célula
                 </div>
                 <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.04em] text-[#191919]">
@@ -952,14 +952,14 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
             </div>
 
             <div className="mb-4 rounded-[16px] bg-[#FAFAF8] p-4">
-              <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#AAAAAA]">
+              <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#767676]">
                 Recado da célula
               </div>
               <div className="mt-1 text-[13px] leading-5 text-[#191919]">{cell.notice}</div>
             </div>
 
             <div className="mb-5">
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#AAAAAA]">
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#767676]">
                 Liderança
               </div>
               <div className="flex flex-col gap-2">
@@ -988,7 +988,7 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-bold text-[#191919]">{leader.name}</div>
-                      <div className="text-[11px] text-[#9A95BB]">{leader.role}</div>
+                      <div className="text-[11px] text-[#6E6A82]">{leader.role}</div>
                     </div>
                   </div>
                 ))}
@@ -1004,14 +1004,14 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
           </>
         ) : (
           <div>
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9A95BB]">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6E6A82]">
               Minha célula
             </div>
             <div className="mt-5 rounded-[20px] border border-dashed border-[rgba(109,93,240,0.25)] bg-[#FAFAF8] p-5">
               <div className="text-[16px] font-bold text-[#191919]">
                 Você ainda não está em uma célula.
               </div>
-              <p className="mt-2 text-[13px] leading-6 text-[#777777]">
+              <p className="mt-2 text-[13px] leading-6 text-[#6E6E6E]">
                 Escolha uma célula próxima e comece a participar da vida em comunidade.
               </p>
               <Link
@@ -1035,7 +1035,7 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
     <Panel className="flex flex-col p-6" dataSectionId="member-prayers">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#AAAAAA]">
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
             Cuidado
           </div>
           <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-[#191919] md:text-[24px]">
@@ -1056,7 +1056,7 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
             <Icon name="heart" size={20} />
           </div>
           <div className="mt-3 text-[14px] font-bold text-[#191919]">Nenhum pedido ainda</div>
-          <p className="mx-auto mt-1 max-w-[240px] text-[12px] leading-5 text-[#777777]">
+          <p className="mx-auto mt-1 max-w-[240px] text-[12px] leading-5 text-[#6E6E6E]">
             Compartilhe um pedido e a célula ora por você.
           </p>
         </div>
@@ -1082,7 +1082,7 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-bold text-[#191919]">{item.person}</div>
-                <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#777777]">
+                <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#6E6E6E]">
                   {item.description}
                 </p>
               </div>
@@ -1093,7 +1093,7 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
 
       <Link
         href="/pedidos-oracao"
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] border border-dashed border-[#E6E0D7] bg-[#FAFAF8] py-3 text-[13px] font-bold text-[#777777] transition hover:bg-white"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] border border-dashed border-[#E6E0D7] bg-[#FAFAF8] py-3 text-[13px] font-bold text-[#6E6E6E] transition hover:bg-white"
       >
         <Icon name="plus" size={14} />
         Fazer pedido de oração
@@ -1142,7 +1142,7 @@ function MemberMinistryGrid() {
     <Panel className="p-6" dataSectionId="member-ministry">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#AAAAAA]">
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
             Serviço
           </div>
           <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-[#191919] md:text-[24px]">
@@ -1177,7 +1177,7 @@ function MemberMinistryGrid() {
                 <Icon name={item.icon} size={18} />
               </div>
               <div className="text-[15px] font-bold leading-tight text-[#191919]">{item.title}</div>
-              <div className="mt-1.5 text-[12px] leading-5 text-[#777777]">{item.description}</div>
+              <div className="mt-1.5 text-[12px] leading-5 text-[#6E6E6E]">{item.description}</div>
             </div>
             <span
               className={cn(
@@ -1199,7 +1199,7 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
     <Panel className="p-6" dataSectionId="member-schedules">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#AAAAAA]">
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
             Ministério
           </div>
           <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-[#191919] md:text-[24px]">
@@ -1236,7 +1236,7 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-bold text-[#191919]">{item.title}</div>
-                <div className="mt-0.5 text-[11px] text-[#777777]">{item.time}</div>
+                <div className="mt-0.5 text-[11px] text-[#6E6E6E]">{item.time}</div>
               </div>
               {isPending ? (
                 <div className="flex flex-shrink-0 gap-1.5">
@@ -1248,7 +1248,7 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
                   </Link>
                   <Link
                     href={item.href}
-                    className="rounded-full border border-[#F0EFEB] bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[#777777] transition hover:bg-[#FAFAF8]"
+                    className="rounded-full border border-[#F0EFEB] bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[#6E6E6E] transition hover:bg-[#FAFAF8]"
                   >
                     ✕
                   </Link>
@@ -1334,7 +1334,7 @@ export function PersonalizedEmptyState() {
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-[20px] font-semibold tracking-[-0.025em] text-[#191919]">Vamos ajudar você a se conectar.</div>
-          <p className="mt-2 max-w-[620px] text-[14px] leading-6 text-[#777777]">
+          <p className="mt-2 max-w-[620px] text-[14px] leading-6 text-[#6E6E6E]">
             Encontre uma célula, conheça ministérios e complete seu cadastro para receber convites alinhados com sua caminhada.
           </p>
         </div>
