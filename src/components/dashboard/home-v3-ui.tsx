@@ -407,8 +407,8 @@ export function PriorityCards({ items }: { items: PriorityCard[] }) {
               <div className="text-[26px] font-bold leading-none tracking-[-0.05em] text-[#191919]">
                 {item.value}
               </div>
-              <div className="mt-0.5 truncate text-[13px] font-semibold text-[#191919]">{item.label}</div>
-              <div className="mt-0.5 truncate text-[11px] text-[#6B6B6B]">{item.description}</div>
+              <div className="mt-1 text-[13px] font-semibold leading-tight text-[#191919] line-clamp-2">{item.label}</div>
+              <div className="mt-0.5 text-[11px] leading-tight text-[#6B6B6B] line-clamp-1">{item.description}</div>
             </div>
             <Icon
               name="arrow"

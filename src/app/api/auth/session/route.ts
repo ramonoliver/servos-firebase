@@ -17,7 +17,15 @@ export async function GET(req: Request) {
   }
 
   const token = encodeSessionToken(session);
-  const firebaseToken = await adminAuth.createCustomToken(session.user_id);
+  // Não-fatal: a sessão do app vale pelo cookie/token próprio. Se a geração do
+  // custom token do Firebase falhar, ainda autenticamos (apenas o login do
+  // Firebase no cliente não acontece, mas a sessão do app segue válida).
+  let firebaseToken: string | null = null;
+  try {
+    firebaseToken = await adminAuth.createCustomToken(session.user_id);
+  } catch (error) {
+    console.error("Falha ao gerar custom token na sessão:", error);
+  }
   const response = NextResponse.json({ authenticated: true, session, token, firebaseToken });
 
   if (!cookieSession) {
