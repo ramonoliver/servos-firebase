@@ -24,7 +24,7 @@ import {
   type TimelineItem,
   type UpcomingEventItem,
 } from "@/components/dashboard/home-v3-ui";
-import type { Cell, CellMemberRow } from "@/lib/cells/types";
+import type { Cell, CellMemberRow, CellNetwork } from "@/lib/cells/types";
 import type { Department, Event, Notification, Schedule, ScheduleMember, User } from "@/types";
 
 function formatShortDate(date: string) {
@@ -84,6 +84,7 @@ export default function DashboardV3Page() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
   const [cellMembers, setCellMembers] = useState<CellMemberRow[]>([]);
+  const [networks, setNetworks] = useState<CellNetwork[]>([]);
   const [pastoralNotes, setPastoralNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -156,6 +157,7 @@ export default function DashboardV3Page() {
         const cellsList = (cellsPayload?.cells || []) as Cell[];
         setCells(cellsList);
         setCellMembers((cellsPayload?.cellMembers || []) as CellMemberRow[]);
+        setNetworks((cellsPayload?.networks || []) as CellNetwork[]);
         setPastoralNotes(notesData || []);
 
         // Register database objects in selector cache
@@ -185,10 +187,15 @@ export default function DashboardV3Page() {
     const myCell = cells.find((cellItem) => myCellIds.has(cellItem.id));
     const hasMinistry = departments.length > 0;
     const hasCell = Boolean(myCell);
-    // Apenas pastores e admin veem a visão pastoral (cuidado + insights).
-    // Líderes de célula/ministério ficam no modo "hybrid" (sem essas seções).
+    // A visão pastoral (cards de prioridade + cuidado + insights) é só de
+    // Admin, Pastor, Coordenador e Supervisor (de rede). Líderes de
+    // célula/ministério e membros NÃO veem.
+    const isSupervisor = networks.some((n) => (n.supervisor_ids || []).includes(user.id));
     const isPastorOrAdmin =
-      user.role === "admin" || user.cell_role === "pastor" || user.cell_role === "coordenacao";
+      user.role === "admin" ||
+      user.cell_role === "pastor" ||
+      user.cell_role === "coordenacao" ||
+      isSupervisor;
     const profileMode: DashboardV3Data["profileMode"] = isPastorOrAdmin
       ? "admin"
       : user.role === "leader"
@@ -567,7 +574,7 @@ export default function DashboardV3Page() {
       quickActions,
       notices,
     };
-  }, [cellMembers, cells, church.name, departments, events, members, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
+  }, [cellMembers, cells, networks, church.name, departments, events, members, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
 
   if (loading) return <DashboardV3Skeleton />;
 

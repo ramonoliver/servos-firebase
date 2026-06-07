@@ -90,40 +90,50 @@ export async function POST(req: Request) {
     tomorrowTime.setDate(tomorrowTime.getDate() + 1);
     const tomorrowDate = tomorrowTime.toISOString().split("T")[0];
 
+    // Clique manual no botão "Lembrar" (scheduleId informado): envia agora aos
+    // pendentes, sem filtro de data e sem dedupe. Fluxo automático (cron, sem
+    // scheduleId): mantém os estágios por data + dedupe (não-fatal).
+    const manual = Boolean(scheduleId);
+
     for (const sched of visibleSchedules) {
-      const scheduleDateString = sched.date;
-      const scheduleTimeString = sched.time || "00:00";
-      const scheduleDate = new Date(`${scheduleDateString}T${scheduleTimeString}:00`);
       let stage: "day_before" | "same_day" = "day_before";
-      let onlyPendingForStage = false;
+      let onlyPendingForStage = true;
 
-      if (scheduleDateString === tomorrowDate) {
-        stage = "day_before";
-        onlyPendingForStage = true;
-      } else if (
-        scheduleDateString === todayDate &&
-        scheduleDate.getTime() > nowTime.getTime() &&
-        scheduleDate.getTime() - nowTime.getTime() <= 3 * 60 * 60 * 1000
-      ) {
-        stage = "same_day";
-        onlyPendingForStage = false;
-      } else {
-        continue;
-      }
+      if (!manual) {
+        const scheduleDateString = sched.date;
+        const scheduleTimeString = sched.time || "00:00";
+        const scheduleDate = new Date(`${scheduleDateString}T${scheduleTimeString}:00`);
 
-      const dedupeWindowMinutes = 20;
-      const dedupeFrom = new Date(nowTime.getTime() - dedupeWindowMinutes * 60 * 1000).toISOString();
-      const dedupeActionUrl = `/escalas/${encodeURIComponent(sched.id)}`;
-      const { count: recentReminderCount, error: dedupeError } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("church_id", churchId)
-        .eq("type", "reminder")
-        .eq("action_url", dedupeActionUrl)
-        .gte("created_at", dedupeFrom);
-      if (dedupeError) throw dedupeError;
-      if ((recentReminderCount || 0) > 0) {
-        continue;
+        if (scheduleDateString === tomorrowDate) {
+          stage = "day_before";
+          onlyPendingForStage = true;
+        } else if (
+          scheduleDateString === todayDate &&
+          scheduleDate.getTime() > nowTime.getTime() &&
+          scheduleDate.getTime() - nowTime.getTime() <= 3 * 60 * 60 * 1000
+        ) {
+          stage = "same_day";
+          onlyPendingForStage = false;
+        } else {
+          continue;
+        }
+
+        // Dedupe não-fatal: a query composta pode exigir índice no Firestore;
+        // se falhar, seguimos sem dedupe em vez de derrubar o envio.
+        try {
+          const dedupeFrom = new Date(nowTime.getTime() - 20 * 60 * 1000).toISOString();
+          const dedupeActionUrl = `/escalas/${encodeURIComponent(sched.id)}`;
+          const { count: recentReminderCount } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("church_id", churchId)
+            .eq("type", "reminder")
+            .eq("action_url", dedupeActionUrl)
+            .gte("created_at", dedupeFrom);
+          if ((recentReminderCount || 0) > 0) continue;
+        } catch (dedupeError) {
+          console.warn("Dedupe de lembretes falhou (seguindo sem dedupe):", dedupeError);
+        }
       }
 
       const delivery = await sendScheduleReminderAlerts({

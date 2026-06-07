@@ -1160,7 +1160,7 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
             )}
             <div ref={chatEndRef} />
           </div>
-          <div className="px-4 py-3 border-t border-border-soft flex gap-2">
+          <div className="flex items-end gap-2 border-t border-border-soft px-4 py-3">
             <MentionInput
               value={chatMsg}
               onChange={setChatMsg}
@@ -1173,7 +1173,8 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
             <button
               onClick={sendChat}
               disabled={!chatMsg.trim() || !chatAvailable || sendingChat || !canAccessScheduleChat}
-              className="btn btn-primary px-4 py-2"
+              aria-label="Enviar mensagem"
+              className="btn btn-primary flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center !px-0"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />

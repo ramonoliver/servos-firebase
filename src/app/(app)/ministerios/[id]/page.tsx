@@ -23,15 +23,30 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const dept = departments.find((d) => d.id === params.id);
+  const [dbDept, setDbDept] = useState<Department | null>(null);
+  const dept = departments.find((d) => d.id === params.id) || dbDept;
 
   async function loadData() {
-    if (!dept) {
-      setLoading(false);
-      return;
-    }
     try {
       setLoading(true);
+
+      // O contexto (useApp) só traz os ministérios que o usuário lidera/administra.
+      // Para quem é apenas membro/escalado, busca o ministério diretamente.
+      let resolvedDept: Department | null = departments.find((d) => d.id === params.id) || null;
+      if (!resolvedDept) {
+        const { data } = await supabase
+          .from("departments")
+          .select("*")
+          .eq("id", params.id)
+          .eq("church_id", user.church_id)
+          .maybeSingle();
+        resolvedDept = (data as Department) || null;
+        setDbDept(resolvedDept);
+      }
+      if (!resolvedDept) {
+        setLoading(false);
+        return;
+      }
 
       const [
         { data: usersData, error: usersError },
@@ -40,8 +55,8 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
         { data: eventsData, error: eventsError },
       ] = await Promise.all([
         supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
-        supabase.from("department_members").select("*").eq("department_id", dept.id),
-        supabase.from("schedules").select("*").eq("church_id", user.church_id).eq("department_id", dept.id),
+        supabase.from("department_members").select("*").eq("department_id", resolvedDept.id),
+        supabase.from("schedules").select("*").eq("church_id", user.church_id).eq("department_id", resolvedDept.id),
         supabase.from("events").select("*").eq("church_id", user.church_id),
       ]);
 
@@ -75,7 +90,8 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
 
   useEffect(() => {
     loadData();
-  }, [params.id, user.church_id, dept]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, user.church_id, departments.length]);
 
   const deptMemberIds = useMemo(() => dms.map((dm) => dm.user_id), [dms]);
 

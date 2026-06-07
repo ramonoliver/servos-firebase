@@ -1267,13 +1267,13 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
 }
 
 function HybridHomeSections({ data }: { data: DashboardV3Data }) {
-  // Líderes de célula/ministério: sem "Pessoas precisando de cuidado" e
-  // "Insights da semana" (exclusivos de pastores/admin) e sem "Agenda pessoal"
-  // (já coberta por "Próximos encontros").
+  // Líderes de célula/ministério: sem os cards de prioridade (confirmações
+  // pendentes, pessoas em cuidado, células, visitantes), sem "Pessoas
+  // precisando de cuidado", sem "Insights da semana" (tudo exclusivo de
+  // Admin/Pastor/Coordenador/Supervisor) e sem "Agenda pessoal" (já coberta
+  // por "Próximos encontros").
   return (
     <>
-      <PriorityCards items={data.priorities} />
-
       <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(280px,340px)]">
         <PriorityList items={data.priorityItems} />
         <ActivityTimeline items={data.timeline} />

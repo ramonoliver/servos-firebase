@@ -199,7 +199,7 @@ export function MentionInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full h-12 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-100 text-sm"
+        className="block w-full min-h-[44px] max-h-32 resize-none rounded-xl border border-border-soft bg-white px-3.5 py-3 text-sm leading-snug text-ink placeholder:text-ink-faint focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25 disabled:bg-surface-alt disabled:opacity-50"
         rows={1}
       />
 
