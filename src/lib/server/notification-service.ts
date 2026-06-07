@@ -1,5 +1,7 @@
+import { getMessaging } from "firebase-admin/messaging";
 import { getFirebaseAdminClient } from "@/lib/firebase-admin";
 import { genId } from "@/lib/utils/helpers";
+import { getPreferences } from "@/services/notification.service";
 import type { NotificationType } from "@/types";
 
 type NotificationPayload = {
@@ -14,9 +16,6 @@ type PushTokenRecord = {
   token: string;
   active: boolean;
 };
-
-const FCM_API_URL = "https://fcm.googleapis.com/fcm/send";
-const FCM_KEY = process.env.FCM_SERVER_KEY;
 
 function mapNotificationIcon(type: NotificationType) {
   switch (type) {
@@ -40,75 +39,42 @@ function mapNotificationIcon(type: NotificationType) {
 }
 
 async function sendFirebasePush(tokens: string[], payload: NotificationPayload) {
-  if (!FCM_KEY || tokens.length === 0) {
+  if (tokens.length === 0) {
     return { sent: 0, failedTokens: [] as Array<{ token: string; reason: string }> };
   }
 
-  const batch = tokens.slice(0, 100);
-  const body = {
-    registration_ids: batch,
-    notification: {
-      title: payload.title,
-      body: payload.body,
-    },
-    data: {
-      click_action: payload.actionUrl,
-      type: payload.type,
-      title: payload.title,
-      body: payload.body,
-    },
-    webpush: {
-      fcm_options: {
-        link: payload.actionUrl,
-      },
-    },
-    android: {
-      priority: "high",
-    },
-    apns: {
-      payload: {
-        aps: {
-          sound: "default",
-        },
-      },
-    },
-  };
-
+  // FCM moderno via firebase-admin (usa a conta de serviço do App Hosting).
+  // A API HTTP legada (fcm.googleapis.com/fcm/send) foi desativada pelo Google.
+  const batch = tokens.slice(0, 500);
   try {
-    const response = await fetch(FCM_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `key=${FCM_KEY}`,
-        "Content-Type": "application/json",
+    const response = await getMessaging().sendEachForMulticast({
+      tokens: batch,
+      notification: { title: payload.title, body: payload.body },
+      data: {
+        click_action: payload.actionUrl,
+        url: payload.actionUrl,
+        type: String(payload.type),
+        title: payload.title,
+        body: payload.body,
       },
-      body: JSON.stringify(body),
+      webpush: { fcmOptions: { link: payload.actionUrl } },
+      android: { priority: "high" },
+      apns: { payload: { aps: { sound: "default" } } },
     });
 
-    if (!response.ok) {
-      return {
-        sent: 0,
-        failedTokens: batch.map((token) => ({ token, reason: "request_failed" })),
-      };
-    }
-
-    const result = (await response.json()) as any;
     const failedTokens: Array<{ token: string; reason: string }> = [];
-    if (Array.isArray(result.results)) {
-      result.results.forEach((item: any, index: number) => {
-        if (item?.error) {
-          const candidate = batch[index];
-          if (candidate) {
-            failedTokens.push({ token: candidate, reason: item.error });
-          }
-        }
-      });
-    }
+    response.responses.forEach((item, index) => {
+      if (!item.success) {
+        failedTokens.push({ token: batch[index], reason: item.error?.code || "send_error" });
+      }
+    });
 
-    return { sent: batch.length - failedTokens.length, failedTokens };
+    return { sent: response.successCount, failedTokens };
   } catch (error) {
+    console.error("Falha ao enviar push (firebase-admin):", error);
     return {
       sent: 0,
-      failedTokens: batch.map((token) => ({ token, reason: "network_error" })),
+      failedTokens: batch.map((token) => ({ token, reason: "send_error" })),
     };
   }
 }
@@ -169,6 +135,17 @@ export async function sendUserNotification(params: {
 
   if (notificationError) throw notificationError;
 
+  // Respeita a preferência de push do usuário (central de notificações).
+  // O aviso in-app (sininho) acima é sempre gravado; só o push é opcional.
+  try {
+    const prefs = await getPreferences(userId, churchId);
+    if (!prefs.pushEnabled) {
+      return { pushSent: 0, pushFailed: 0 };
+    }
+  } catch {
+    // Se não conseguir ler preferências, segue enviando o push (default).
+  }
+
   const { data: tokens, error: tokenError } = await supabase
     .from("push_tokens")
     .select("token, active")
@@ -186,15 +163,12 @@ export async function sendUserNotification(params: {
   const { sent, failedTokens } = await sendFirebasePush(activeTokens, { title, body, actionUrl, type });
 
   if (failedTokens.length > 0) {
-    const permanentErrorCodes = new Set([
-      "InvalidRegistration",
-      "NotRegistered",
-      "MismatchSenderId",
-      "registration-token-not-registered",
-      "invalid-registration-token",
-    ]);
     const tokensToDisable = failedTokens
-      .filter((item) => permanentErrorCodes.has(item.reason))
+      .filter((item) =>
+        /registration-token-not-registered|invalid-registration-token|invalid-argument|InvalidRegistration|NotRegistered|MismatchSenderId/i.test(
+          item.reason
+        )
+      )
       .map((item) => item.token);
     if (tokensToDisable.length > 0) {
     await supabase

@@ -26,12 +26,13 @@ async function getTokensForUsers(userIds: string[]): Promise<{ token: string; id
   if (userIds.length === 0) return [];
   const supabase = getFirebaseAdminClient();
   const tokens: { token: string; id: string }[] = [];
+  // Coleção canônica: push_tokens (unificada com o resto do app).
   // O adaptador limita `in` a 30 itens — particiona.
   for (let i = 0; i < userIds.length; i += 30) {
     const slice = userIds.slice(i, i + 30);
-    const { data } = await supabase.from("device_tokens").select("*").in("user_id", slice);
+    const { data } = await supabase.from("push_tokens").select("*").in("user_id", slice);
     for (const row of (data || []) as any[]) {
-      if (row.token) tokens.push({ token: row.token, id: row.id });
+      if (row.token && row.active !== false) tokens.push({ token: row.token, id: row.id });
     }
   }
   return tokens;
@@ -77,11 +78,11 @@ async function dispatch(tokenRows: { token: string; id: string }[], payload: Pus
     });
   }
 
-  // Limpa tokens inválidos.
+  // Desativa tokens inválidos (convenção do push_tokens: active=false).
   if (invalidTokenIds.length > 0) {
     const supabase = getFirebaseAdminClient();
     for (const id of invalidTokenIds) {
-      await supabase.from("device_tokens").delete().eq("id", id);
+      await supabase.from("push_tokens").update({ active: false }).eq("id", id);
     }
   }
 
@@ -105,7 +106,9 @@ export async function sendPushToManyUsers(userIds: string[], payload: PushPayloa
 
 export async function sendPushToChurch(churchId: string, payload: PushPayload): Promise<PushResult> {
   const supabase = getFirebaseAdminClient();
-  const { data } = await supabase.from("device_tokens").select("*").eq("church_id", churchId);
-  const tokens = ((data || []) as any[]).filter((r) => r.token).map((r) => ({ token: r.token, id: r.id }));
+  const { data } = await supabase.from("push_tokens").select("*").eq("church_id", churchId);
+  const tokens = ((data || []) as any[])
+    .filter((r) => r.token && r.active !== false)
+    .map((r) => ({ token: r.token, id: r.id }));
   return dispatch(tokens, payload);
 }

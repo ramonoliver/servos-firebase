@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiActor } from "@/lib/auth/api-session";
-import { registerDeviceToken } from "@/services/notification.service";
+// Coleção canônica de tokens é `push_tokens` (onde o app já registra). Tudo
+// passa por aqui para o push ficar unificado.
+import { registerPushToken } from "@/lib/server/notification-service";
 
 const schema = z.object({
   token: z.string().min(1),
@@ -18,7 +20,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    await registerDeviceToken({
+    await registerPushToken({
       userId: session!.user_id,
       churchId: session!.church_id,
       token: parsed.data.token,
