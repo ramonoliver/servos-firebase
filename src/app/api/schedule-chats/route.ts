@@ -60,6 +60,11 @@ async function canAccessScheduleChat(params: {
   if (!member?.active) return false;
   if (member.role === "admin") return true;
 
+  // Qualquer pessoa ESCALADA (participante) acessa o chat — inclusive um líder
+  // escalado num ministério que não lidera (caso da Fernanda).
+  if (scheduleMember) return true;
+
+  // Líder do ministério da escala (mesmo sem estar escalado) também acessa.
   if (member.role === "leader") {
     const { data: department, error: departmentError } = await supabase
       .from("departments")
@@ -77,7 +82,7 @@ async function canAccessScheduleChat(params: {
     );
   }
 
-  return Boolean(scheduleMember);
+  return false;
 }
 
 async function processMentions(content: string, scheduleId: string, senderId: string, churchId: string, senderName: string) {

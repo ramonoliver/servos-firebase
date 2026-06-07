@@ -65,6 +65,11 @@ async function canAccessScheduleAttachments(params: {
   if (!member?.active) return false;
   if (member.role === "admin") return true;
 
+  // Qualquer pessoa ESCALADA (participante) pode ver os anexos — inclusive um
+  // líder que foi escalado num ministério que não lidera (caso da Fernanda).
+  if (scheduleMember) return true;
+
+  // Líder do ministério da escala (mesmo sem estar escalado) também pode ver.
   if (member.role === "leader") {
     const { data: department, error: departmentError } = await supabase
       .from("departments")
@@ -82,7 +87,7 @@ async function canAccessScheduleAttachments(params: {
     );
   }
 
-  return Boolean(scheduleMember);
+  return false;
 }
 
 async function canEditScheduleAttachments(params: {

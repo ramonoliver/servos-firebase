@@ -6,53 +6,61 @@ type ScheduleMemberHistory = {
   status: string;
 };
 
-export async function getUserReminderProfile(userId: string, churchId: string) {
-  const supabase = getFirebaseAdminClient();
-  const threshold = new Date();
-  threshold.setMonth(threshold.getMonth() - 3);
-  const fromDate = threshold.toISOString().split("T")[0];
+export async function getUserReminderProfile(userId: string, churchId: string): Promise<ReminderProfile> {
+  // Análise de comportamento é um "nice to have": se qualquer query falhar
+  // (ex.: índice composto ausente no Firestore), retornamos o perfil padrão
+  // em vez de derrubar o fluxo que chama isso (envio de lembretes).
+  try {
+    const supabase = getFirebaseAdminClient();
+    const threshold = new Date();
+    threshold.setMonth(threshold.getMonth() - 3);
+    const fromDate = threshold.toISOString().split("T")[0];
 
-  const { data: schedules, error: scheduleError } = await supabase
-    .from("schedules")
-    .select("id")
-    .eq("church_id", churchId)
-    .gte("date", fromDate);
+    const { data: schedules, error: scheduleError } = await supabase
+      .from("schedules")
+      .select("id")
+      .eq("church_id", churchId)
+      .gte("date", fromDate);
 
-  if (scheduleError) throw scheduleError;
+    if (scheduleError) throw scheduleError;
 
-  const scheduleIds = (schedules || []).map((item: any) => item.id).filter(Boolean);
-  if (scheduleIds.length === 0) {
-    return "intermediate" as ReminderProfile;
+    const scheduleIds = (schedules || []).map((item: any) => item.id).filter(Boolean);
+    if (scheduleIds.length === 0) {
+      return "intermediate";
+    }
+
+    const { data: history, error: historyError } = await supabase
+      .from("schedule_members")
+      .select("status")
+      .eq("user_id", userId)
+      .in("schedule_id", scheduleIds)
+      .not("status", "is", "pending");
+
+    if (historyError) throw historyError;
+
+    const rows = (history || []) as ScheduleMemberHistory[];
+    if (rows.length === 0) {
+      return "intermediate";
+    }
+
+    const confirmed = rows.filter((item) => item.status === "confirmed").length;
+    const declined = rows.filter((item) => item.status === "declined").length;
+    const total = rows.length;
+    const rate = total > 0 ? (confirmed / total) * 100 : 0;
+
+    if (declined === 0 && rate >= 90 && confirmed >= 3) {
+      return "engaged";
+    }
+
+    if (declined >= 2 || rate < 70) {
+      return "at_risk";
+    }
+
+    return "intermediate";
+  } catch (error) {
+    console.warn("getUserReminderProfile falhou, usando perfil padrão:", error);
+    return "intermediate";
   }
-
-  const { data: history, error: historyError } = await supabase
-    .from("schedule_members")
-    .select("status")
-    .eq("user_id", userId)
-    .in("schedule_id", scheduleIds)
-    .not("status", "is", "pending");
-
-  if (historyError) throw historyError;
-
-  const rows = (history || []) as ScheduleMemberHistory[];
-  if (rows.length === 0) {
-    return "intermediate" as ReminderProfile;
-  }
-
-  const confirmed = rows.filter((item) => item.status === "confirmed").length;
-  const declined = rows.filter((item) => item.status === "declined").length;
-  const total = rows.length;
-  const rate = total > 0 ? (confirmed / total) * 100 : 0;
-
-  if (declined === 0 && rate >= 90 && confirmed >= 3) {
-    return "engaged" as ReminderProfile;
-  }
-
-  if (declined >= 2 || rate < 70) {
-    return "at_risk" as ReminderProfile;
-  }
-
-  return "intermediate" as ReminderProfile;
 }
 
 export type ReminderStage = "day_before" | "same_day";

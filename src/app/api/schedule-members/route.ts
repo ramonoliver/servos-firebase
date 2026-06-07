@@ -309,6 +309,47 @@ export async function PATCH(req: Request) {
 
       if (error) throw error;
 
+      // Notifica os líderes do ministério sobre a resposta do membro
+      // (confirmação/recusa). Não-fatal.
+      if (scheduleMember.status !== status) {
+        try {
+          const { data: sched } = await supabase
+            .from("schedules")
+            .select("department_id")
+            .eq("id", scheduleMember.schedule_id)
+            .eq("church_id", churchId)
+            .maybeSingle();
+          if (sched?.department_id) {
+            const { data: dept } = await supabase
+              .from("departments")
+              .select("name, leader_ids, co_leader_ids")
+              .eq("id", sched.department_id)
+              .eq("church_id", churchId)
+              .maybeSingle();
+            const leaderIds = [
+              ...new Set([...(dept?.leader_ids || []), ...(dept?.co_leader_ids || [])]),
+            ].filter((id) => id && id !== actorId);
+            const memberName = session!.name || "Um membro";
+            const deptName = dept?.name || "ministério";
+            for (const leaderId of leaderIds) {
+              await sendUserNotification({
+                userId: leaderId,
+                churchId,
+                title: status === "confirmed" ? "Presença confirmada ✅" : "Recusa de escala ⚠️",
+                body:
+                  status === "confirmed"
+                    ? `${memberName} confirmou presença na escala de ${deptName}.`
+                    : `${memberName} recusou a escala de ${deptName}${declineReason ? `: ${declineReason}` : ""}.`,
+                actionUrl: `/escalas/${encodeURIComponent(scheduleMember.schedule_id)}`,
+                type: status === "confirmed" ? "confirmation" : "alert",
+              });
+            }
+          }
+        } catch (notifyErr) {
+          console.error("Falha ao notificar líderes da resposta de escala:", notifyErr);
+        }
+      }
+
       if (status === "confirmed" && scheduleMember.status !== "confirmed") {
         await awardConfirmationPoints(actorId, churchId, scheduleMember.schedule_id);
 
