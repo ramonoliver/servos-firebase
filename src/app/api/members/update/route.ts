@@ -22,6 +22,7 @@ const bodySchema = z.object({
     role: z.enum(["admin", "leader", "member"]),
     status: z.enum(["active", "inactive", "paused", "vacation"]),
     spouse_id: z.string().nullable(),
+    availability: z.array(z.boolean()).length(7).optional(),
     photo_url: z.string().nullable().optional(),
     cell_role: z.enum(["pastor", "coordenacao"]).nullable().optional(),
     cell_id: z.string().nullable().optional(),

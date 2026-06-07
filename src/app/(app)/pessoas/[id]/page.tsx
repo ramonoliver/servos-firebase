@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
 import { ActionDrawer } from "@/components/ui/action-drawer";
-import { Avatar, EmptyState, ConfirmDialog, AvailabilityGrid } from "@/components/ui";
+import { Avatar, EmptyState, ConfirmDialog, AvailabilityGrid, AvailabilityEditor } from "@/components/ui";
 import { supabase } from "@/lib/firebase";
 import { useApp } from "@/hooks/use-app";
 import type { DepartmentMember, Event, Schedule, ScheduleMember } from "@/types";
@@ -213,6 +213,8 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   const [personEvents, setPersonEvents] = useState<Event[]>([]);
   const [reverseSpouse, setReverseSpouse] = useState<{ id: string; name: string } | null>(null);
   const [personAvailability, setPersonAvailability] = useState<boolean[]>([]);
+  const [availabilityDirty, setAvailabilityDirty] = useState(false);
+  const [savingAvailability, setSavingAvailability] = useState(false);
 
   const [editForm, setEditForm] = useState({
     fullName: "",
@@ -348,7 +350,12 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       setPersonSchedules(loadedSchedules);
       setPersonEvents(loadedEvents);
       setReverseSpouse(personPayload?.reverseSpouse || null);
-      setPersonAvailability(uData.availability || []);
+      setPersonAvailability(
+        Array.isArray(uData.availability) && uData.availability.length === 7
+          ? uData.availability
+          : [true, true, true, true, true, true, true]
+      );
+      setAvailabilityDirty(false);
 
       // Set Cell
       if (p.cellId) {
@@ -647,6 +654,42 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     setLoading(false);
   }
 
+  async function saveAvailability() {
+    if (!person) return;
+    setSavingAvailability(true);
+    try {
+      const res = await fetch("/api/members/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: person.id,
+          updates: {
+            name: person.fullName,
+            email: person.email,
+            phone: person.phone,
+            role: (person.role as "admin" | "leader" | "member") || "member",
+            status: "active",
+            spouse_id: person.spouseId || null,
+            availability: personAvailability,
+          },
+          spouseId: person.spouseId || "",
+          selectedDepartments: person.ministryIds.map((id) => ({ department_id: id, function_name: "", function_names: [] })),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao salvar disponibilidade.");
+        return;
+      }
+      toast("Disponibilidade salva!");
+      setAvailabilityDirty(false);
+    } catch {
+      toast("Erro ao salvar disponibilidade.");
+    } finally {
+      setSavingAvailability(false);
+    }
+  }
+
   async function confirmHardDelete() {
     setDeleting(true);
     const ok = await performMemberAction("hard_delete");
@@ -913,7 +956,30 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
 
           <SoftCard className="p-4">
             <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-ink-faint">Disponibilidade geral</h3>
-            <AvailabilityGrid availability={personAvailability} />
+            {canEditPerson ? (
+              <>
+                <AvailabilityEditor
+                  availability={
+                    personAvailability.length === 7 ? personAvailability : [true, true, true, true, true, true, true]
+                  }
+                  onChange={(next) => {
+                    setPersonAvailability(next);
+                    setAvailabilityDirty(true);
+                  }}
+                />
+                {availabilityDirty && (
+                  <button
+                    onClick={saveAvailability}
+                    disabled={savingAvailability}
+                    className="btn btn-primary btn-sm mt-3 w-full"
+                  >
+                    {savingAvailability ? "Salvando..." : "Salvar disponibilidade"}
+                  </button>
+                )}
+              </>
+            ) : (
+              <AvailabilityGrid availability={personAvailability} />
+            )}
           </SoftCard>
 
           {/* Ministries */}
