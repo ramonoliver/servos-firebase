@@ -1271,9 +1271,14 @@ function HybridHomeSections({ data }: { data: DashboardV3Data }) {
   // pendentes, pessoas em cuidado, células, visitantes), sem "Pessoas
   // precisando de cuidado", sem "Insights da semana" (tudo exclusivo de
   // Admin/Pastor/Coordenador/Supervisor) e sem "Agenda pessoal" (já coberta
-  // por "Próximos encontros").
+  // por "Próximos encontros"). As próprias escalas aparecem em destaque.
+  const scheduleItems = data.upcoming.filter((item) => item.icon === "calendar");
+  const hasSchedules = scheduleItems.length > 0;
+
   return (
     <>
+      {hasSchedules && <MemberSchedulePanel items={scheduleItems} />}
+
       <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(280px,340px)]">
         <PriorityList items={data.priorityItems} />
         <ActivityTimeline items={data.timeline} />

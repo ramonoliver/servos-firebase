@@ -658,23 +658,10 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
     if (!person) return;
     setSavingAvailability(true);
     try {
-      const res = await fetch("/api/members/update", {
+      const res = await fetch("/api/members/availability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          memberId: person.id,
-          updates: {
-            name: person.fullName,
-            email: person.email,
-            phone: person.phone,
-            role: (person.role as "admin" | "leader" | "member") || "member",
-            status: "active",
-            spouse_id: person.spouseId || null,
-            availability: personAvailability,
-          },
-          spouseId: person.spouseId || "",
-          selectedDepartments: person.ministryIds.map((id) => ({ department_id: id, function_name: "", function_names: [] })),
-        }),
+        body: JSON.stringify({ memberId: person.id, availability: personAvailability }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {

@@ -114,11 +114,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const memberDeptIds = departmentLinks.map((l) => l.department_id);
 
+      // Um líder vê os ministérios que LIDERA e também os que PARTICIPA (é
+      // membro/escalado). Antes via só os que liderava, então ministérios em
+      // que era apenas membro (ex.: Produção) sumiam da lista, do início e das
+      // escalas.
       const visibleDepartments =
         u.role === "admin"
           ? depts
           : u.role === "leader"
-          ? depts.filter((d) => leadDeptIds.includes(d.id))
+          ? depts.filter((d) => leadDeptIds.includes(d.id) || memberDeptIds.includes(d.id))
           : depts.filter((d) => memberDeptIds.includes(d.id));
 
       const permissionDeptIds =
