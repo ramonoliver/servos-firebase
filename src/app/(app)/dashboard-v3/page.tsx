@@ -463,6 +463,24 @@ export default function DashboardV3Page() {
       ...upcomingFromEvents,
     ].slice(0, 6);
 
+    // Escalas PESSOAIS do usuário (mesmo admin/pastor): usadas no bloco de
+    // contexto pessoal do Início, distinto das escalas da igreja.
+    const personalSchedules: UpcomingEventItem[] = myUpcoming.slice(0, 4).map((schedule) => {
+      const event = events.find((item) => item.id === schedule.event_id);
+      const department = departments.find((item) => item.id === schedule.department_id);
+      const myStatus = scheduleMembers.find((sm) => sm.schedule_id === schedule.id && sm.user_id === user.id)?.status;
+      return {
+        title: event?.name || "Escala",
+        meta: department?.name || "Ministério",
+        time: `${formatShortDate(schedule.date)} · ${schedule.time}`,
+        location: event?.location || "Igreja",
+        badge: myStatus === "pending" ? "Confirmar" : myStatus === "confirmed" ? "Confirmado" : "Ministério",
+        href: `/escalas?id=${schedule.id}`,
+        icon: "calendar" as const,
+        kind: "schedule" as const,
+      };
+    });
+
     const carePeople: CarePerson[] = dbCareCases.map((care) => {
       const person = members.find((m) => m.id === care.person_id);
       return {
@@ -573,6 +591,7 @@ export default function DashboardV3Page() {
       priorityItems,
       timeline,
       upcoming,
+      personalSchedules,
       carePeople,
       insights,
       cell,

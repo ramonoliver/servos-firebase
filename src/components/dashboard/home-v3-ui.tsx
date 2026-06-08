@@ -128,6 +128,8 @@ export type DashboardV3Data = {
   priorityItems: PriorityListItem[];
   timeline: TimelineItem[];
   upcoming: UpcomingEventItem[];
+  /** Escalas pessoais do usuário (contexto pessoal no Início, inclusive admin/pastor). */
+  personalSchedules: UpcomingEventItem[];
   carePeople: CarePerson[];
   insights: Insight[];
   cell?: CellSummary;
@@ -1379,6 +1381,25 @@ export function DashboardV3Home({ data }: { data: DashboardV3Data }) {
               </div>
               <UpcomingEvents items={data.upcoming} />
             </section>
+
+            {/* Contexto pessoal: quem administra/pastoreia mas também participa
+                de célula/ministério não perde seu lado pessoal no Início. */}
+            {(data.personalSchedules.length > 0 || data.cell) && (
+              <section className="space-y-3">
+                <div className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
+                  Você também
+                </div>
+                <div
+                  className={cn(
+                    "grid min-w-0 items-stretch gap-5",
+                    data.personalSchedules.length > 0 && data.cell && "xl:grid-cols-2",
+                  )}
+                >
+                  {data.personalSchedules.length > 0 && <MemberSchedulePanel items={data.personalSchedules} />}
+                  {data.cell && <MemberCellPanel cell={data.cell} />}
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>
