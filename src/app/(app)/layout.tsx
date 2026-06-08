@@ -117,7 +117,7 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     { href: "/alertas", label: "Alertas pastorais", icon: "bell", group: "Cuidado", show: canCare },
 
     // COMUNICAÇÃO
-    { href: "/comunicacao", label: "Comunicados", icon: "megaphone", group: "Comunicação", show: SHOW_UNBUILT && canMessage },
+    { href: "/comunicacao", label: "Comunicados", icon: "megaphone", group: "Comunicação", show: canMessage },
     { href: "/mensagens", label: "Mensagens", icon: "message-circle", group: "Comunicação", show: canMessage },
     { href: "/notificacoes", label: "Notificações", icon: "bell", group: "Comunicação", show: true },
     { href: "/enquetes", label: "Enquetes", icon: "notebook", group: "Comunicação", show: SHOW_UNBUILT && canMessage },
