@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
+import { CARE_TYPES } from "@/lib/care/types";
 import { ActionDrawer } from "@/components/ui/action-drawer";
 import { Avatar, EmptyState, ConfirmDialog, AvailabilityGrid, AvailabilityEditor } from "@/components/ui";
 import { supabase } from "@/lib/firebase";
@@ -241,7 +242,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
   const [editBirthDateMask, setEditBirthDateMask] = useState("");
   const [editCepLoading, setEditCepLoading] = useState(false);
   const [contactForm, setContactForm] = useState({ title: "Contato registrado", description: "" });
-  const [careForm, setCareForm] = useState({ title: "", reason: "", priority: "medium" as CareCase["priority"], nextStep: "" });
+  const [careForm, setCareForm] = useState({ type: "care", title: "", reason: "", nextStep: "", date: new Date().toISOString().slice(0, 10) });
   const [timelineItems, setTimelineItems] = useState<TimelineEvent[]>([]);
   const [careItems, setCareItems] = useState<CareCase[]>([]);
 
@@ -760,10 +761,12 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
           mode: "create",
           personId: person.id,
           data: {
-            type: "care_case",
+            type: careForm.type,
             title: careForm.title,
-            description: `${careForm.reason}\n\nPróximo passo: ${careForm.nextStep}`,
-            date: new Date().toISOString(),
+            description: careForm.nextStep.trim()
+              ? `${careForm.reason}\n\nPróximo passo: ${careForm.nextStep}`
+              : careForm.reason,
+            date: careForm.date,
           },
         }),
       });
@@ -776,7 +779,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       }
 
       toast("Acompanhamento registrado com sucesso!");
-      setCareForm({ title: "", reason: "", priority: "medium", nextStep: "" });
+      setCareForm({ type: "care", title: "", reason: "", nextStep: "", date: new Date().toISOString().slice(0, 10) });
       setCareOpen(false);
       await loadPerson();
     } catch (err) {
@@ -1289,8 +1292,16 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
       </ActionDrawer>
 
       {/* Care drawer */}
-      <ActionDrawer open={careOpen} onClose={() => setCareOpen(false)} title="Criar acompanhamento" width={420}>
+      <ActionDrawer open={careOpen} onClose={() => setCareOpen(false)} title="Registrar cuidado" width={420}>
         <div className="space-y-4">
+          <div>
+            <label className="input-label">Tipo de cuidado</label>
+            <select className="input-field" value={careForm.type} onChange={(e) => setCareForm((f) => ({ ...f, type: e.target.value }))}>
+              {CARE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="input-label">Título</label>
             <input
@@ -1301,22 +1312,20 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
             />
           </div>
           <div>
-            <label className="input-label">Motivo</label>
+            <label className="input-label">Descrição</label>
             <textarea className="input-field min-h-[120px]" value={careForm.reason} onChange={(e) => setCareForm((f) => ({ ...f, reason: e.target.value }))} />
           </div>
-          <div>
-            <label className="input-label">Prioridade</label>
-            <select className="input-field" value={careForm.priority} onChange={(e) => setCareForm((f) => ({ ...f, priority: e.target.value as CareCase["priority"] }))}>
-              <option value="low">Baixa</option>
-              <option value="medium">Média</option>
-              <option value="high">Alta</option>
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="input-label">Data</label>
+              <input type="date" className="input-field" value={careForm.date} onChange={(e) => setCareForm((f) => ({ ...f, date: e.target.value }))} />
+            </div>
+            <div>
+              <label className="input-label">Próximo passo (opcional)</label>
+              <input className="input-field" value={careForm.nextStep} onChange={(e) => setCareForm((f) => ({ ...f, nextStep: e.target.value }))} />
+            </div>
           </div>
-          <div>
-            <label className="input-label">Próximo passo</label>
-            <input className="input-field" value={careForm.nextStep} onChange={(e) => setCareForm((f) => ({ ...f, nextStep: e.target.value }))} />
-          </div>
-          <button className="btn btn-primary w-full" onClick={createCareCase}>Criar acompanhamento</button>
+          <button className="btn btn-primary w-full" onClick={createCareCase}>Registrar cuidado</button>
         </div>
       </ActionDrawer>
 
