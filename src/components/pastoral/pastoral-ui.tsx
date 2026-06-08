@@ -153,7 +153,7 @@ export function PersonCard({ person, cellName }: { person: PastoralPerson; cellN
       <div className="mt-3">
         <PersonTagList tagIds={person.tagIds} />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-ink-muted">
+      <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-ink-muted">
         <span>
           {person.participatesInCell
             ? cellName
@@ -161,7 +161,11 @@ export function PersonCard({ person, cellName }: { person: PastoralPerson; cellN
               : "Com célula"
             : "Sem célula"}
         </span>
-        <span className="text-right">{person.kinds.includes("visitor") ? "Visitante" : "Membro"}</span>
+        {/* "Membro" era redundante com o papel no topo do card; mostramos só o
+            que agrega informação (visitante). */}
+        {person.kinds.includes("visitor") && (
+          <span className="rounded-full bg-rose-light px-2 py-0.5 text-[10px] font-bold text-rose-deep">Visitante</span>
+        )}
       </div>
     </SoftCard>
   );

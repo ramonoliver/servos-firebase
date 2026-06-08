@@ -1370,9 +1370,13 @@ export function DashboardV3Home({ data }: { data: DashboardV3Data }) {
         ) : (
           <>
             <PriorityCards items={data.priorities} />
-            <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(280px,340px)]">
-              <PriorityList items={data.priorityItems} />
-              <ActivityTimeline items={data.timeline} />
+            {/* Feed (Prioridades + Timeline) à esquerda, Próximos encontros como
+                trilho à direita — equilibra melhor o peso vertical da página. */}
+            <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+              <div className="min-w-0 space-y-5">
+                <PriorityList items={data.priorityItems} />
+                <ActivityTimeline items={data.timeline} />
+              </div>
               <UpcomingEvents items={data.upcoming} />
             </section>
           </>
