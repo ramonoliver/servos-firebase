@@ -9,10 +9,12 @@ const noteDataSchema = z.object({
   title: z.string().default(""),
   description: z.string().default(""),
   date: z.string().min(1),
+  status: z.string().optional(),
+  feedback: z.string().optional(),
 });
 
 const bodySchema = z.object({
-  mode: z.enum(["create", "delete"]),
+  mode: z.enum(["create", "update", "delete"]),
   personId: z.string().min(1),
   noteId: z.string().optional(),
   data: noteDataSchema.optional(),
@@ -46,6 +48,22 @@ export async function POST(req: Request) {
       const { error } = await supabase
         .from("pastoral_notes")
         .delete()
+        .eq("id", noteId)
+        .eq("church_id", churchId);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    if (mode === "update") {
+      if (!noteId) {
+        return NextResponse.json({ error: "Registro não informado." }, { status: 400 });
+      }
+      if (!data) {
+        return NextResponse.json({ error: "Dados do registro são obrigatórios." }, { status: 400 });
+      }
+      const { error } = await supabase
+        .from("pastoral_notes")
+        .update({ ...data, updated_at: new Date().toISOString() })
         .eq("id", noteId)
         .eq("church_id", churchId);
       if (error) throw error;

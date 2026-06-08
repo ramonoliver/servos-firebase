@@ -130,9 +130,29 @@ export default function RelatoriosPage() {
   );
   const eventsById = useMemo(() => new Map(events.map((event) => [event.id, event.name])), [events]);
 
+  // "Serviu X vezes" = confirmações reais em escalas que já aconteceram.
+  // O contador member.total_schedules não é mantido (ficava sempre 0).
+  const servedByUser = useMemo(() => {
+    const pastScheduleIds = new Set(
+      schedules.filter((s) => s.date <= todayIso).map((s) => s.id)
+    );
+    const map = new Map<string, number>();
+    allSM.forEach((sm) => {
+      if (sm.status === "confirmed" && pastScheduleIds.has(sm.schedule_id)) {
+        map.set(sm.user_id, (map.get(sm.user_id) || 0) + 1);
+      }
+    });
+    return map;
+  }, [allSM, schedules, todayIso]);
+
   const topServing = useMemo(
-    () => [...members].sort((a, b) => b.total_schedules - a.total_schedules).slice(0, 5),
-    [members]
+    () =>
+      [...members]
+        .map((member) => ({ member, served: servedByUser.get(member.id) || 0 }))
+        .filter((row) => row.served > 0)
+        .sort((a, b) => b.served - a.served)
+        .slice(0, 5),
+    [members, servedByUser]
   );
 
   const lowConfirm = useMemo(
@@ -450,8 +470,8 @@ export default function RelatoriosPage() {
           <EmptyReportLine text="Nenhum dado de engajamento disponível." />
         ) : (
           <div className="grid gap-3 md:grid-cols-5">
-            {topServing.map((member, index) => (
-              <EngagementCard key={member.id} member={member} rank={index + 1} />
+            {topServing.map((row, index) => (
+              <EngagementCard key={row.member.id} member={row.member} served={row.served} rank={index + 1} />
             ))}
           </div>
         )}
@@ -711,7 +731,7 @@ function GapRow({ item }: { item: { key: string; departmentName: string; functio
   );
 }
 
-function EngagementCard({ member, rank }: { member: User; rank: number }) {
+function EngagementCard({ member, served, rank }: { member: User; served: number; rank: number }) {
   return (
     <div className="rounded-[22px] border border-border-soft bg-white p-4">
       <div className="flex items-center justify-between gap-3">
@@ -719,7 +739,7 @@ function EngagementCard({ member, rank }: { member: User; rank: number }) {
         <span className="rounded-full bg-brand-light px-2.5 py-1 text-[11px] font-bold text-brand">#{rank}</span>
       </div>
       <div className="mt-4 truncate text-sm font-semibold text-ink">{member.name}</div>
-      <div className="mt-1 text-[12px] text-ink-faint">serviu {member.total_schedules} vezes</div>
+      <div className="mt-1 text-[12px] text-ink-faint">serviu {served} {served === 1 ? "vez" : "vezes"}</div>
     </div>
   );
 }

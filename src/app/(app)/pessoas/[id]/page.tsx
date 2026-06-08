@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { canEditOrDeleteMemberClient } from "@/lib/auth/permissions";
 import { CARE_TYPES } from "@/lib/care/types";
 import { ActionDrawer } from "@/components/ui/action-drawer";
@@ -193,9 +193,11 @@ function CalendarIcon() {
 export default function PessoaPerfilPage({ params }: { params: { id: string } }) {
   const { user, toast, departments } = useApp();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [person, setPerson] = useState<PastoralPerson | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(tabs[0]);
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(requestedTab && tabs.includes(requestedTab) ? requestedTab : tabs[0]);
   const [editOpen, setEditOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [careOpen, setCareOpen] = useState(false);
@@ -767,6 +769,7 @@ export default function PessoaPerfilPage({ params }: { params: { id: string } })
               ? `${careForm.reason}\n\nPróximo passo: ${careForm.nextStep}`
               : careForm.reason,
             date: careForm.date,
+            status: "done",
           },
         }),
       });
