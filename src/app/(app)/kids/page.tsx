@@ -6,7 +6,7 @@ import { KidsCheckInDrawer, KidsChildrenList, KidsRoomsManager, KidsSummaryCards
 import { supabase } from "@/lib/firebase";
 import { useApp } from "@/hooks/use-app";
 import type { KidsChild } from "@/lib/kids/types";
-import type { Event } from "@/types";
+import type { Event, User } from "@/types";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -15,6 +15,7 @@ function todayIso() {
 export default function KidsPage() {
   const { user, toast } = useApp();
   const [events, setEvents] = useState<Event[]>([]);
+  const [members, setMembers] = useState<User[]>([]);
   const [eventId, setEventId] = useState("");
   const [eventDate, setEventDate] = useState(todayIso());
   const { children, rooms, checkins, schemaReady, loading, reload } = useKidsData(eventId || undefined, eventDate);
@@ -42,6 +43,19 @@ export default function KidsPage() {
     }
     void loadEvents();
   }, [toast, user.church_id]);
+
+  // Membros que podem ser responsáveis (pessoas ativas, não-crianças).
+  useEffect(() => {
+    async function loadMembers() {
+      const { data } = await supabase
+        .from("users")
+        .select("*")
+        .eq("church_id", user.church_id)
+        .eq("active", true);
+      setMembers(((data || []) as User[]).filter((m) => !m.is_child).sort((a, b) => a.name.localeCompare(b.name)));
+    }
+    void loadMembers();
+  }, [user.church_id]);
 
   function openCheckin(child?: KidsChild, mode: "existing" | "new" = "existing") {
     setSelectedChild(child || null);
@@ -123,6 +137,7 @@ export default function KidsPage() {
         onClose={() => setCheckinOpen(false)}
         children={children}
         rooms={rooms}
+        members={members}
         selectedChild={selectedChild}
         initialMode={initialCheckInMode}
         eventId={eventId}

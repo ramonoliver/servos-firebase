@@ -5,6 +5,7 @@ import { ActionDrawer, ConfirmDialog, EmptyState } from "@/components/ui";
 import { useApp } from "@/hooks/use-app";
 import { calculateAge, getKidsStatusLabel, recommendRoomsForAge } from "@/lib/kids/domain";
 import type { KidsCheckInView, KidsChild, KidsRoom } from "@/lib/kids/types";
+import type { User } from "@/types";
 
 type KidsData = {
   children: KidsChild[];
@@ -314,6 +315,7 @@ export function KidsCheckInDrawer({
   onClose,
   children,
   rooms,
+  members = [],
   eventId,
   eventDate,
   selectedChild,
@@ -324,6 +326,7 @@ export function KidsCheckInDrawer({
   onClose: () => void;
   children: KidsChild[];
   rooms: KidsRoom[];
+  members?: User[];
   eventId?: string;
   eventDate?: string;
   selectedChild?: KidsChild | null;
@@ -334,6 +337,10 @@ export function KidsCheckInDrawer({
   const [childId, setChildId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [mode, setMode] = useState<"existing" | "new">("existing");
+  // Responsável: vincular um membro já cadastrado (evita duplicar pessoas) ou
+  // cadastrar um responsável novo.
+  const [guardianMode, setGuardianMode] = useState<"existing" | "new">("existing");
+  const [guardianId, setGuardianId] = useState("");
   const [guardian, setGuardian] = useState({ name: "", phone: "", email: "", relationship: "Responsavel", gender: "nao_informado" });
   const [child, setChild] = useState({ name: "", birth_date: "", gender: "feminino", notes: "" });
   const [success, setSuccess] = useState<{ code: string; childName: string; roomName: string; guardianName: string; phone: string } | null>(null);
@@ -348,12 +355,20 @@ export function KidsCheckInDrawer({
     setMode(selectedChild ? "existing" : initialMode);
     setChildId(selectedChild?.id || "");
     setRoomId("");
-  }, [initialMode, open, selectedChild]);
+    setGuardianMode(members.length ? "existing" : "new");
+    setGuardianId("");
+  }, [initialMode, open, selectedChild, members.length]);
 
   async function submit() {
     const selectedRoom = rooms.find((room) => room.id === roomId);
     if (!eventId) return toast("Selecione um evento para realizar check-in.");
     if (!roomId) return toast("Selecione uma sala.");
+    // Responsável existente: vincula o membro selecionado (não cria pessoa nova).
+    const useExistingGuardian = mode === "new" && guardianMode === "existing";
+    if (mode === "new" && guardianMode === "existing" && !guardianId) {
+      return toast("Selecione o responsável.");
+    }
+    const existingGuardian = useExistingGuardian ? members.find((m) => m.id === guardianId) : undefined;
     setSaving(true);
     try {
       const primary = currentChild?.guardians.find((item) => item.is_primary) || currentChild?.guardians[0];
@@ -363,8 +378,8 @@ export function KidsCheckInDrawer({
         eventDate: eventDate || todayIso(),
         roomId,
         childId: mode === "existing" ? childId : undefined,
-        guardianId: mode === "existing" ? primary?.guardian.id : undefined,
-        guardian: mode === "new" ? guardian : undefined,
+        guardianId: mode === "existing" ? primary?.guardian.id : useExistingGuardian ? guardianId : undefined,
+        guardian: mode === "new" && guardianMode === "new" ? guardian : undefined,
         child: mode === "new" ? { ...child, phone: "", relationship: guardian.relationship } : undefined,
         notes: mode === "new" ? child.notes : "",
       });
@@ -372,8 +387,8 @@ export function KidsCheckInDrawer({
         code: payload.code,
         childName: currentChild?.name || child.name,
         roomName: selectedRoom?.name || "Sala Kids",
-        guardianName: primary?.guardian.name || guardian.name,
-        phone: primary?.guardian.phone || guardian.phone,
+        guardianName: primary?.guardian.name || existingGuardian?.name || guardian.name,
+        phone: primary?.guardian.phone || existingGuardian?.phone || guardian.phone,
       });
       onDone();
     } catch (error) {
@@ -400,13 +415,29 @@ export function KidsCheckInDrawer({
             <div className="space-y-4">
               <div className="rounded-[20px] bg-[#FFF8ED] p-4">
                 <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Responsavel obrigatorio</div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <input className="input-field" placeholder="Nome completo" value={guardian.name} onChange={(event) => setGuardian((p) => ({ ...p, name: event.target.value }))} />
-                  <input className="input-field" placeholder="Telefone" value={guardian.phone} onChange={(event) => setGuardian((p) => ({ ...p, phone: event.target.value }))} />
-                <input className="input-field" placeholder="Email opcional" value={guardian.email} onChange={(event) => setGuardian((p) => ({ ...p, email: event.target.value }))} />
-                <select className="input-field" value={guardian.relationship} onChange={(event) => setGuardian((p) => ({ ...p, relationship: event.target.value }))}><option>Pai</option><option>Mae</option><option>Responsavel</option><option>Avo/Avo</option><option>Tio/Tia</option><option>Outro</option></select>
+                {members.length > 0 && (
+                  <div className="mb-3 flex rounded-full border border-border-soft bg-white p-1">
+                    <button type="button" className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${guardianMode === "existing" ? "bg-brand text-white" : "text-ink-muted"}`} onClick={() => setGuardianMode("existing")}>Já cadastrado</button>
+                    <button type="button" className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${guardianMode === "new" ? "bg-brand text-white" : "text-ink-muted"}`} onClick={() => setGuardianMode("new")}>Novo responsável</button>
+                  </div>
+                )}
+                {members.length > 0 && guardianMode === "existing" ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <select className="input-field sm:col-span-2" value={guardianId} onChange={(event) => setGuardianId(event.target.value)}>
+                      <option value="">Selecione o responsável…</option>
+                      {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                    <select className="input-field" value={guardian.relationship} onChange={(event) => setGuardian((p) => ({ ...p, relationship: event.target.value }))}><option>Pai</option><option>Mae</option><option>Responsavel</option><option>Avo/Avo</option><option>Tio/Tia</option><option>Outro</option></select>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input className="input-field" placeholder="Nome completo" value={guardian.name} onChange={(event) => setGuardian((p) => ({ ...p, name: event.target.value }))} />
+                    <input className="input-field" placeholder="Telefone" value={guardian.phone} onChange={(event) => setGuardian((p) => ({ ...p, phone: event.target.value }))} />
+                    <input className="input-field" placeholder="Email opcional" value={guardian.email} onChange={(event) => setGuardian((p) => ({ ...p, email: event.target.value }))} />
+                    <select className="input-field" value={guardian.relationship} onChange={(event) => setGuardian((p) => ({ ...p, relationship: event.target.value }))}><option>Pai</option><option>Mae</option><option>Responsavel</option><option>Avo/Avo</option><option>Tio/Tia</option><option>Outro</option></select>
+                  </div>
+                )}
               </div>
-            </div>
             <div className="grid gap-3 sm:grid-cols-2">
                 <input className="input-field" placeholder="Nome da crianca" value={child.name} onChange={(event) => setChild((p) => ({ ...p, name: event.target.value }))} />
                 <input className="input-field" type="date" value={child.birth_date} onChange={(event) => setChild((p) => ({ ...p, birth_date: event.target.value }))} />
