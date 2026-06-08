@@ -74,7 +74,7 @@ export async function POST(req: Request) {
           churchId: person.church_id,
           title: "🎂 Aniversário hoje!",
           body: `${person.name} faz aniversário hoje. Que tal enviar uma mensagem de parabéns?`,
-          actionUrl: `/membros/${person.id}`,
+          actionUrl: `/pessoas/${person.id}`,
           type: "info",
         });
         notificationsSent++;

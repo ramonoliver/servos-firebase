@@ -284,7 +284,7 @@ export default function CellDetailPage() {
               {memberUsers.map((m) => {
                 const roleTag = (cell.leader_ids || []).includes(m.id) ? "Líder" : (cell.co_leader_ids || []).includes(m.id) ? "Co-líder" : null;
                 return (
-                  <Link key={m.id} href={`/membros/${m.id}`} className="flex items-center gap-3 rounded-[14px] border border-border-soft bg-white/60 p-2.5 transition hover:border-ink-ghost hover:bg-white hover:shadow-soft">
+                  <Link key={m.id} href={`/pessoas/${m.id}`} className="flex items-center gap-3 rounded-[14px] border border-border-soft bg-white/60 p-2.5 transition hover:border-ink-ghost hover:bg-white hover:shadow-soft">
                     <Avatar name={m.name} color={m.avatar_color} photoUrl={m.photo_url} size={36} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-semibold text-ink">{m.name}</div>
@@ -353,7 +353,7 @@ export default function CellDetailPage() {
                 {careMembers.map(({ member, reason }) => (
                   <Link
                     key={member.id}
-                    href={`/membros/${member.id}`}
+                    href={`/pessoas/${member.id}`}
                     className="flex items-start gap-3 rounded-[14px] border border-amber-light bg-amber-light/30 p-3 transition hover:bg-amber-light/60"
                   >
                     <Avatar name={member.name} color={member.avatar_color} photoUrl={member.photo_url} size={38} />

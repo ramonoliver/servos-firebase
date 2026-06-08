@@ -8,6 +8,12 @@ const nextConfig = {
       // para não quebrar /membros/convidar.
       { source: "/dashboard-pastoral", destination: "/dashboard", permanent: false },
       { source: "/relatorios-pastorais", destination: "/relatorios", permanent: false },
+
+      // Unificação Pessoas ↔ Membros (passo 3). /pessoas/[id] é superset de
+      // /membros/[id]. Ordem importa: convidar antes do :id (first-match wins).
+      { source: "/membros/convidar", destination: "/pessoas/convidar", permanent: false },
+      { source: "/membros/:id", destination: "/pessoas/:id", permanent: false },
+      { source: "/membros", destination: "/pessoas", permanent: false },
     ];
   },
 };

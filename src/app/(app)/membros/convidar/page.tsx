@@ -302,7 +302,7 @@ export default function ConvidarMembroPage() {
             Copiar credenciais
           </button>
 
-          <button onClick={() => router.push("/membros")} className="btn btn-primary w-full">
+          <button onClick={() => router.push("/pessoas")} className="btn btn-primary w-full">
             Concluir
           </button>
           <button
@@ -333,8 +333,8 @@ export default function ConvidarMembroPage() {
     <div className="w-full">
       <PageHeader
         className="mb-6"
-        backHref="/membros"
-        backLabel="Membros"
+        backHref="/pessoas"
+        backLabel="Pessoas"
         eyebrow="Comunidade"
         title="Convidar Membro"
         subtitle="Adicione um novo voluntário com acesso ao app."

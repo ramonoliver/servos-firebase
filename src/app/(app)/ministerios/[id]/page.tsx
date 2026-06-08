@@ -303,7 +303,7 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
                   key={dm.id}
                   className="flex items-center gap-3.5 px-5 py-3 border-t border-border-soft first:border-t-0 hover:bg-brand-glow transition-colors group"
                 >
-                  <Link href={`/membros/${member.id}`} className="flex items-center gap-3.5 flex-1 min-w-0">
+                  <Link href={`/pessoas/${member.id}`} className="flex items-center gap-3.5 flex-1 min-w-0">
                     {member.photo_url ? (
                       <img
                         src={member.photo_url}

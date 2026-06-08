@@ -39,7 +39,7 @@ export function BottomTabBar({ tabs, pathname, canCreateSchedule, canInviteMembe
 
   const actions = [
     canCreateSchedule && { label: "Nova Escala", emoji: "📅", href: "/escalas/nova" },
-    canInviteMember && { label: "Convidar Membro", emoji: "👤", href: "/membros/convidar" },
+    canInviteMember && { label: "Convidar Membro", emoji: "👤", href: "/pessoas/convidar" },
     { label: "Registrar Indisponibilidade", emoji: "🚫", href: "/indisponibilidade" },
   ].filter(Boolean) as { label: string; emoji: string; href: string }[];
 

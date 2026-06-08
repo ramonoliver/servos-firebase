@@ -60,7 +60,7 @@ function MenuIcon() {
 }
 
 // ── Split-view pages: fill content area edge-to-edge ───────
-const SPLIT_PAGES = ["/escalas", "/membros"];
+const SPLIT_PAGES = ["/escalas"];
 
 function ShellV2({ children }: { children: React.ReactNode }) {
   const { user, church, departments, canDo, logout, unreadNotifications, setUnreadNotifications, roles } = useApp();
@@ -254,7 +254,7 @@ function ShellV2({ children }: { children: React.ReactNode }) {
                 </Link>
               )}
               {canDo("member.invite") && (
-                <Link href="/membros/convidar" onClick={() => setMobileMenuOpen(false)} className="btn btn-secondary w-full">
+                <Link href="/pessoas/convidar" onClick={() => setMobileMenuOpen(false)} className="btn btn-secondary w-full">
                   Convidar pessoa
                 </Link>
               )}
