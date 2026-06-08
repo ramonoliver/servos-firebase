@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils/helpers";
 
 // ============================================
@@ -167,6 +168,58 @@ export function Avatar({
 }
 
 // ============================================
+// PERSON CARD (genérico — DS 2.0)
+// ============================================
+// Desacoplado dos tipos do módulo pastoral mock. Props simples para reuso em
+// Pessoas, Cuidado, Células e Kids (Fundação Fase 1, Entregável 4).
+export function PersonCard({
+  name,
+  subtitle,
+  avatarColor = "#FF6B57",
+  photoUrl,
+  href,
+  badge,
+  right,
+  size = 40,
+  className = "",
+}: {
+  name: string;
+  subtitle?: string;
+  avatarColor?: string;
+  photoUrl?: string | null;
+  href?: string;
+  badge?: React.ReactNode;
+  right?: React.ReactNode;
+  size?: number;
+  className?: string;
+}) {
+  const body = (
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-[16px] border border-border-soft bg-white/70 p-3 shadow-soft backdrop-blur transition hover:border-ink-ghost hover:bg-white",
+        className
+      )}
+    >
+      <Avatar name={name} color={avatarColor} photoUrl={photoUrl} size={size} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px] font-semibold text-ink">{name}</div>
+        {subtitle && <div className="truncate text-[11px] text-ink-faint">{subtitle}</div>}
+        {badge && <div className="mt-1">{badge}</div>}
+      </div>
+      {right}
+    </div>
+  );
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {body}
+      </Link>
+    );
+  }
+  return body;
+}
+
+// ============================================
 // AVAILABILITY GRID (read-only)
 // ============================================
 const DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"];
@@ -262,3 +315,4 @@ export type { Tone } from "./page-header";
 
 export { DateField } from "./date-field";
 export { ActionDrawer } from "./action-drawer";
+export { Tabs, TabBar } from "./tabs";

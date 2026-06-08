@@ -167,33 +167,9 @@ export function PersonCard({ person, cellName }: { person: PastoralPerson; cellN
   );
 }
 
-export function TabBar({
-  tabs,
-  active,
-  onChange,
-}: {
-  tabs: string[];
-  active: string;
-  onChange: (tab: string) => void;
-}) {
-  return (
-    <div className="flex gap-1 overflow-x-auto rounded-full border border-border-soft bg-white p-1">
-      {tabs.map((tab) => (
-        <button
-          key={tab}
-          type="button"
-          onClick={() => onChange(tab)}
-          className={cn(
-            "min-h-[36px] whitespace-nowrap rounded-full px-3.5 text-xs font-semibold transition-colors",
-            active === tab ? "bg-brand-light text-brand" : "text-ink-muted hover:bg-surface-alt hover:text-ink"
-          )}
-        >
-          {tab}
-        </button>
-      ))}
-    </div>
-  );
-}
+// TabBar foi promovido ao DS canônico (components/ui). Re-exportado aqui para
+// compatibilidade com telas que ainda importam de pastoral-ui.
+export { TabBar } from "@/components/ui";
 
 export function TimelineList({ events, emptyTitle = "Nenhum evento ainda" }: { events: TimelineEvent[]; emptyTitle?: string }) {
   if (!events.length) {
