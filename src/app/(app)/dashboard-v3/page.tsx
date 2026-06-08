@@ -25,6 +25,7 @@ import {
   type UpcomingEventItem,
 } from "@/components/dashboard/home-v3-ui";
 import { isCareCaseType, isPrayerType } from "@/lib/care/types";
+import { computeServedStats } from "@/lib/schedules/served-stats";
 import type { Cell, CellMemberRow, CellNetwork } from "@/lib/cells/types";
 import type { Department, Event, Notification, Schedule, ScheduleMember, User } from "@/types";
 
@@ -344,7 +345,10 @@ export default function DashboardV3Page() {
         icon: "check",
       });
     }
-    const driftPeople = members.filter((m) => !m.last_served_at).slice(0, 2);
+    // "Sem servir" computado das confirmações reais (o contador last_served_at
+    // não é mantido). Evita marcar como drift quem já serviu.
+    const servedStats = computeServedStats(scheduleMembers, schedules, todayIso);
+    const driftPeople = members.filter((m) => !servedStats.last.has(m.id)).slice(0, 2);
     driftPeople.forEach((m) => {
       priorityItems.push({
         title: `Entrar em contato com ${m.name.split(" ")[0]}`,
@@ -487,7 +491,9 @@ export default function DashboardV3Page() {
         id: care.id,
         name: person?.name || care.title,
         reason: care.description || care.title,
-        lastPresence: person?.last_served_at ? formatShortDate(person.last_served_at) : "sem contato recente",
+        lastPresence: servedStats.last.has(care.person_id)
+          ? formatShortDate(servedStats.last.get(care.person_id)!)
+          : "sem contato recente",
         badge: "Atenção pastoral",
         avatarColor: person?.avatar_color || "#FF6B57",
         photoUrl: person?.photo_url || null,

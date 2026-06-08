@@ -7,6 +7,7 @@ import { Avatar, PageShell, PageHeader } from "@/components/ui";
 import { supabase } from "@/lib/firebase";
 import { careCases, pastoralCells, prayerRequests } from "@/lib/pastoral/mock-data";
 import { getHealthAverage, registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
+import { computeServedStats } from "@/lib/schedules/served-stats";
 import type { DepartmentMember, Event, Schedule, ScheduleMember, ScheduleSlot, User } from "@/types";
 
 type IconName = "calendar" | "chart" | "check" | "heart" | "home" | "target" | "users";
@@ -136,38 +137,30 @@ export default function RelatoriosPage() {
   );
   const eventsById = useMemo(() => new Map(events.map((event) => [event.id, event.name])), [events]);
 
-  // "Serviu X vezes" = confirmações reais em escalas que já aconteceram.
-  // O contador member.total_schedules não é mantido (ficava sempre 0).
-  const servedByUser = useMemo(() => {
-    const pastScheduleIds = new Set(
-      schedules.filter((s) => s.date <= todayIso).map((s) => s.id)
-    );
-    const map = new Map<string, number>();
-    allSM.forEach((sm) => {
-      if (sm.status === "confirmed" && pastScheduleIds.has(sm.schedule_id)) {
-        map.set(sm.user_id, (map.get(sm.user_id) || 0) + 1);
-      }
-    });
-    return map;
-  }, [allSM, schedules, todayIso]);
+  // Serviço real (confirmações em escalas passadas). Os contadores
+  // total_schedules / last_served_at não são mantidos — computamos aqui.
+  const servedStats = useMemo(
+    () => computeServedStats(allSM, schedules, todayIso),
+    [allSM, schedules, todayIso]
+  );
 
   const topServing = useMemo(
     () =>
       [...members]
-        .map((member) => ({ member, served: servedByUser.get(member.id) || 0 }))
+        .map((member) => ({ member, served: servedStats.count.get(member.id) || 0 }))
         .filter((row) => row.served > 0)
         .sort((a, b) => b.served - a.served)
         .slice(0, 5),
-    [members, servedByUser]
+    [members, servedStats]
   );
 
   const lowConfirm = useMemo(
     () =>
       [...members]
-        .filter((member) => member.total_schedules > 2)
+        .filter((member) => (servedStats.count.get(member.id) || 0) > 2)
         .sort((a, b) => a.confirm_rate - b.confirm_rate)
         .slice(0, 5),
-    [members]
+    [members, servedStats]
   );
 
   const totalConfirmed = useMemo(() => allSM.filter((sm) => sm.status === "confirmed").length, [allSM]);
@@ -250,10 +243,11 @@ export default function RelatoriosPage() {
 
   const membersWithoutRecentScale = useMemo(
     () =>
-      members.filter(
-        (member) => !member.last_served_at || member.last_served_at.slice(0, 10) < sixtyDaysAgoIso
-      ).length,
-    [members, sixtyDaysAgoIso]
+      members.filter((member) => {
+        const last = servedStats.last.get(member.id);
+        return !last || last < sixtyDaysAgoIso;
+      }).length,
+    [members, servedStats, sixtyDaysAgoIso]
   );
 
   const peopleInCare = useMemo(() => {
@@ -366,7 +360,7 @@ export default function RelatoriosPage() {
             ) : (
               <div className="space-y-2">
                 {lowConfirm.map((member) => (
-                  <PersonRateRow key={member.id} member={member} />
+                  <PersonRateRow key={member.id} member={member} served={servedStats.count.get(member.id) || 0} />
                 ))}
               </div>
             )}
@@ -647,7 +641,7 @@ function ProgressBar({ value, tone = "brand" }: { value: number; tone?: "brand" 
   );
 }
 
-function PersonRateRow({ member }: { member: User }) {
+function PersonRateRow({ member, served }: { member: User; served: number }) {
   const tone = member.confirm_rate < 80 ? "danger" : "brand";
   return (
     <div className="rounded-[18px] border border-border-soft bg-white px-4 py-3">
@@ -655,7 +649,7 @@ function PersonRateRow({ member }: { member: User }) {
         <Avatar name={member.name} color={member.avatar_color} photoUrl={member.photo_url} size={34} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold text-ink">{member.name}</div>
-          <div className="text-[11px] text-ink-faint">{member.total_schedules} escalas no histórico</div>
+          <div className="text-[11px] text-ink-faint">{served} escalas no histórico</div>
         </div>
         <span className={`text-sm font-bold ${member.confirm_rate < 80 ? "text-danger" : "text-brand"}`}>{member.confirm_rate}%</span>
       </div>
