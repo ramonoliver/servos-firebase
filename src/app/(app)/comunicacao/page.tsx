@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
-import { PageHeader, PageShell } from "@/components/ui";
+import { ConfirmDialog, PageHeader, PageShell } from "@/components/ui";
 import { SoftCard } from "@/components/pastoral/pastoral-ui";
 import type { Cell } from "@/lib/cells/types";
 
@@ -29,6 +29,7 @@ export default function ComunicacaoPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmCount, setConfirmCount] = useState<number | null>(null);
 
   const isPastorAdmin =
     roles.businessRoles.includes("admin") ||
@@ -78,14 +79,50 @@ export default function ComunicacaoPage() {
     (audience !== "ministry" || !!departmentId) &&
     (audience !== "cell" || !!cellId);
 
-  async function send() {
+  const payload = () => ({
+    audience,
+    departmentId: departmentId || undefined,
+    cellId: cellId || undefined,
+    title,
+    body,
+  });
+
+  // Passo 1: resolve a contagem (sem enviar) e pede confirmação.
+  async function requestSend() {
     if (!canSend) return;
     setSending(true);
     try {
       const res = await fetch("/api/communications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audience, departmentId: departmentId || undefined, cellId: cellId || undefined, title, body }),
+        body: JSON.stringify({ ...payload(), dryRun: true }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao preparar o comunicado.");
+        return;
+      }
+      if (!data?.count) {
+        toast("Nenhuma pessoa neste segmento.");
+        return;
+      }
+      setConfirmCount(data.count);
+    } catch {
+      toast("Erro ao preparar o comunicado.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // Passo 2: dispara de fato.
+  async function doSend() {
+    setConfirmCount(null);
+    setSending(true);
+    try {
+      const res = await fetch("/api/communications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload()),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -190,13 +227,25 @@ export default function ComunicacaoPage() {
               </div>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[12px] text-ink-faint">Chega como notificação no app e push (para quem habilitou).</p>
-                <button className="btn btn-primary" disabled={!canSend || sending} onClick={send}>
-                  {sending ? "Enviando…" : "Enviar comunicado"}
+                <button className="btn btn-primary" disabled={!canSend || sending} onClick={requestSend}>
+                  {sending ? "Aguarde…" : "Enviar comunicado"}
                 </button>
               </div>
             </div>
           </SoftCard>
         </div>
+      )}
+
+      {confirmCount !== null && (
+        <ConfirmDialog
+          title="Enviar comunicado"
+          message={`Este comunicado será enviado para <strong>${confirmCount} ${confirmCount === 1 ? "pessoa" : "pessoas"}</strong> (${AUDIENCE_META[audience].label}). Cada uma receberá uma notificação no app (e push, se habilitado).`}
+          confirmLabel="Enviar agora"
+          cancelLabel="Revisar"
+          variant="warning"
+          onCancel={() => setConfirmCount(null)}
+          onConfirm={() => void doSend()}
+        />
       )}
     </PageShell>
   );

@@ -15,6 +15,8 @@ const bodySchema = z.object({
   cellId: z.string().optional(),
   title: z.string().min(1).max(120),
   body: z.string().min(1).max(2000),
+  // Resolve o público e retorna só a contagem (para confirmação), sem enviar.
+  dryRun: z.boolean().optional(),
 });
 
 function birthdayWithin(birthDate: string | null | undefined, days: number): boolean {
@@ -45,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Sem permissão para enviar comunicados." }, { status: 403 });
     }
 
-    const { audience, departmentId, cellId, title, body } = parsed.data;
+    const { audience, departmentId, cellId, title, body, dryRun } = parsed.data;
     const churchId = session!.church_id;
     const supabase = getFirebaseAdminClient();
 
@@ -143,6 +145,12 @@ export async function POST(req: Request) {
     }
 
     userIds = Array.from(new Set(userIds));
+
+    // Pré-visualização: só a contagem, sem disparar nada.
+    if (dryRun) {
+      return NextResponse.json({ count: userIds.length });
+    }
+
     if (userIds.length === 0) {
       return NextResponse.json({ sent: 0, warning: "Nenhuma pessoa neste segmento." });
     }
