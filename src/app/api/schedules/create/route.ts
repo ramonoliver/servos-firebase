@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     if (departmentError) throw departmentError;
     if (eventError) throw eventError;
 
-    if (!actor?.active || !can(actor.role, "schedule.create", { departmentId, userDepartmentIds: [departmentId] })) {
+    if (!actor?.active || !can(actor, "schedule.create", { departmentId, userDepartmentIds: [departmentId] })) {
       return NextResponse.json({ error: "Sem permissao para criar escalas." }, { status: 403 });
     }
 

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         .maybeSingle();
     if (scheduleError) throw scheduleError;
 
-    if (!actor?.active || !can(actor.role, "schedule.delete")) {
+    if (!actor?.active || !can(actor, "schedule.delete")) {
       return NextResponse.json({ error: "Sem permissao para excluir escalas." }, { status: 403 });
     }
 

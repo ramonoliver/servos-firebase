@@ -50,7 +50,7 @@ async function canManageDepartmentMember(params: {
   ]);
 
   if (!actor?.active || !department) return false;
-  if (!can(actor.role, "member.edit", { departmentId, userDepartmentIds: [departmentId] })) {
+  if (!can(actor, "member.edit", { departmentId, userDepartmentIds: [departmentId] })) {
     return false;
   }
 

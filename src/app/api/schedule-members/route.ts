@@ -67,7 +67,7 @@ async function canManageSchedule(params: { actorId: string; churchId: string; sc
   const actor = actorResult.data;
   if (!actor?.active || !schedule) return { allowed: false, schedule: null };
 
-  if (!can(actor.role, "schedule.edit", { departmentId: schedule.department_id, userDepartmentIds: [schedule.department_id] })) {
+  if (!can(actor, "schedule.edit", { departmentId: schedule.department_id, userDepartmentIds: [schedule.department_id] })) {
     return { allowed: false, schedule };
   }
 

@@ -32,7 +32,7 @@ export async function requireApiActor(req: Request, options: RequireActorOptions
   const supabase = getFirebaseAdminClient();
   const { data: actor, error } = await supabase
     .from("users")
-    .select(options.select || "id, role, church_id, active")
+    .select(options.select || "id, role, cell_role, church_id, active")
     .eq("id", session.user_id)
     .eq("church_id", session.church_id)
     .maybeSingle();

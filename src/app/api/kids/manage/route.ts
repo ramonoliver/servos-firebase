@@ -162,7 +162,7 @@ export async function POST(req: Request) {
     const churchId = session!.church_id;
     const actorId = session!.user_id;
     const body = parsed.data;
-    const canManage = actor.role === "admin" || can(actor.role, "event.edit") || can(actor.role, "member.edit");
+    const canManage = actor.role === "admin" || can(actor, "event.edit") || can(actor, "member.edit");
 
     if (!canManage) {
       return NextResponse.json({ error: "Voce nao possui permissao para realizar check-in neste evento." }, { status: 403 });

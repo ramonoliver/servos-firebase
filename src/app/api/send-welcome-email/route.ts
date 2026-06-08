@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   try {
     const { actor, session, errorResponse } = await requireApiActor(req);
     if (errorResponse) return errorResponse;
-    if (!actor?.active || !can(actor.role, "member.invite")) {
+    if (!actor?.active || !can(actor, "member.invite")) {
       return NextResponse.json({ error: "Sem permissao para enviar convite." }, { status: 403 });
     }
 

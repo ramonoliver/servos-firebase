@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       mode === "create" ? "event.create" : mode === "update" ? "event.edit" : "event.delete";
 
     const isPastor = (actor as { cell_role?: string | null }).cell_role === "pastor";
-    if (!can(actor.role, requiredAction) && !isPastor) {
+    if (!can(actor, requiredAction) && !isPastor) {
       return NextResponse.json({ error: "Sem permissao para gerenciar eventos." }, { status: 403 });
     }
 

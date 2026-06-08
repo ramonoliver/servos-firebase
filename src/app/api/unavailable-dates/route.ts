@@ -90,7 +90,7 @@ export async function DELETE(req: Request) {
     }
 
     const canRemoveOwn = unavailableDate.user_id === actorId;
-    const canRemoveAny = can(actor.role, "member.edit");
+    const canRemoveAny = can(actor, "member.edit");
 
     if (!canRemoveOwn && !canRemoveAny) {
       return NextResponse.json({ error: "Sem permissao para remover esta indisponibilidade." }, { status: 403 });

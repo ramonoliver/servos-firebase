@@ -6,7 +6,7 @@ import { supabase, auth } from "@/lib/firebase";
 import { signInWithCustomToken, signOut } from "firebase/auth";
 import { getSession, clearSession, updateSession } from "@/lib/auth/session";
 // supabase client retained for notifications polling below
-import { can, type Action } from "@/lib/auth/permissions";
+import { hasPermission, type Action } from "@/lib/auth/permissions";
 import { getPersonRoles, type PersonRolesResult } from "@/lib/auth/person-roles";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import type { User, Church, Department, Session } from "@/types";
@@ -162,12 +162,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const canDo = useCallback((action: Action, deptId?: string) => {
-    if (!user) return false;
-    return can(user.role, action, {
-      departmentId: deptId,
-      userDepartmentIds: userDeptIds,
-    });
-  }, [user, userDeptIds]);
+    if (!roles) return false;
+    return hasPermission(roles, action, { departmentId: deptId });
+  }, [roles]);
 
   const {
     permission: pushPermission,

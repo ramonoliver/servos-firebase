@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     if (errorResponse) return errorResponse;
     if (!actor?.active) return NextResponse.json({ error: "Usuário inativo." }, { status: 403 });
 
-    const isAuthorized = actor.role === "admin" || can(actor.role, "member.invite");
+    const isAuthorized = actor.role === "admin" || can(actor, "member.invite");
     if (!isAuthorized) {
       return NextResponse.json({ error: "Sem permissão para convidar pessoas." }, { status: 403 });
     }

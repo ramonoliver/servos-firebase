@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const requiredAction =
       mode === "create" ? "department.create" : mode === "update" ? "department.edit" : "department.delete";
 
-    if (!can(actor.role, requiredAction)) {
+    if (!can(actor, requiredAction)) {
       return NextResponse.json({ error: "Sem permissao para gerenciar ministerios." }, { status: 403 });
     }
 

@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     }
 
     const isPastor = (actor as { cell_role?: string | null }).cell_role === "pastor";
-    if (!can(actor.role, "event.edit") && !isPastor) {
+    if (!can(actor, "event.edit") && !isPastor) {
       return NextResponse.json({ error: "Sem permissão para registrar pós-evento." }, { status: 403 });
     }
 

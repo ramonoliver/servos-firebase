@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const churchId = session!.church_id;
     const { name, city, state } = parsed.data;
     const supabase = getFirebaseAdminClient();
-    if (!actor?.active || !can(actor.role, "settings.edit")) {
+    if (!actor?.active || !can(actor, "settings.edit")) {
       return NextResponse.json({ error: "Sem permissao para atualizar configuracoes." }, { status: 403 });
     }
 
