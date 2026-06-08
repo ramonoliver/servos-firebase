@@ -19,8 +19,14 @@ function formatShortDate(date: string) {
 }
 
 export default function RelatoriosPage() {
-  const { user, departments } = useApp();
+  const { user, departments, roles } = useApp();
   const visibleDepartmentIds = useMemo(() => departments.map((department) => department.id), [departments]);
+  // Visão church-wide: admin, pastor, coordenação e supervisor. Líderes de
+  // ministério/célula veem apenas o próprio escopo (departamentos).
+  const seesAllReports = useMemo(
+    () => ["admin", "pastor", "coordenacao", "supervisor"].some((r) => roles.businessRoles.includes(r as never)),
+    [roles]
+  );
 
   const [members, setMembers] = useState<User[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -67,13 +73,13 @@ export default function RelatoriosPage() {
         const allSchedules = (schedulesData || []) as Schedule[];
         const scopedDepartmentIds = new Set(visibleDepartmentIds);
         const scopedSchedules =
-          user.role === "admin"
+          seesAllReports
             ? allSchedules
             : allSchedules.filter((schedule) => scopedDepartmentIds.has(schedule.department_id));
         const scopedScheduleIds = scopedSchedules.map((schedule) => schedule.id);
         const scopedEventIds = [...new Set(scopedSchedules.map((schedule) => schedule.event_id))];
         const scopedMembers =
-          user.role === "admin"
+          seesAllReports
             ? ((usersData || []) as User[])
             : ((usersData || []) as User[]).filter((member) =>
                 ((departmentMembersData || []) as DepartmentMember[]).some(
@@ -112,7 +118,7 @@ export default function RelatoriosPage() {
     }
 
     void loadData();
-  }, [user.church_id, user.role, departments.length, visibleDepartmentIds]);
+  }, [user.church_id, seesAllReports, departments.length, visibleDepartmentIds]);
 
   const today = new Date();
   const todayIso = today.toISOString().slice(0, 10);
