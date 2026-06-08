@@ -110,9 +110,10 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     { href: "/celulas", label: "Células", icon: "house", group: "Comunidade", show: true },
     { href: "/kids", label: "Kids", icon: "shield", group: "Comunidade", show: notPureMember },
 
-    // CUIDADO (reimplementar sobre pastoral_notes — gated)
-    { href: "/acompanhamentos", label: "Acompanhamentos", icon: "compass", group: "Cuidado", show: SHOW_UNBUILT && canCare },
-    { href: "/pedidos-oracao", label: "Pedidos de oração", icon: "pray", group: "Cuidado", show: SHOW_UNBUILT && canCare },
+    // CUIDADO — Acompanhamentos e Pedidos já leem dados reais (passo 5).
+    // Alertas pastorais (loop derivado) segue gated até ser implementado.
+    { href: "/acompanhamentos", label: "Acompanhamentos", icon: "compass", group: "Cuidado", show: canCare },
+    { href: "/pedidos-oracao", label: "Pedidos de oração", icon: "pray", group: "Cuidado", show: canCare },
     { href: "/alertas", label: "Alertas pastorais", icon: "bell", group: "Cuidado", show: SHOW_UNBUILT && canCare },
 
     // COMUNICAÇÃO
