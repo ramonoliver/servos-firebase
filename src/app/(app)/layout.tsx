@@ -91,11 +91,6 @@ function ShellV2({ children }: { children: React.ReactNode }) {
   const canMessage = canDo("message.send");
   const canReport = canDo("report.view");
 
-  // Telas ainda em mock/stub (Cuidado, Comunicados, Enquetes, Perfis): a
-  // ESTRUTURA da IA 2.0 já fica no código, mas não exibimos destinos com dados
-  // fictícios. Vira `true` quando reimplementadas (Fase 2 passos 3+/5).
-  const SHOW_UNBUILT = false;
-
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Início", icon: "home", show: true },
 
@@ -126,7 +121,7 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     { href: "/relatorios", label: "Relatórios", icon: "bar-chart", group: "Inteligência", show: canReport },
 
     // ADMINISTRAÇÃO
-    { href: "/perfis-permissoes", label: "Perfis e permissões", icon: "shield", group: "Administração", show: SHOW_UNBUILT && isAdmin },
+    { href: "/perfis-permissoes", label: "Perfis e permissões", icon: "shield", group: "Administração", show: isAdmin },
     { href: "/configuracoes", label: "Configurações", icon: "settings", group: "Administração", show: isAdmin },
     { href: "/perfil", label: "Meu Perfil", icon: "user", group: "Administração", show: true },
   ].filter((n) => n.show) as NavItem[];
