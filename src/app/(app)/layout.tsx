@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AppProvider, useApp } from "@/hooks/use-app";
+import { ROLE_LABELS } from "@/lib/auth/person-roles";
 import { SidebarV2, type NavItem } from "@/components/layout/sidebar-v2";
 import { NotificationPanel } from "@/components/layout/notification-panel";
 import { Avatar } from "@/components/ui";
@@ -62,7 +63,7 @@ function MenuIcon() {
 const SPLIT_PAGES = ["/escalas", "/membros"];
 
 function ShellV2({ children }: { children: React.ReactNode }) {
-  const { user, church, departments, canDo, logout, unreadNotifications, setUnreadNotifications } = useApp();
+  const { user, church, departments, canDo, logout, unreadNotifications, setUnreadNotifications, roles } = useApp();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -76,21 +77,57 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("resize", sync);
   }, []);
 
-  const isAdmin = user.role === "admin";
-  const isLeader = user.role === "leader";
-  const isMember = user.role === "member";
+  // ── Visibilidade derivada dos papéis canônicos (getPersonRoles) ───────────
+  const br = roles.businessRoles;
+  const isAdmin = roles.systemRole === "admin";
+  const isLeader = roles.systemRole === "leader";
+  const isPastor = br.includes("pastor") || br.includes("coordenacao");
+  const isSupervisor = br.includes("supervisor");
+  const isCellLeader = br.includes("lider_celula");
+  const isMinistryLeader = br.includes("lider_ministerio");
+  const notPureMember = isAdmin || isPastor || isSupervisor || isCellLeader || isMinistryLeader;
+  const isPureMember = !notPureMember;
+  const canCare = isAdmin || isPastor || isSupervisor || isCellLeader;
+  const canMessage = canDo("message.send");
+  const canReport = canDo("report.view");
+
+  // Telas ainda em mock/stub (Cuidado, Comunicados, Enquetes, Perfis): a
+  // ESTRUTURA da IA 2.0 já fica no código, mas não exibimos destinos com dados
+  // fictícios. Vira `true` quando reimplementadas (Fase 2 passos 3+/5).
+  const SHOW_UNBUILT = false;
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Início", icon: "home", show: true },
-    { href: "/calendario", label: "Agenda", icon: "calendar-days", show: true },
-    { href: "/pessoas", label: "Pessoas", icon: "users", show: !isMember },
-    { href: "/kids", label: "Kids", icon: "shield", show: !isMember },
-    { href: "/celulas", label: "Células", icon: "house", show: !isMember },
-    { href: isMember ? "/minhas-escalas" : "/ministerios", label: "Ministérios", icon: "heart", show: true },
-    { href: "/comunicacao", label: "Comunicação", icon: "message-circle", show: canDo("message.send") || !isAdmin },
-    { href: "/relatorios", label: "Relatórios", icon: "bar-chart", show: canDo("report.view"), group: "Gestão" },
-    { href: "/configuracoes", label: "Configurações", icon: "settings", show: isAdmin, group: "Gestão" },
-    { href: "/perfil", label: "Meu Perfil", icon: "user", show: true, group: "Gestão" },
+
+    // OPERAÇÃO
+    { href: "/calendario", label: "Agenda", icon: "calendar-days", group: "Operação", show: true },
+    { href: "/eventos", label: "Eventos", icon: "calendar", group: "Operação", show: notPureMember },
+    { href: isPureMember ? "/minhas-escalas" : "/escalas", label: isPureMember ? "Minhas escalas" : "Escalas", icon: "check-square", group: "Operação", show: true },
+    { href: "/ministerios", label: "Ministérios", icon: "heart", group: "Operação", show: notPureMember },
+
+    // COMUNIDADE
+    { href: "/pessoas", label: "Pessoas", icon: "users", group: "Comunidade", show: notPureMember },
+    { href: "/celulas", label: "Células", icon: "house", group: "Comunidade", show: true },
+    { href: "/kids", label: "Kids", icon: "shield", group: "Comunidade", show: notPureMember },
+
+    // CUIDADO (reimplementar sobre pastoral_notes — gated)
+    { href: "/acompanhamentos", label: "Acompanhamentos", icon: "compass", group: "Cuidado", show: SHOW_UNBUILT && canCare },
+    { href: "/pedidos-oracao", label: "Pedidos de oração", icon: "pray", group: "Cuidado", show: SHOW_UNBUILT && canCare },
+    { href: "/alertas", label: "Alertas pastorais", icon: "bell", group: "Cuidado", show: SHOW_UNBUILT && canCare },
+
+    // COMUNICAÇÃO
+    { href: "/comunicacao", label: "Comunicados", icon: "megaphone", group: "Comunicação", show: SHOW_UNBUILT && canMessage },
+    { href: "/mensagens", label: "Mensagens", icon: "message-circle", group: "Comunicação", show: canMessage },
+    { href: "/notificacoes", label: "Notificações", icon: "bell", group: "Comunicação", show: true },
+    { href: "/enquetes", label: "Enquetes", icon: "notebook", group: "Comunicação", show: SHOW_UNBUILT && canMessage },
+
+    // INTELIGÊNCIA
+    { href: "/relatorios", label: "Relatórios", icon: "bar-chart", group: "Inteligência", show: canReport },
+
+    // ADMINISTRAÇÃO
+    { href: "/perfis-permissoes", label: "Perfis e permissões", icon: "shield", group: "Administração", show: SHOW_UNBUILT && isAdmin },
+    { href: "/configuracoes", label: "Configurações", icon: "settings", group: "Administração", show: isAdmin },
+    { href: "/perfil", label: "Meu Perfil", icon: "user", group: "Administração", show: true },
   ].filter((n) => n.show) as NavItem[];
 
   // Apenas as listas (que usam SplitView de altura cheia) ficam sem scroll de
@@ -111,6 +148,7 @@ function ShellV2({ children }: { children: React.ReactNode }) {
         <SidebarV2
           user={user}
           churchName={church.name}
+          roleLabel={ROLE_LABELS[roles.primaryRole]}
           departments={departments}
           navItems={navItems}
           pathname={pathname}

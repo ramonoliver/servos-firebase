@@ -7,6 +7,7 @@ import { signInWithCustomToken, signOut } from "firebase/auth";
 import { getSession, clearSession, updateSession } from "@/lib/auth/session";
 // supabase client retained for notifications polling below
 import { can, type Action } from "@/lib/auth/permissions";
+import { getPersonRoles, type PersonRolesResult } from "@/lib/auth/person-roles";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import type { User, Church, Department, Session } from "@/types";
 
@@ -16,6 +17,8 @@ interface AppContextType {
   church: Church;
   departments: Department[];
   userDeptIds: string[];
+  /** Papéis canônicos derivados (fonte única — getPersonRoles). */
+  roles: PersonRolesResult;
   unreadNotifications: number;
   setUnreadNotifications: (n: number) => void;
   pushPermission: NotificationPermission | "unsupported";
@@ -44,6 +47,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [church, setChurch] = useState<Church | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [userDeptIds, setUserDeptIds] = useState<string[]>([]);
+  const [roles, setRoles] = useState<PersonRolesResult | null>(null);
   const [toastMsg, setToastMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const unreadNotificationCountRef = useRef<number | null>(null);
@@ -128,11 +132,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const permissionDeptIds =
         u.role === "admin" ? depts.map((d) => d.id) : u.role === "leader" ? leadDeptIds : memberDeptIds;
 
+      // Papéis canônicos (fonte única). Usa TODOS os departamentos/células/redes
+      // para derivar liderança/supervisão, não apenas os visíveis.
+      const personRoles = getPersonRoles(u as User, {
+        cells: appData.cells || [],
+        networks: appData.networks || [],
+        departments: depts,
+        memberDepartmentIds: memberDeptIds,
+        memberCellIds: u.cell_id ? [u.cell_id] : [],
+      });
+
       setUser(u as User);
       setSessionState(s);
       setChurch(appData.church);
       setDepartments(visibleDepartments);
       setUserDeptIds(permissionDeptIds);
+      setRoles(personRoles);
     } catch (err) {
       console.error("Erro ao carregar sessão:", err);
     } finally {
@@ -238,7 +253,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user || !session || !church) return null;
+  if (!user || !session || !church || !roles) return null;
 
   return (
     <AppContext.Provider
@@ -248,6 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         church,
         departments,
         userDeptIds,
+        roles,
         unreadNotifications,
         setUnreadNotifications,
         pushPermission,

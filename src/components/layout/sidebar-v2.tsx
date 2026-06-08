@@ -61,6 +61,7 @@ export interface NavItem {
 interface SidebarV2Props {
   user: User;
   churchName: string;
+  roleLabel?: string;
   departments: Department[];
   navItems: NavItem[];
   pathname: string;
@@ -70,7 +71,7 @@ interface SidebarV2Props {
 }
 
 export function SidebarV2({
-  user, churchName, departments, navItems, pathname, collapsed, onToggleCollapse, onLogout,
+  user, churchName, roleLabel, departments, navItems, pathname, collapsed, onToggleCollapse, onLogout,
 }: SidebarV2Props) {
   const compact = collapsed;
   const [ministriesOpen, setMinistriesOpen] = useState(false);
@@ -78,14 +79,13 @@ export function SidebarV2({
   function isActive(item: NavItem) {
     const direct = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
     if (direct) return true;
+    // Pessoas engloba o módulo de cuidado e o legado /membros (redirecionado).
     if (item.href === "/pessoas") {
       return ["/membros", "/acompanhamentos", "/pedidos-oracao", "/timeline-pastoral", "/alertas", "/crm-pastoral"].some((p) => pathname.startsWith(p));
     }
-    if (item.href === "/ministerios" || item.href === "/minhas-escalas") {
-      return ["/ministerios", "/escalas", "/minhas-escalas"].some((p) => pathname.startsWith(p));
-    }
-    if (item.href === "/comunicacao") {
-      return ["/comunicacao", "/mensagens", "/notificacoes", "/enquetes"].some((p) => pathname.startsWith(p));
+    // "Minhas escalas" (perfil membro) cobre as sub-rotas de escala.
+    if (item.href === "/minhas-escalas") {
+      return pathname.startsWith("/escalas");
     }
     return false;
   }
@@ -204,7 +204,7 @@ export function SidebarV2({
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13.5px] font-bold text-ink">{user.name}</div>
                 <div className="text-[11.5px] text-ink-faint">
-                  {user.role === "admin" ? "Administrador" : user.role === "leader" ? "Líder" : "Membro"}
+                  {roleLabel || (user.role === "admin" ? "Administrador" : user.role === "leader" ? "Líder" : "Membro")}
                 </div>
               </div>
             )}
