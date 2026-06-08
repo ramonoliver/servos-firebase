@@ -348,7 +348,6 @@ export function DashboardHero({
               onClick={() => setQuickActionsOpen((v) => !v)}
               className="flex h-11 items-center gap-2 rounded-full bg-[#FF6B57] px-5 text-[13px] font-semibold text-white shadow-[0_16px_34px_-18px_rgba(255,107,87,0.55)] transition hover:brightness-[0.97]"
             >
-              <Icon name="plus" size={16} />
               <span>Ações rápidas</span>
               <Icon name="chevron" size={14} className={cn("transition-transform duration-200", quickActionsOpen && "rotate-90")} />
             </button>
@@ -1372,10 +1371,6 @@ export function DashboardV3Home({ data }: { data: DashboardV3Data }) {
               <PriorityList items={data.priorityItems} />
               <ActivityTimeline items={data.timeline} />
               <UpcomingEvents items={data.upcoming} />
-            </section>
-            <section className="grid min-w-0 items-stretch gap-5 xl:grid-cols-2">
-              <CarePeopleSection people={data.carePeople} />
-              <InsightCards items={data.insights} />
             </section>
           </>
         )}

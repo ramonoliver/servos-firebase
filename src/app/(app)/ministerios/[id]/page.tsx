@@ -351,22 +351,38 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
               Nenhuma escala encontrada.
             </div>
           ) : (
-            schedules.map((s) => {
-              const event = events.find((e) => e.id === s.event_id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setSelectedScheduleId(s.id)}
-                  className="block w-full px-5 py-3 text-left border-t border-border-soft first:border-t-0 hover:bg-brand-glow transition-colors"
-                >
-                  <div className="text-sm font-medium">{event?.name || "Evento"}</div>
-                  <div className="text-[11px] text-ink-faint">
-                    {s.date} · {s.time}
-                  </div>
-                </button>
-              );
-            })
+            <div className="space-y-2 px-4 pb-4">
+              {schedules.map((s) => {
+                const event = events.find((e) => e.id === s.event_id);
+                const day = new Date(`${s.date}T12:00:00`);
+                const dd = String(day.getDate()).padStart(2, "0");
+                const mm = day
+                  .toLocaleDateString("pt-BR", { month: "short" })
+                  .replace(".", "")
+                  .toUpperCase();
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedScheduleId(s.id)}
+                    className="flex w-full items-center gap-3 rounded-[14px] border border-border-soft bg-white/60 p-3 text-left transition hover:border-ink-ghost hover:bg-white hover:shadow-soft"
+                  >
+                    <div className="flex h-11 w-11 flex-shrink-0 flex-col items-center justify-center rounded-[12px] bg-brand-light text-brand-deep">
+                      <span className="text-[15px] font-extrabold leading-none">{dd}</span>
+                      <span className="text-[9px] font-bold uppercase">{mm}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-bold text-ink">{event?.name || "Evento"}</div>
+                      <div className="text-[11px] text-ink-muted">
+                        {s.time}
+                        {s.published === false ? " · Rascunho" : ""}
+                      </div>
+                    </div>
+                    <span aria-hidden className="flex-shrink-0 text-ink-faint">&rsaquo;</span>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

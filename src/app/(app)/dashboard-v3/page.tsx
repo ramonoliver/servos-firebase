@@ -220,15 +220,16 @@ export default function DashboardV3Page() {
       .filter(Boolean) as Schedule[];
     const nextMemberSchedule = myUpcoming[0] || upcomingSchedules[0];
 
-    const todaysCells = cells.filter((cell) => {
-      const weekday = today.toLocaleDateString("pt-BR", { weekday: "long" }).toLowerCase();
-      return weekday.startsWith((cell.week_day || "").slice(0, 3).toLowerCase());
-    });
     const dbPrayerRequests = pastoralNotes.filter((n) => n.type === "prayer_request");
     const activePrayerRequests = dbPrayerRequests.filter((request) => request.status !== "resolved");
-    const visitorsWithoutCare = members.filter((m) => m.role === "member" && !m.cell_id).length;
     const dbCareCases = pastoralNotes.filter((n) => n.type === "care_case");
     const openCareCount = dbCareCases.length;
+    const presenceAvg = cells.length
+      ? Math.round(
+          cells.reduce((sum, cellItem) => sum + (cellItem.health?.frequency ?? 0), 0) / cells.length
+        )
+      : 0;
+    const activeMinistries = departments.length;
 
     const heroTitle =
       profileMode === "connect"
@@ -257,40 +258,40 @@ export default function DashboardV3Page() {
     const priorities: PriorityCard[] = isAdminLike
       ? [
           {
-            label: "Confirmações pendentes",
-            value: pendingConfirmations,
-            description: "voluntários ainda precisam responder às escalas.",
-            href: "/escalas",
-            action: "Revisar confirmações",
-            icon: "check",
+            label: "Ministérios ativos",
+            value: activeMinistries,
+            description: "equipes servindo na igreja.",
+            href: "/ministerios",
+            action: "Ver ministérios",
+            icon: "spark",
             tone: "coral",
           },
           {
-            label: "Pessoas em cuidado",
-            value: openCareCount,
-            description: "acompanhamentos pastorais em aberto.",
-            href: "/acompanhamentos",
-            action: "Abrir cuidado",
-            icon: "heart",
-            tone: "care",
+            label: "Membros ativos",
+            value: members.length,
+            description: "pessoas na base da igreja.",
+            href: "/pessoas",
+            action: "Ver pessoas",
+            icon: "users",
+            tone: "visitor",
           },
           {
-            label: "Células acontecendo",
-            value: Math.max(todaysCells.length, cells.length),
-            description: "encontros ativos ou próximos nesta semana.",
+            label: "Células ativas",
+            value: cells.length,
+            description: "grupos em atividade nesta semana.",
             href: "/celulas",
             action: "Ver células",
-            icon: "calendar",
+            icon: "home",
             tone: "cell",
           },
           {
-            label: "Visitantes sem acompanhamento",
-            value: visitorsWithoutCare,
-            description: "pessoas novas aguardando conexão.",
-            href: "/pessoas",
-            action: "Conectar visitantes",
-            icon: "users",
-            tone: "visitor",
+            label: "Presença média",
+            value: presenceAvg ? `${presenceAvg}%` : "—",
+            description: "frequência média das células.",
+            href: "/relatorios",
+            action: "Ver relatórios",
+            icon: "clock",
+            tone: "care",
           },
         ]
       : [

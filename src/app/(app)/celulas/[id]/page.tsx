@@ -57,6 +57,7 @@ export default function CellDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [meetings, setMeetings] = useState<CellMeeting[]>([]);
   const [meetingAttendance, setMeetingAttendance] = useState<CellAttendanceRow[]>([]);
+  const [careNotes, setCareNotes] = useState<Array<{ person_id?: string; type?: string; status?: string; title?: string; description?: string }>>([]);
   const [meetingModal, setMeetingModal] = useState<null | { meeting?: CellMeeting }>(null);
   const [deleteMeeting, setDeleteMeeting] = useState<CellMeeting | null>(null);
 
@@ -85,11 +86,13 @@ export default function CellDetailPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [{ data: usersData }, cellsData] = await Promise.all([
+      const [{ data: usersData }, cellsData, { data: notesData }] = await Promise.all([
         supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
         fetchCells(),
+        supabase.from("pastoral_notes").select("*").eq("church_id", user.church_id).eq("type", "care_case"),
       ]);
       setMembers((usersData || []) as User[]);
+      setCareNotes((notesData || []) as typeof careNotes);
       setCellMembers(cellsData.cellMembers.filter((cm) => cm.cell_id === cellId));
       setCell(cellsData.cells.find((c) => c.id === cellId) ?? null);
       setNetworks(cellsData.networks);
@@ -118,6 +121,19 @@ export default function CellDetailPage() {
     () => cellMembers.map((cm) => memberById.get(cm.user_id)).filter(Boolean) as User[],
     [cellMembers, memberById]
   );
+
+  // Pessoas desta célula que estão em acompanhamento pastoral aberto.
+  const careMembers = useMemo(() => {
+    const open = careNotes.filter((n) => n.type === "care_case" && n.status !== "resolved");
+    return memberUsers
+      .map((m) => {
+        const note = open.find((n) => n.person_id === m.id);
+        return note
+          ? { member: m, reason: note.description || note.title || "Acompanhamento pastoral" }
+          : null;
+      })
+      .filter(Boolean) as Array<{ member: User; reason: string }>;
+  }, [careNotes, memberUsers]);
 
   async function handleDelete() {
     if (!cell) return;
@@ -320,6 +336,40 @@ export default function CellDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Pessoas precisando de cuidado (admin/pastor/líder desta célula) */}
+        {(canManage || canDelete) && (
+          <div className="rounded-[20px] border border-border-soft bg-white/70 p-5 shadow-soft backdrop-blur">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-[17px] font-bold text-ink">Pessoas precisando de cuidado</h2>
+              {careMembers.length > 0 && (
+                <span className="rounded-full bg-amber-light px-2.5 py-1 text-[11px] font-bold text-amber">{careMembers.length}</span>
+              )}
+            </div>
+            {careMembers.length === 0 ? (
+              <p className="py-6 text-center text-sm text-ink-faint">Ninguém em acompanhamento nesta célula. 🎉</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {careMembers.map(({ member, reason }) => (
+                  <Link
+                    key={member.id}
+                    href={`/membros/${member.id}`}
+                    className="flex items-start gap-3 rounded-[14px] border border-amber-light bg-amber-light/30 p-3 transition hover:bg-amber-light/60"
+                  >
+                    <Avatar name={member.name} color={member.avatar_color} photoUrl={member.photo_url} size={38} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-semibold text-ink">{member.name}</div>
+                      <div className="mt-0.5 line-clamp-2 text-[11px] text-ink-muted">{reason}</div>
+                      <span className="mt-1.5 inline-block rounded-full bg-amber-light px-2 py-0.5 text-[10px] font-bold text-amber">
+                        Atenção pastoral
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         </div>
 
         {/* Side: leadership + health */}
