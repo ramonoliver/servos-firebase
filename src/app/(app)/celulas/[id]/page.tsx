@@ -22,6 +22,7 @@ import {
   type CellAttendanceRow,
   type CellNetwork,
 } from "@/lib/cells/types";
+import { isCareCaseType, CARE_CASE_TYPES } from "@/lib/care/types";
 import type { User } from "@/types";
 
 const HEALTH_LABELS: Record<keyof CellHealth, string> = {
@@ -89,7 +90,7 @@ export default function CellDetailPage() {
       const [{ data: usersData }, cellsData, { data: notesData }] = await Promise.all([
         supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
         fetchCells(),
-        supabase.from("pastoral_notes").select("*").eq("church_id", user.church_id).eq("type", "care_case"),
+        supabase.from("pastoral_notes").select("*").eq("church_id", user.church_id).in("type", [...CARE_CASE_TYPES]),
       ]);
       setMembers((usersData || []) as User[]);
       setCareNotes((notesData || []) as typeof careNotes);
@@ -124,7 +125,7 @@ export default function CellDetailPage() {
 
   // Pessoas desta célula que estão em acompanhamento pastoral aberto.
   const careMembers = useMemo(() => {
-    const open = careNotes.filter((n) => n.type === "care_case" && n.status !== "resolved");
+    const open = careNotes.filter((n) => isCareCaseType(n.type) && n.status !== "resolved");
     return memberUsers
       .map((m) => {
         const note = open.find((n) => n.person_id === m.id);

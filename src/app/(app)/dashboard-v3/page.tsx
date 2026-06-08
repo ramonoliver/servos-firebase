@@ -24,6 +24,7 @@ import {
   type TimelineItem,
   type UpcomingEventItem,
 } from "@/components/dashboard/home-v3-ui";
+import { isCareCaseType, isPrayerType } from "@/lib/care/types";
 import type { Cell, CellMemberRow, CellNetwork } from "@/lib/cells/types";
 import type { Department, Event, Notification, Schedule, ScheduleMember, User } from "@/types";
 
@@ -220,9 +221,9 @@ export default function DashboardV3Page() {
       .filter(Boolean) as Schedule[];
     const nextMemberSchedule = myUpcoming[0] || upcomingSchedules[0];
 
-    const dbPrayerRequests = pastoralNotes.filter((n) => n.type === "prayer_request");
+    const dbPrayerRequests = pastoralNotes.filter((n) => isPrayerType(n.type));
     const activePrayerRequests = dbPrayerRequests.filter((request) => request.status !== "resolved");
-    const dbCareCases = pastoralNotes.filter((n) => n.type === "care_case");
+    const dbCareCases = pastoralNotes.filter((n) => isCareCaseType(n.type));
     const openCareCount = dbCareCases.length;
     const presenceAvg = cells.length
       ? Math.round(
@@ -373,7 +374,7 @@ export default function DashboardV3Page() {
       });
     }
 
-    const dbTimeline = pastoralNotes.filter((n) => n.type !== "care_case" && n.type !== "prayer_request");
+    const dbTimeline = pastoralNotes.filter((n) => !isCareCaseType(n.type) && !isPrayerType(n.type));
     const timeline: TimelineItem[] = [
       ...dbTimeline.slice(0, 4).map((event) => {
         const person = members.find((m) => m.id === event.person_id);
