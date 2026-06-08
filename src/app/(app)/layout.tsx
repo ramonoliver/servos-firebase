@@ -114,7 +114,7 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     // Alertas pastorais (loop derivado) segue gated até ser implementado.
     { href: "/acompanhamentos", label: "Acompanhamentos", icon: "compass", group: "Cuidado", show: canCare },
     { href: "/pedidos-oracao", label: "Pedidos de oração", icon: "pray", group: "Cuidado", show: canCare },
-    { href: "/alertas", label: "Alertas pastorais", icon: "bell", group: "Cuidado", show: SHOW_UNBUILT && canCare },
+    { href: "/alertas", label: "Alertas pastorais", icon: "bell", group: "Cuidado", show: canCare },
 
     // COMUNICAÇÃO
     { href: "/comunicacao", label: "Comunicados", icon: "megaphone", group: "Comunicação", show: SHOW_UNBUILT && canMessage },
