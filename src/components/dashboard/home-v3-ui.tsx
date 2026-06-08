@@ -60,6 +60,9 @@ export type UpcomingEventItem = {
   badge: string;
   href: string;
   icon: IconName;
+  /** Discriminador de origem. NÃO usar `icon` para classificar (eventos
+   * especiais também usam o ícone "calendar"). */
+  kind?: "schedule" | "cell" | "event";
 };
 
 export type CarePerson = {
@@ -577,7 +580,7 @@ export function MemberAgenda({ items }: { items: UpcomingEventItem[] }) {
       ) : (
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {items.slice(0, 4).map((item) => {
-            const isEscala = item.icon === "calendar";
+            const isEscala = item.kind === "schedule";
             const isPending = isEscala && item.badge === "Confirmar";
             const isConfirmed = isEscala && !isPending;
             const surface = isPending
@@ -1271,7 +1274,7 @@ function HybridHomeSections({ data }: { data: DashboardV3Data }) {
   // precisando de cuidado", sem "Insights da semana" (tudo exclusivo de
   // Admin/Pastor/Coordenador/Supervisor) e sem "Agenda pessoal" (já coberta
   // por "Próximos encontros"). As próprias escalas aparecem em destaque.
-  const scheduleItems = data.upcoming.filter((item) => item.icon === "calendar");
+  const scheduleItems = data.upcoming.filter((item) => item.kind === "schedule");
   const hasSchedules = scheduleItems.length > 0;
 
   return (
@@ -1293,7 +1296,7 @@ function HybridHomeSections({ data }: { data: DashboardV3Data }) {
 }
 
 function MemberHomeSections({ data }: { data: DashboardV3Data }) {
-  const scheduleItems = data.upcoming.filter((item) => item.icon === "calendar");
+  const scheduleItems = data.upcoming.filter((item) => item.kind === "schedule");
   const hasSchedules = scheduleItems.length > 0;
 
   return (

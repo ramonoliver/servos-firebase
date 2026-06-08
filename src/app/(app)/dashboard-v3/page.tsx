@@ -415,6 +415,7 @@ export default function DashboardV3Page() {
         badge: myStatus === "pending" ? "Confirmar" : myStatus === "confirmed" ? "Confirmado" : "Ministério",
         href: `/escalas?id=${schedule.id}`,
         icon: "calendar",
+        kind: "schedule" as const,
       };
     });
     const upcomingFromCells: UpcomingEventItem[] = isCommonMember
@@ -427,6 +428,7 @@ export default function DashboardV3Page() {
             badge: "Célula",
             href: `/celulas/${myCell.id}`,
             icon: "home" as const,
+            kind: "cell" as const,
           }]
         : []
       : cells.slice(0, Math.max(0, 3 - upcomingFromSchedules.length)).map((cell) => ({
@@ -437,6 +439,7 @@ export default function DashboardV3Page() {
           badge: "Célula",
           href: `/celulas/${cell.id}`,
           icon: "home" as const,
+          kind: "cell" as const,
         }));
 
     const upcomingFromEvents: UpcomingEventItem[] = events
@@ -450,6 +453,7 @@ export default function DashboardV3Page() {
         badge: event.type === "recurring" ? "Culto" : "Evento",
         href: `/eventos/${event.id}`,
         icon: event.type === "recurring" ? "spark" as const : "calendar" as const,
+        kind: "event" as const,
       }));
 
     const upcoming: UpcomingEventItem[] = [
