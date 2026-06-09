@@ -13,19 +13,25 @@ export function Modal({
 }) {
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = React.useRef<HTMLElement | null>(null);
+  // `close` via ref: a prop costuma ser uma arrow function nova a cada render.
+  // Sem isso, o efeito reexecutava a cada tecla e roubava o foco para o botão X.
+  const closeRef = React.useRef(close);
+  closeRef.current = close;
 
   React.useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement | null;
     closeButtonRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") closeRef.current();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       previousFocusRef.current?.focus();
     };
-  }, [close]);
+    // Roda só na montagem/desmontagem — não deve reagir a mudanças de `close`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
