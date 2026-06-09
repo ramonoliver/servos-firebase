@@ -85,6 +85,7 @@ function ShellV2({ children }: { children: React.ReactNode }) {
   const isSupervisor = br.includes("supervisor");
   const isCellLeader = br.includes("lider_celula");
   const isMinistryLeader = br.includes("lider_ministerio");
+  const isVolunteer = br.includes("voluntario"); // membro que serve num ministério
   const notPureMember = isAdmin || isPastor || isSupervisor || isCellLeader || isMinistryLeader;
   const isPureMember = !notPureMember;
   const canCare = isAdmin || isPastor || isSupervisor || isCellLeader;
@@ -97,8 +98,9 @@ function ShellV2({ children }: { children: React.ReactNode }) {
     // OPERAÇÃO
     { href: "/calendario", label: "Agenda", icon: "calendar-days", group: "Operação", show: true },
     { href: "/eventos", label: "Eventos", icon: "calendar", group: "Operação", show: notPureMember },
-    { href: isPureMember ? "/minhas-escalas" : "/escalas", label: isPureMember ? "Minhas escalas" : "Escalas", icon: "check-square", group: "Operação", show: true },
-    { href: "/ministerios", label: "Ministérios", icon: "heart", group: "Operação", show: notPureMember },
+    { href: "/escalas", label: "Escalas", icon: "check-square", group: "Operação", show: notPureMember },
+    { href: "/minhas-escalas", label: "Minhas escalas", icon: "check-square", group: "Operação", show: isVolunteer },
+    { href: "/ministerios", label: "Ministérios", icon: "heart", group: "Operação", show: true },
 
     // COMUNIDADE
     { href: "/pessoas", label: "Pessoas", icon: "users", group: "Comunidade", show: notPureMember },

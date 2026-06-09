@@ -21,19 +21,23 @@ export default function MinisteriosPage() {
 
   const [members, setMembers] = useState<User[]>([]);
   const [allDM, setAllDM] = useState<DepartmentMember[]>([]);
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
+  const [interested, setInterested] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   async function loadData() {
     setLoading(true);
 
-    const [{ data: usersData, error: usersError }, { data: dmData, error: dmError }] =
+    const [{ data: usersData, error: usersError }, { data: dmData, error: dmError }, { data: deptData, error: deptError }] =
       await Promise.all([
         supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
         supabase.from("department_members").select("*"),
+        // Todos os ministérios da igreja (para descoberta — não só os que o usuário lidera).
+        supabase.from("departments").select("*").eq("church_id", user.church_id).order("created_at", { ascending: false }),
       ]);
 
-    if (usersError || dmError) {
-      console.error({ usersError, dmError });
+    if (usersError || dmError || deptError) {
+      console.error({ usersError, dmError, deptError });
       toast("Erro ao carregar ministérios.");
       setLoading(false);
       return;
@@ -41,7 +45,27 @@ export default function MinisteriosPage() {
 
     setMembers((usersData || []) as User[]);
     setAllDM((dmData || []) as DepartmentMember[]);
+    setAllDepartments((deptData || []) as Department[]);
     setLoading(false);
+  }
+
+  async function sendInterest(departmentId: string) {
+    try {
+      const res = await fetch("/api/ministries/interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ departmentId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao enviar interesse.");
+        return;
+      }
+      setInterested((prev) => new Set(prev).add(departmentId));
+      toast(data?.warning || "Interesse enviado à liderança! 🙌");
+    } catch {
+      toast("Erro ao enviar interesse.");
+    }
   }
 
   useEffect(() => {
@@ -81,7 +105,7 @@ export default function MinisteriosPage() {
       <PageHeader
         eyebrow="Serviço"
         title="Ministérios"
-        subtitle={`${departments.length} ministério${departments.length === 1 ? "" : "s"} cadastrado${departments.length === 1 ? "" : "s"}`}
+        subtitle={`${allDepartments.length} ministério${allDepartments.length === 1 ? "" : "s"} na igreja`}
         actions={
           canDo("department.create") && (
             <button onClick={() => setModal({ type: "form" })} className="btn btn-primary btn-sm">
@@ -93,14 +117,16 @@ export default function MinisteriosPage() {
 
       {loading ? (
         <div className="py-12 text-center text-sm text-ink-faint">Carregando ministérios...</div>
-      ) : departments.length === 0 ? (
+      ) : allDepartments.length === 0 ? (
         <div className="py-12 text-center text-sm text-ink-faint">Nenhum ministério cadastrado.</div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {departments.map((d) => {
+          {allDepartments.map((d) => {
             const count = allDM.filter((dm) => dm.department_id === d.id).length;
             const firstLeader = (d.leader_ids || [])[0] ? members.find((m) => m.id === d.leader_ids[0]) : null;
             const extraLeaders = Math.max((d.leader_ids?.length || 0) - 1, 0);
+            const isMemberOfDept = allDM.some((dm) => dm.department_id === d.id && dm.user_id === user.id);
+            const canManageThis = canDo("department.edit", d.id) || canDo("department.delete");
 
             return (
               <div
@@ -170,18 +196,33 @@ export default function MinisteriosPage() {
 
                 {/* Footer: ações */}
                 <div className="mt-3 flex gap-2 border-t border-border-soft pt-3">
-                  <Link href={`/ministerios/${d.id}`} className="btn btn-primary btn-sm flex flex-1 items-center justify-center gap-1.5">
+                  <Link
+                    href={`/ministerios/${d.id}`}
+                    className={`btn btn-sm flex flex-1 items-center justify-center gap-1.5 ${canManageThis || isMemberOfDept ? "btn-primary" : "btn-secondary"}`}
+                  >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" /></svg>
                     Ver detalhes
                   </Link>
-                  {canDo("department.edit", d.id) && (
-                    <button onClick={() => setModal({ type: "form", dept: d })} className="btn btn-secondary btn-sm flex items-center gap-1" title="Editar ministério">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                    </button>
-                  )}
-                  {canDo("department.delete") && (
-                    <button onClick={() => setModal({ type: "delete", dept: d })} className="btn btn-danger btn-sm flex items-center gap-1" title="Excluir ministério">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></svg>
+                  {canManageThis ? (
+                    <>
+                      {canDo("department.edit", d.id) && (
+                        <button onClick={() => setModal({ type: "form", dept: d })} className="btn btn-secondary btn-sm flex items-center gap-1" title="Editar ministério">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </button>
+                      )}
+                      {canDo("department.delete") && (
+                        <button onClick={() => setModal({ type: "delete", dept: d })} className="btn btn-danger btn-sm flex items-center gap-1" title="Excluir ministério">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></svg>
+                        </button>
+                      )}
+                    </>
+                  ) : isMemberOfDept ? null : (
+                    <button
+                      onClick={() => sendInterest(d.id)}
+                      disabled={interested.has(d.id)}
+                      className="btn btn-primary btn-sm flex flex-1 items-center justify-center gap-1.5 disabled:opacity-60"
+                    >
+                      {interested.has(d.id) ? "Interesse enviado ✓" : "Tenho interesse"}
                     </button>
                   )}
                 </div>
