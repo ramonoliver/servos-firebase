@@ -16,6 +16,7 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
   const [showAddMember, setShowAddMember] = useState(false);
   const [showEditDept, setShowEditDept] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [interestSent, setInterestSent] = useState(false);
 
   const [allMembers, setAllMembers] = useState<User[]>([]);
   const [dms, setDms] = useState<DepartmentMember[]>([]);
@@ -201,6 +202,66 @@ export default function MinisterioDetailPage({ params }: { params: { id: string 
     return (
       <PageShell>
         <div className="py-20 text-center text-ink-faint">Carregando ministério...</div>
+      </PageShell>
+    );
+  }
+
+  // Acesso ao detalhe: só quem participa/lidera o ministério (ou admin/pastor).
+  // Quem não participa vê apenas que o ministério existe e pode sinalizar interesse.
+  const isMemberOfDept = deptMemberIds.includes(user.id);
+  const isLeaderOfDept = [...(dept.leader_ids || []), ...(dept.co_leader_ids || [])].includes(user.id);
+  const canAccessDetail =
+    user.role === "admin" ||
+    user.cell_role === "pastor" ||
+    user.cell_role === "coordenacao" ||
+    canDo("department.edit", dept.id) ||
+    isLeaderOfDept ||
+    isMemberOfDept;
+
+  async function sendInterest() {
+    if (!dept) return;
+    try {
+      const res = await fetch("/api/ministries/interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ departmentId: dept.id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao enviar interesse.");
+        return;
+      }
+      setInterestSent(true);
+      toast(data?.warning || "Interesse enviado à liderança! 🙌");
+    } catch {
+      toast("Erro ao enviar interesse.");
+    }
+  }
+
+  if (!canAccessDetail) {
+    return (
+      <PageShell>
+        <Link href="/ministerios" className="mb-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline">
+          <span aria-hidden>&larr;</span> Ministérios
+        </Link>
+        <div className="mx-auto max-w-[460px] rounded-[22px] border border-border-soft bg-white/70 px-6 py-12 text-center shadow-soft backdrop-blur">
+          <div
+            className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-sm"
+            style={{ background: dept.color + "18", color: dept.color }}
+          >
+            {getIconEmoji(dept.icon)}
+          </div>
+          <h1 className="mt-4 font-display text-[22px] font-bold text-ink">{dept.name}</h1>
+          {dept.description && <p className="mx-auto mt-2 max-w-[360px] text-[13px] leading-relaxed text-ink-muted">{dept.description}</p>}
+          <p className="mt-3 text-[12px] text-ink-faint">Você ainda não participa deste ministério.</p>
+          <button
+            onClick={sendInterest}
+            disabled={interestSent}
+            className="btn btn-primary btn-sm mt-5 disabled:opacity-60"
+          >
+            {interestSent ? "Interesse enviado ✓" : "Tenho interesse em participar"}
+          </button>
+        </div>
       </PageShell>
     );
   }

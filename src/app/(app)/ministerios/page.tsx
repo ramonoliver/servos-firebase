@@ -196,15 +196,15 @@ export default function MinisteriosPage() {
 
                 {/* Footer: ações */}
                 <div className="mt-3 flex gap-2 border-t border-border-soft pt-3">
-                  <Link
-                    href={`/ministerios/${d.id}`}
-                    className={`btn btn-sm flex flex-1 items-center justify-center gap-1.5 ${canManageThis || isMemberOfDept ? "btn-primary" : "btn-secondary"}`}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" /></svg>
-                    Ver detalhes
-                  </Link>
-                  {canManageThis ? (
+                  {canManageThis || isMemberOfDept ? (
                     <>
+                      <Link
+                        href={`/ministerios/${d.id}`}
+                        className="btn btn-primary btn-sm flex flex-1 items-center justify-center gap-1.5"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" /></svg>
+                        Ver detalhes
+                      </Link>
                       {canDo("department.edit", d.id) && (
                         <button onClick={() => setModal({ type: "form", dept: d })} className="btn btn-secondary btn-sm flex items-center gap-1" title="Editar ministério">
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -216,7 +216,8 @@ export default function MinisteriosPage() {
                         </button>
                       )}
                     </>
-                  ) : isMemberOfDept ? null : (
+                  ) : (
+                    // Não participa: sem acesso ao detalhe, apenas demonstra interesse.
                     <button
                       onClick={() => sendInterest(d.id)}
                       disabled={interested.has(d.id)}

@@ -1408,10 +1408,13 @@ function HybridHomeSections({ data }: { data: DashboardV3Data }) {
 function MemberHomeSections({ data }: { data: DashboardV3Data }) {
   const scheduleItems = data.upcoming.filter((item) => item.kind === "schedule");
   const hasSchedules = scheduleItems.length > 0;
+  const hasMinistry = data.personalMinistries.length > 0;
 
   return (
     <>
       <MemberAgenda items={data.upcoming} />
+      {/* Quem já serve vê os seus ministérios em destaque. */}
+      {hasMinistry && <MyMinistriesPanel items={data.personalMinistries} />}
       <section
         className={cn(
           "grid min-w-0 items-stretch gap-6",
@@ -1422,7 +1425,8 @@ function MemberHomeSections({ data }: { data: DashboardV3Data }) {
         {hasSchedules && <MemberSchedulePanel items={scheduleItems} />}
         <MemberPrayerPanel items={data.prayers} />
       </section>
-      <MemberMinistryGrid items={data.discoverMinistries} />
+      {/* "Em que você quer servir?" só para quem AINDA não está em nenhum ministério. */}
+      {!hasMinistry && <MemberMinistryGrid items={data.discoverMinistries} />}
     </>
   );
 }
