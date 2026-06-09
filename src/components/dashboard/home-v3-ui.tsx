@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui";
-import { cn } from "@/lib/utils/helpers";
+import { cn, getIconEmoji } from "@/lib/utils/helpers";
 import type { User } from "@/types";
 
 type IconName =
@@ -63,6 +63,14 @@ export type UpcomingEventItem = {
   /** Discriminador de origem. NÃO usar `icon` para classificar (eventos
    * especiais também usam o ícone "calendar"). */
   kind?: "schedule" | "cell" | "event";
+};
+
+export type MinistrySummary = {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  href: string;
 };
 
 export type CarePerson = {
@@ -130,6 +138,8 @@ export type DashboardV3Data = {
   upcoming: UpcomingEventItem[];
   /** Escalas pessoais do usuário (contexto pessoal no Início, inclusive admin/pastor). */
   personalSchedules: UpcomingEventItem[];
+  /** Ministérios em que o próprio usuário participa. */
+  personalMinistries: MinistrySummary[];
   carePeople: CarePerson[];
   insights: Insight[];
   cell?: CellSummary;
@@ -1270,6 +1280,43 @@ function MemberSchedulePanel({ items }: { items: UpcomingEventItem[] }) {
   );
 }
 
+function MyMinistriesPanel({ items }: { items: MinistrySummary[] }) {
+  return (
+    <Panel className="p-6" dataSectionId="my-ministries">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">Serviço</div>
+          <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-[#191919] md:text-[24px]">Meus ministérios</h2>
+        </div>
+        <Link href="/ministerios" className="shrink-0 text-[13px] font-semibold text-[#FF6B57] transition hover:opacity-75">
+          Ver todos
+        </Link>
+      </div>
+      <div className="flex flex-col gap-2">
+        {items.map((m) => (
+          <Link
+            key={m.id}
+            href={m.href}
+            className="flex items-center gap-3 rounded-[16px] border border-[#F0EFEB] bg-white p-3 transition hover:bg-[#FAFAF8]"
+          >
+            <div
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] text-[18px]"
+              style={{ background: m.color + "18", color: m.color }}
+            >
+              {getIconEmoji(m.icon)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[14px] font-bold text-[#191919]">{m.name}</div>
+              <div className="text-[11px] text-[#6E6E6E]">Você participa</div>
+            </div>
+            <Icon name="arrow" size={14} className="shrink-0 text-[#CCCCCC]" />
+          </Link>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 function HybridHomeSections({ data }: { data: DashboardV3Data }) {
   // Líderes de célula/ministério: sem os cards de prioridade (confirmações
   // pendentes, pessoas em cuidado, células, visitantes), sem "Pessoas
@@ -1384,22 +1431,25 @@ export function DashboardV3Home({ data }: { data: DashboardV3Data }) {
 
             {/* Contexto pessoal: quem administra/pastoreia mas também participa
                 de célula/ministério não perde seu lado pessoal no Início. */}
-            {(data.personalSchedules.length > 0 || data.cell) && (
-              <section className="space-y-3">
-                <div className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
-                  Você também
-                </div>
-                <div
-                  className={cn(
-                    "grid min-w-0 items-stretch gap-5",
-                    data.personalSchedules.length > 0 && data.cell && "xl:grid-cols-2",
-                  )}
-                >
-                  {data.personalSchedules.length > 0 && <MemberSchedulePanel items={data.personalSchedules} />}
-                  {data.cell && <MemberCellPanel cell={data.cell} />}
-                </div>
-              </section>
-            )}
+            {(() => {
+              const personalCount =
+                (data.personalSchedules.length > 0 ? 1 : 0) +
+                (data.personalMinistries.length > 0 ? 1 : 0) +
+                (data.cell ? 1 : 0);
+              if (personalCount === 0) return null;
+              return (
+                <section className="space-y-3">
+                  <div className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
+                    Você também
+                  </div>
+                  <div className={cn("grid min-w-0 items-start gap-5", personalCount >= 2 && "xl:grid-cols-2")}>
+                    {data.personalSchedules.length > 0 && <MemberSchedulePanel items={data.personalSchedules} />}
+                    {data.personalMinistries.length > 0 && <MyMinistriesPanel items={data.personalMinistries} />}
+                    {data.cell && <MemberCellPanel cell={data.cell} />}
+                  </div>
+                </section>
+              );
+            })()}
           </>
         )}
       </div>

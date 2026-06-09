@@ -5,7 +5,7 @@ import { useApp } from "@/hooks/use-app";
 import { supabase } from "@/lib/firebase";
 import { suggestSubstitute } from "@/lib/ai/engine";
 import { formatDate, getDayOfWeek, getInitials, getIconEmoji } from "@/lib/utils/helpers";
-import { Modal } from "@/components/ui";
+import { ConfirmDialog, Modal } from "@/components/ui";
 import { MentionInput } from "@/components/ui/mention-input";
 import type {
   Schedule,
@@ -81,6 +81,8 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
   const { user, toast, canDo, departments } = useApp();
 
   const [showAddMember, setShowAddMember] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<ScheduleMember | null>(null);
+  const [attachmentToRemove, setAttachmentToRemove] = useState<ScheduleAttachment | null>(null);
   const [activeTab, setActiveTab] = useState<"escalados" | "anexos" | "chat">("escalados");
   const [groupByFunction, setGroupByFunction] = useState(true);
   const [chatMsg, setChatMsg] = useState("");
@@ -461,7 +463,7 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
 
   async function removeMemberFromSchedule(smItem: ScheduleMember) {
     const m = members.find((u) => u.id === smItem.user_id);
-    if (!confirm(`Remover ${m?.name || "este membro"} da escala?`)) return;
+    setMemberToRemove(null);
     try {
       const params = new URLSearchParams({ scheduleId: schedule!.id, scheduleMemberId: smItem.id });
       const response = await fetch(`/api/schedule-members?${params.toString()}`, { method: "DELETE" });
@@ -605,7 +607,7 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
 
   async function removeAttachment(attachment: ScheduleAttachment) {
     if (!schedule || !canManageAttachments) return;
-    if (!confirm(`Remover o anexo "${attachment.file_name}"?`)) return;
+    setAttachmentToRemove(null);
     try {
       const params = new URLSearchParams({ scheduleId: schedule.id, attachmentId: attachment.id });
       const response = await fetch(`/api/schedule-attachments?${params.toString()}`, { method: "DELETE" });
@@ -704,7 +706,7 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
             </span>
             {canDo("schedule.edit") && (
               <button
-                onClick={() => removeMemberFromSchedule(item)}
+                onClick={() => setMemberToRemove(item)}
                 className="btn btn-ghost btn-sm text-danger opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Remover"
               >
@@ -1099,7 +1101,7 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
                               <button onClick={() => setPreviewAttachmentId(attachment.id)} className="btn btn-primary btn-sm">Abrir visualização</button>
                             )}
                             {canManageAttachments && (
-                              <button onClick={() => removeAttachment(attachment)} className="btn btn-danger btn-sm">Remover</button>
+                              <button onClick={() => setAttachmentToRemove(attachment)} className="btn btn-danger btn-sm">Remover</button>
                             )}
                           </div>
                         </div>
@@ -1214,6 +1216,26 @@ export function EscalaDetailPanel({ scheduleId, initialSchedule, onRefreshList }
             </div>
           )}
         </Modal>
+      )}
+
+      {memberToRemove && (
+        <ConfirmDialog
+          title="Remover da escala"
+          message={`Remover <strong>${(members.find((u) => u.id === memberToRemove.user_id)?.name || "este membro")}</strong> desta escala?`}
+          confirmLabel="Remover"
+          onCancel={() => setMemberToRemove(null)}
+          onConfirm={() => void removeMemberFromSchedule(memberToRemove)}
+        />
+      )}
+
+      {attachmentToRemove && (
+        <ConfirmDialog
+          title="Remover anexo"
+          message={`Remover o anexo <strong>${attachmentToRemove.file_name}</strong>?`}
+          confirmLabel="Remover"
+          onCancel={() => setAttachmentToRemove(null)}
+          onConfirm={() => void removeAttachment(attachmentToRemove)}
+        />
       )}
     </div>
   );

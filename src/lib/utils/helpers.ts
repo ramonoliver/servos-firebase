@@ -42,12 +42,21 @@ export function getGreeting(): string {
 
 export function getIconEmoji(icon: string): string {
   const map: Record<string, string> = {
+    // Minist\u00E9rios
     music: "\uD83C\uDFB5", camera: "\uD83D\uDCF7", heart: "\u2764\uFE0F",
     church: "\u26EA", cross: "\u271D\uFE0F", flower: "\uD83C\uDF38",
     flame: "\uD83D\uDD25", star: "\u2B50", book: "\uD83D\uDCD6",
     baby: "\uD83D\uDC76", pray: "\uD83D\uDE4F",
+    // Eventos \u2014 valores de categoria (church/care/book j\u00E1 cobertos acima)
+    event: "\u2728", vigil: "\uD83C\uDF19", evangelism: "\uD83D\uDCE2",
+    meeting: "\uD83D\uDDD3\uFE0F", congress: "\uD83C\uDFA4", training: "\uD83D\uDCD6",
+    care: "\u2764\uFE0F",
+    // Eventos \u2014 nomes de \u00EDcone
+    calendar: "\uD83D\uDCC5", spark: "\u2728", moon: "\uD83C\uDF19",
+    users: "\uD83D\uDC65", briefcase: "\uD83D\uDCBC", stage: "\uD83C\uDFA4",
   };
-  return map[icon] ?? icon;
+  // Fallback seguro: nunca exibe a chave crua (ex.: "vigil").
+  return map[icon] ?? "\uD83D\uDCC5";
 }
 
 export function pluralize(count: number, singular: string, plural?: string): string {

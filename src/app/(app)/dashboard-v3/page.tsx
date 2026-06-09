@@ -17,6 +17,7 @@ import {
   type CellSummary,
   type DashboardV3Data,
   type Insight,
+  type MinistrySummary,
   type PrayerRequestCardData,
   type PriorityCard,
   type PriorityListItem,
@@ -87,6 +88,7 @@ export default function DashboardV3Page() {
   const [cells, setCells] = useState<Cell[]>([]);
   const [cellMembers, setCellMembers] = useState<CellMemberRow[]>([]);
   const [networks, setNetworks] = useState<CellNetwork[]>([]);
+  const [myDepartmentIds, setMyDepartmentIds] = useState<string[]>([]);
   const [pastoralNotes, setPastoralNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -149,6 +151,13 @@ export default function DashboardV3Page() {
                   (link) => link.user_id === member.id && scopedDepartmentIds.has(link.department_id)
                 )
               );
+
+        // Ministérios em que o PRÓPRIO usuário participa (contexto pessoal).
+        setMyDepartmentIds(
+          ((departmentMembersData || []) as Array<{ user_id: string; department_id: string }>)
+            .filter((link) => link.user_id === user.id)
+            .map((link) => link.department_id)
+        );
 
         setMembers(scopedMembers);
         setSchedules(scopedSchedules);
@@ -485,6 +494,11 @@ export default function DashboardV3Page() {
       };
     });
 
+    // Ministérios em que o próprio usuário participa (contexto pessoal no Início).
+    const personalMinistries: MinistrySummary[] = departments
+      .filter((d) => myDepartmentIds.includes(d.id))
+      .map((d) => ({ id: d.id, name: d.name, icon: d.icon, color: d.color, href: `/ministerios/${d.id}` }));
+
     const carePeople: CarePerson[] = dbCareCases.map((care) => {
       const person = members.find((m) => m.id === care.person_id);
       return {
@@ -598,6 +612,7 @@ export default function DashboardV3Page() {
       timeline,
       upcoming,
       personalSchedules,
+      personalMinistries,
       carePeople,
       insights,
       cell,
@@ -605,7 +620,7 @@ export default function DashboardV3Page() {
       quickActions,
       notices,
     };
-  }, [cellMembers, cells, networks, church.name, departments, events, members, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
+  }, [cellMembers, cells, networks, church.name, departments, events, members, myDepartmentIds, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
 
   if (loading) return <DashboardV3Skeleton />;
 

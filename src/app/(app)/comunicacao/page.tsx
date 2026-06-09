@@ -177,34 +177,33 @@ export default function ComunicacaoPage() {
                 );
               })}
             </div>
-
-            {audience === "ministry" && (
-              <div className="mt-3">
-                <label className="input-label">Ministério</label>
-                <select className="input-field" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-                  <option value="">Selecione…</option>
-                  {targetDepartments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {audience === "cell" && (
-              <div className="mt-3">
-                <label className="input-label">Célula</label>
-                <select className="input-field" value={cellId} onChange={(e) => setCellId(e.target.value)}>
-                  <option value="">Selecione…</option>
-                  {targetCells.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
           </SoftCard>
 
           {/* Mensagem */}
           <SoftCard className="p-5">
             <div className="space-y-4">
+              {audience === "ministry" && (
+                <div>
+                  <label className="input-label">Ministério</label>
+                  <select className="input-field" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {targetDepartments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {audience === "cell" && (
+                <div>
+                  <label className="input-label">Célula</label>
+                  <select className="input-field" value={cellId} onChange={(e) => setCellId(e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {targetCells.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="input-label">Título</label>
                 <input
