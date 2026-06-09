@@ -71,6 +71,7 @@ export type MinistrySummary = {
   icon: string;
   color: string;
   href: string;
+  description?: string;
 };
 
 export type CarePerson = {
@@ -140,6 +141,8 @@ export type DashboardV3Data = {
   personalSchedules: UpcomingEventItem[];
   /** Ministérios em que o próprio usuário participa. */
   personalMinistries: MinistrySummary[];
+  /** Ministérios da igreja para o usuário descobrir e sinalizar interesse. */
+  discoverMinistries: MinistrySummary[];
   carePeople: CarePerson[];
   insights: Insight[];
   cell?: CellSummary;
@@ -1116,49 +1119,29 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
   );
 }
 
-const MEMBER_MINISTRIES = [
-  {
-    title: "Louvor",
-    description: "Use seu talento para glorificar a Deus.",
-    spots: "3 vagas",
-    icon: "spark" as IconName,
-    surface: "bg-[#EEF9F1] border-[#C8EDD5]",
-    accent: "text-[#1F8044]",
-  },
-  {
-    title: "Acolhimento",
-    description: "Receba as pessoas com amor e alegria.",
-    spots: "5 vagas",
-    icon: "heart" as IconName,
-    surface: "bg-[#FFF8ED] border-[#F2E0C2]",
-    accent: "text-[#C07B1A]",
-  },
-  {
-    title: "Ministério Kids",
-    description: "Trabalhe com crianças e faça a diferença.",
-    spots: "2 vagas",
-    icon: "users" as IconName,
-    surface: "bg-[#F5F0FF] border-[#DDD4FE]",
-    accent: "text-[#6D5DF0]",
-  },
-  {
-    title: "Mídia",
-    description: "Sirva com criatividade na comunicação.",
-    spots: "4 vagas",
-    icon: "message" as IconName,
-    surface: "bg-[#EEF4FF] border-[#C5D8FE]",
-    accent: "text-[#3B6CF4]",
-  },
-];
+function MemberMinistryGrid({ items }: { items: MinistrySummary[] }) {
+  const [interested, setInterested] = useState<Set<string>>(new Set());
 
-function MemberMinistryGrid() {
+  async function express(id: string) {
+    setInterested((prev) => new Set(prev).add(id));
+    try {
+      await fetch("/api/ministries/interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ departmentId: id }),
+      });
+    } catch {
+      /* feedback otimista; mantém o estado de enviado */
+    }
+  }
+
+  if (items.length === 0) return null;
+
   return (
     <Panel className="p-6" dataSectionId="member-ministry">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">
-            Serviço
-          </div>
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#767676]">Serviço</div>
           <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-[#191919] md:text-[24px]">
             Em que você quer servir?
           </h2>
@@ -1172,37 +1155,39 @@ function MemberMinistryGrid() {
         </Link>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {MEMBER_MINISTRIES.map((item) => (
-          <Link
-            key={item.title}
-            href="/ministerios"
-            className={cn(
-              "flex min-h-[148px] flex-col justify-between rounded-[20px] border p-5 transition hover:shadow-[0_14px_36px_-22px_rgba(25,25,25,0.22)]",
-              item.surface,
-            )}
-          >
-            <div>
-              <div
+        {items.map((m) => {
+          const sent = interested.has(m.id);
+          return (
+            <div
+              key={m.id}
+              className="flex min-h-[148px] flex-col justify-between rounded-[20px] border border-[#F0EFEB] bg-white p-5 transition hover:shadow-[0_14px_36px_-22px_rgba(25,25,25,0.22)]"
+            >
+              <Link href={m.href}>
+                <div
+                  className="mb-3 flex h-10 w-10 items-center justify-center rounded-[14px] text-[18px]"
+                  style={{ background: m.color + "18", color: m.color }}
+                >
+                  {getIconEmoji(m.icon)}
+                </div>
+                <div className="text-[15px] font-bold leading-tight text-[#191919]">{m.name}</div>
+                {m.description && (
+                  <div className="mt-1.5 line-clamp-2 text-[12px] leading-5 text-[#6E6E6E]">{m.description}</div>
+                )}
+              </Link>
+              <button
+                type="button"
+                onClick={() => express(m.id)}
+                disabled={sent}
                 className={cn(
-                  "mb-3 flex h-10 w-10 items-center justify-center rounded-[14px] bg-white",
-                  item.accent,
+                  "mt-4 w-full rounded-full px-3 py-2 text-[12px] font-bold transition",
+                  sent ? "bg-[#EEF9F1] text-[#1F8044]" : "bg-[#FF6B57] text-white hover:bg-[#F0492F]",
                 )}
               >
-                <Icon name={item.icon} size={18} />
-              </div>
-              <div className="text-[15px] font-bold leading-tight text-[#191919]">{item.title}</div>
-              <div className="mt-1.5 text-[12px] leading-5 text-[#6E6E6E]">{item.description}</div>
+                {sent ? "Interesse enviado ✓" : "Tenho interesse"}
+              </button>
             </div>
-            <span
-              className={cn(
-                "mt-4 inline-block rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold",
-                item.accent,
-              )}
-            >
-              {item.spots}
-            </span>
-          </Link>
-        ))}
+          );
+        })}
       </div>
     </Panel>
   );
@@ -1361,7 +1346,7 @@ function MemberHomeSections({ data }: { data: DashboardV3Data }) {
         {hasSchedules && <MemberSchedulePanel items={scheduleItems} />}
         <MemberPrayerPanel items={data.prayers} />
       </section>
-      <MemberMinistryGrid />
+      <MemberMinistryGrid items={data.discoverMinistries} />
     </>
   );
 }
@@ -1410,7 +1395,12 @@ export function DashboardV3Home({ data }: { data: DashboardV3Data }) {
           unreadNotifications={data.unreadNotifications}
           quickActions={data.quickActions}
         />
-        {data.profileMode === "connect" && <PersonalizedEmptyState />}
+        {data.profileMode === "connect" && (
+          <>
+            <PersonalizedEmptyState />
+            <MemberMinistryGrid items={data.discoverMinistries} />
+          </>
+        )}
 
         {showHybridHome ? (
           <HybridHomeSections data={data} />

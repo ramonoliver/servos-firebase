@@ -89,6 +89,7 @@ export default function DashboardV3Page() {
   const [cellMembers, setCellMembers] = useState<CellMemberRow[]>([]);
   const [networks, setNetworks] = useState<CellNetwork[]>([]);
   const [myDepartmentIds, setMyDepartmentIds] = useState<string[]>([]);
+  const [allChurchDepartments, setAllChurchDepartments] = useState<Department[]>([]);
   const [pastoralNotes, setPastoralNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -107,6 +108,7 @@ export default function DashboardV3Page() {
           { data: notificationsData, error: notificationsError },
           { data: departmentMembersData, error: departmentMembersError },
           { data: notesData, error: notesError },
+          { data: allDeptData },
           cellsResponse,
         ] = await Promise.all([
           supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
@@ -117,6 +119,8 @@ export default function DashboardV3Page() {
             ? supabase.from("department_members").select("*").in("department_id", visibleDepartmentIds)
             : Promise.resolve({ data: [], error: null }),
           supabase.from("pastoral_notes").select("*").eq("church_id", user.church_id),
+          // Todos os ministérios da igreja (para a descoberta "onde servir").
+          supabase.from("departments").select("*").eq("church_id", user.church_id),
           fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
         ]);
 
@@ -159,6 +163,7 @@ export default function DashboardV3Page() {
             .map((link) => link.department_id)
         );
 
+        setAllChurchDepartments((allDeptData || []) as Department[]);
         setMembers(scopedMembers);
         setSchedules(scopedSchedules);
         setScheduleMembers(((smData || []) as ScheduleMember[]).filter((sm) => scopedScheduleIds.has(sm.schedule_id)));
@@ -499,6 +504,18 @@ export default function DashboardV3Page() {
       .filter((d) => myDepartmentIds.includes(d.id))
       .map((d) => ({ id: d.id, name: d.name, icon: d.icon, color: d.color, href: `/ministerios/${d.id}` }));
 
+    // Ministérios da igreja que o usuário ainda NÃO participa (descoberta "onde servir").
+    const discoverMinistries: MinistrySummary[] = allChurchDepartments
+      .filter((d) => d.active !== false && !myDepartmentIds.includes(d.id))
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        icon: d.icon,
+        color: d.color,
+        description: d.description,
+        href: `/ministerios/${d.id}`,
+      }));
+
     const carePeople: CarePerson[] = dbCareCases.map((care) => {
       const person = members.find((m) => m.id === care.person_id);
       return {
@@ -613,6 +630,7 @@ export default function DashboardV3Page() {
       upcoming,
       personalSchedules,
       personalMinistries,
+      discoverMinistries,
       carePeople,
       insights,
       cell,
@@ -620,7 +638,7 @@ export default function DashboardV3Page() {
       quickActions,
       notices,
     };
-  }, [cellMembers, cells, networks, church.name, departments, events, members, myDepartmentIds, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
+  }, [cellMembers, cells, networks, church.name, departments, allChurchDepartments, events, members, myDepartmentIds, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
 
   if (loading) return <DashboardV3Skeleton />;
 
