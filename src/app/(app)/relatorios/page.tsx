@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/hooks/use-app";
 import { Avatar, PageShell, PageHeader } from "@/components/ui";
 import { supabase } from "@/lib/firebase";
-import { careCases, pastoralCells, prayerRequests } from "@/lib/pastoral/mock-data";
 import { getHealthAverage, registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
 import { computeServedStats } from "@/lib/schedules/served-stats";
 import type { DepartmentMember, Event, Schedule, ScheduleMember, ScheduleSlot, User } from "@/types";

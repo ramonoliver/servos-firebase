@@ -4,10 +4,10 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { useApp } from "@/hooks/use-app";
 import { supabase } from "@/lib/firebase";
 import { ActionDrawer } from "@/components/ui/action-drawer";
+import { ConfirmDialog } from "@/components/ui";
 import { PageIntro, PersonCard, SoftCard } from "@/components/pastoral/pastoral-ui";
 import { calculateAge } from "@/lib/kids/domain";
 import { registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
-import { pastoralCells, pastoralMinistries, pastoralPeople, pastoralTags } from "@/lib/pastoral/mock-data";
 import type { PastoralPerson, PersonGender, PersonKind, MaritalStatus } from "@/lib/pastoral/types";
 
 const kindOptions: { value: PersonKind | "all"; label: string }[] = [
@@ -58,6 +58,8 @@ function toDateMask(iso: string): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+type DuplicatePerson = { id: string; name: string; phone: string; reason: string };
+
 const emptyForm = {
   fullName: "",
   phone: "",
@@ -97,6 +99,7 @@ export default function PessoasPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ name: "", phone: "", email: "" });
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [dupConfirm, setDupConfirm] = useState<{ duplicates: DuplicatePerson[] } | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const newPersonAge = calculateAge(newPerson.birthDate);
   const isChildPerson = newPersonAge !== null && newPersonAge <= 12;
@@ -236,7 +239,7 @@ export default function PessoasPage() {
     setPhotoPreview(null);
   }
 
-  async function createPerson() {
+  async function createPerson(force = false) {
     const name = newPerson.fullName.trim();
     if (!name) return;
     if (isChildPerson && !newPerson.guardianName.trim()) return;
@@ -277,10 +280,18 @@ export default function PessoasPage() {
           addressCity: newPerson.city,
           addressState: newPerson.state,
           notes: "",
+          force,
         }),
       });
 
       const data = await res.json().catch(() => null);
+
+      // Possível duplicado: abre confirmação antes de criar.
+      if (res.status === 409 && data?.needsConfirmation) {
+        setDupConfirm({ duplicates: (data.duplicates || []) as DuplicatePerson[] });
+        setLoading(false);
+        return;
+      }
 
       if (!res.ok) {
         toast(data?.error || "Erro ao criar cadastro.");
@@ -288,6 +299,7 @@ export default function PessoasPage() {
         return;
       }
 
+      setDupConfirm(null);
       toast("Pessoa cadastrada com sucesso!");
       closeDrawer();
       await loadData();
@@ -368,9 +380,6 @@ export default function PessoasPage() {
           </select>
           <select className="input-field" value={tagId} onChange={(event) => setTagId(event.target.value)}>
             <option value="all">Todas as tags</option>
-            {pastoralTags.map((tag) => (
-              <option key={tag.id} value={tag.id}>{tag.label}</option>
-            ))}
           </select>
           <select className="input-field" value={special} onChange={(event) => setSpecial(event.target.value as typeof special)}>
             <option value="all">Todos os filtros</option>
@@ -382,7 +391,7 @@ export default function PessoasPage() {
       </SoftCard>
 
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-ink-faint">{people.length} pessoas encontradas</span>
+        <span className="text-[12px] font-semibold text-ink-faint">{loading ? "Carregando pessoas..." : `${people.length} pessoas encontradas`}</span>
         {(search || kind !== "all" || tagId !== "all" || special !== "all") && (
           <button
             className="btn btn-ghost btn-sm"
@@ -399,13 +408,17 @@ export default function PessoasPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {people.map((person) => (
-          <PersonCard
-            key={person.id}
-            person={person}
-            cellName={dbCells.find((c) => c.id === person.cellId)?.name}
-          />
-        ))}
+        {loading
+          ? Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-[132px] animate-pulse rounded-[20px] border border-border-soft bg-surface-alt/60" />
+            ))
+          : people.map((person) => (
+              <PersonCard
+                key={person.id}
+                person={person}
+                cellName={dbCells.find((c) => c.id === person.cellId)?.name}
+              />
+            ))}
       </div>
 
       <ActionDrawer open={drawerOpen} onClose={closeDrawer} title="Nova pessoa" width={480}>
@@ -680,7 +693,7 @@ export default function PessoasPage() {
 
           <button
             className="btn btn-primary w-full"
-            onClick={createPerson}
+            onClick={() => createPerson()}
             disabled={!newPerson.fullName.trim() || (isChildPerson && !newPerson.guardianName.trim())}
           >
             Criar pessoa
@@ -762,6 +775,23 @@ export default function PessoasPage() {
           </div>
         </div>
       </ActionDrawer>
+
+      {dupConfirm && (
+        <ConfirmDialog
+          title="Possível pessoa duplicada"
+          message={`Já existe ${dupConfirm.duplicates.length === 1 ? "alguém" : "pessoas"} parecido com este cadastro:<br/><br/>${dupConfirm.duplicates
+            .map((d) => `• <strong>${d.name}</strong>${d.phone ? ` (${d.phone})` : ""} — ${d.reason}`)
+            .join("<br/>")}<br/><br/>Deseja cadastrar mesmo assim?`}
+          confirmLabel="Cadastrar mesmo assim"
+          cancelLabel="Revisar"
+          variant="warning"
+          onCancel={() => setDupConfirm(null)}
+          onConfirm={() => {
+            setDupConfirm(null);
+            void createPerson(true);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -9,7 +9,16 @@ import { EventFormModal } from "@/components/events/event-form-modal";
 import { KidsEventCheckInSection } from "@/components/kids/kids-ui";
 import { supabase } from "@/lib/firebase";
 import { getEventCategory } from "@/lib/events/recurrence";
-import type { Event, EventReport } from "@/types";
+import type { Event, EventReport, Schedule } from "@/types";
+
+type LinkedSchedule = {
+  id: string;
+  departmentName: string;
+  date: string;
+  status: string;
+  confirmed: number;
+  total: number;
+};
 
 type ReportFormState = {
   attendance_count: number;
@@ -145,6 +154,7 @@ export default function EventoDetailPage({ params }: { params: { id: string } })
   const [prayerDrawerOpen, setPrayerDrawerOpen] = useState(false);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [prayerItems, setPrayerItems] = useState<PrayerItem[]>(initialPrayerRequests);
+  const [linkedSchedules, setLinkedSchedules] = useState<LinkedSchedule[]>([]);
   const [chartRange, setChartRange] = useState<ChartRange>("semestral");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -162,6 +172,7 @@ export default function EventoDetailPage({ params }: { params: { id: string } })
       setEventDate(selectedDate);
       setReport(nextReport);
       setForm(nextReport ? reportToForm(nextReport) : emptyReport);
+      setLinkedSchedules([]);
       setLoading(false);
       return;
     }
@@ -192,6 +203,34 @@ export default function EventoDetailPage({ params }: { params: { id: string } })
     setEventDate(selectedDate);
     setReport(nextReport);
     setForm(nextReport ? reportToForm(nextReport) : emptyReport);
+
+    // Escalas reais vinculadas a este evento (o evento como hub da operação).
+    const [{ data: schedulesData }, { data: deptData }] = await Promise.all([
+      supabase.from("schedules").select("*").eq("church_id", user.church_id).eq("event_id", params.id),
+      supabase.from("departments").select("id, name").eq("church_id", user.church_id),
+    ]);
+    const schedules = (schedulesData || []) as Schedule[];
+    const deptName = new Map<string, string>(((deptData || []) as Array<{ id: string; name: string }>).map((d) => [d.id, d.name]));
+    const scheduleIds = schedules.map((s) => s.id);
+    const { data: smData } = scheduleIds.length
+      ? await supabase.from("schedule_members").select("schedule_id, status").in("schedule_id", scheduleIds)
+      : { data: [] as Array<{ schedule_id: string; status: string }> };
+    const members = (smData || []) as Array<{ schedule_id: string; status: string }>;
+    const linked: LinkedSchedule[] = schedules
+      .map((s) => {
+        const mine = members.filter((m) => m.schedule_id === s.id);
+        return {
+          id: s.id,
+          departmentName: deptName.get(s.department_id) || "Ministério",
+          date: s.date,
+          status: s.status,
+          confirmed: mine.filter((m) => m.status === "confirmed").length,
+          total: mine.length,
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || a.departmentName.localeCompare(b.departmentName));
+    setLinkedSchedules(linked);
+
     setLoading(false);
   }
 
@@ -355,15 +394,46 @@ export default function EventoDetailPage({ params }: { params: { id: string } })
               <InfoBlock title="Descrição">{event.description || "Este evento ainda não possui descrição."}</InfoBlock>
               <InfoBlock title="Instruções operacionais">{event.instructions || "Sem instruções operacionais cadastradas."}</InfoBlock>
               <div>
-                <SectionLabel title="Ministérios envolvidos" />
-                <div className="flex flex-wrap gap-2">
-                  {(event.id === MOCK_PRAYER_EVENT_ID ? mockScheduleMinistries : []).map((item) => (
-                    <span key={item} className="rounded-full bg-surface-alt px-3 py-1.5 text-xs font-semibold text-ink-muted">{item}</span>
-                  ))}
+                <div className="mb-2 flex items-center justify-between">
+                  <SectionLabel title="Escalas vinculadas" />
                   {event.id !== MOCK_PRAYER_EVENT_ID && (
-                    <span className="rounded-full bg-surface-alt px-3 py-1.5 text-xs font-semibold text-ink-muted">Sem escalas vinculadas para esta data</span>
+                    <Link href="/escalas/nova" className="text-[12px] font-semibold text-brand-deep hover:opacity-75">
+                      + Criar escala
+                    </Link>
                   )}
                 </div>
+                {event.id === MOCK_PRAYER_EVENT_ID ? (
+                  <div className="flex flex-wrap gap-2">
+                    {mockScheduleMinistries.map((item) => (
+                      <span key={item} className="rounded-full bg-surface-alt px-3 py-1.5 text-xs font-semibold text-ink-muted">{item}</span>
+                    ))}
+                  </div>
+                ) : linkedSchedules.length === 0 ? (
+                  <span className="inline-block rounded-full bg-surface-alt px-3 py-1.5 text-xs font-semibold text-ink-muted">
+                    Nenhuma escala vinculada ainda
+                  </span>
+                ) : (
+                  <div className="space-y-2">
+                    {linkedSchedules.map((s) => (
+                      <Link
+                        key={s.id}
+                        href={`/escalas/${s.id}`}
+                        className="flex items-center justify-between gap-3 rounded-[14px] border border-border-soft bg-white px-3 py-2.5 transition hover:bg-surface-alt"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-[13px] font-semibold text-ink">{s.departmentName}</div>
+                          <div className="text-[11px] text-ink-muted">{formatReportDate(s.date)}</div>
+                        </div>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${s.status === "draft" ? "bg-amber-light text-amber" : "bg-success-light text-success"}`}>
+                            {s.status === "draft" ? "Rascunho" : s.status === "active" ? "Ativa" : s.status}
+                          </span>
+                          <span className="text-[11px] font-semibold text-ink-muted">{s.confirmed}/{s.total}</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </PremiumPanel>

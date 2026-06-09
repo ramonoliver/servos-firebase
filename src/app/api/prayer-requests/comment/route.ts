@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         churchId,
         title: "Comentário no seu pedido 🙏",
         body: `${name} comentou no seu pedido de oração.`,
-        actionUrl: "/pedidos-oracao",
+        actionUrl: `/pedidos-oracao/${parsed.data.prayerId}`,
         type: "info",
       });
     }

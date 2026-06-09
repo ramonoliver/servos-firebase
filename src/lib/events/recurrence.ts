@@ -32,6 +32,36 @@ export function parseEventRecurrence(recurrence?: string) {
   return { weekday: "0", date: "" };
 }
 
+/**
+ * Próxima data concreta (YYYY-MM-DD) de um evento a partir de `fromIso` (hoje
+ * por padrão). Usado pela "Agenda como motor" para datar as escalas geradas.
+ * - "weekly:N" → próxima data >= fromIso com getDay() === N (0=domingo).
+ * - "once:YYYY-MM-DD" → a própria data.
+ * - fallback → fromIso.
+ */
+export function nextOccurrenceDate(recurrence?: string, fromIso?: string): string {
+  const base = fromIso || new Date().toISOString().slice(0, 10);
+  const parsed = parseEventRecurrence(recurrence);
+
+  if ((recurrence || "").startsWith("once:")) {
+    return parsed.date || base;
+  }
+
+  if ((recurrence || "").startsWith("weekly:")) {
+    const target = Number(parsed.weekday);
+    if (!Number.isFinite(target)) return base;
+    const [y, m, d] = base.split("-").map(Number);
+    const start = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
+    const delta = ((target - start.getDay()) % 7 + 7) % 7; // 0..6 (hoje conta)
+    start.setDate(start.getDate() + delta);
+    const mm = String(start.getMonth() + 1).padStart(2, "0");
+    const dd = String(start.getDate()).padStart(2, "0");
+    return `${start.getFullYear()}-${mm}-${dd}`;
+  }
+
+  return base;
+}
+
 export function parseEventCalendarRecurrence(event: Event) {
   const recurrence = event.recurrence || "";
   if (recurrence.startsWith("weekly:")) {

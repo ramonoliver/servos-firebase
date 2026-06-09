@@ -1,16 +1,31 @@
-import {
-  careCases,
-  cellMeetings,
-  pastoralAlerts,
-  pastoralCells,
-  pastoralMinistries,
-  pastoralPeople,
-  pastoralRelationships,
-  pastoralTags,
-  prayerRequests,
-  timelineEvents,
-} from "./mock-data";
-import type { CellHealth, PastoralCell, PastoralPerson, PersonKind, TimelineEvent } from "./types";
+import type {
+  CareCase,
+  CellHealth,
+  CellMeeting,
+  PastoralAlert,
+  PastoralCell,
+  PastoralMinistry,
+  PastoralPerson,
+  PersonKind,
+  PersonRelationship,
+  PersonTag,
+  PrayerRequest,
+  TimelineEvent,
+} from "./types";
+
+// Os mocks pastorais foram removidos — os dados reais vêm do banco (registrados
+// via registerPeopleInCache/registerCellsInCache). Mantemos arrays vazios como
+// fallback para os seletores legados que ainda os referenciam.
+const careCases: CareCase[] = [];
+const cellMeetings: CellMeeting[] = [];
+const pastoralAlerts: PastoralAlert[] = [];
+const pastoralCells: PastoralCell[] = [];
+const pastoralMinistries: PastoralMinistry[] = [];
+const pastoralPeople: PastoralPerson[] = [];
+const pastoralRelationships: PersonRelationship[] = [];
+const pastoralTags: PersonTag[] = [];
+const prayerRequests: PrayerRequest[] = [];
+const timelineEvents: TimelineEvent[] = [];
 
 let dbPeopleCache: any[] = [];
 let dbCellsCache: any[] = [];

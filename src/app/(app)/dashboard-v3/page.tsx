@@ -6,12 +6,6 @@ import { supabase } from "@/lib/firebase";
 import { getGreeting } from "@/lib/utils/helpers";
 import { getPerson, registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
 import {
-  careCases as mockCareCases,
-  pastoralCells as mockPastoralCells,
-  prayerRequests as mockPrayerRequests,
-  timelineEvents as mockTimelineEvents,
-} from "@/lib/pastoral/mock-data";
-import {
   DashboardV3Home,
   type CarePerson,
   type CellSummary,
@@ -91,6 +85,7 @@ export default function DashboardV3Page() {
   const [myDepartmentIds, setMyDepartmentIds] = useState<string[]>([]);
   const [allChurchDepartments, setAllChurchDepartments] = useState<Department[]>([]);
   const [pastoralNotes, setPastoralNotes] = useState<any[]>([]);
+  const [prayerCommentCounts, setPrayerCommentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const visibleDepartmentIds = useMemo(() => departments.map((department) => department.id), [departments]);
@@ -110,6 +105,7 @@ export default function DashboardV3Page() {
           { data: notesData, error: notesError },
           { data: allDeptData },
           cellsResponse,
+          { data: prayerCommentsData },
         ] = await Promise.all([
           supabase.from("users").select("*").eq("church_id", user.church_id).eq("active", true),
           supabase.from("schedules").select("*").eq("church_id", user.church_id).neq("status", "cancelled"),
@@ -122,6 +118,8 @@ export default function DashboardV3Page() {
           // Todos os ministérios da igreja (para a descoberta "onde servir").
           supabase.from("departments").select("*").eq("church_id", user.church_id),
           fetch("/api/cells/list", { method: "POST", credentials: "include" }).catch(() => null),
+          // Comentários de oração (para o indicador "💬 N" no Início).
+          supabase.from("prayer_comments").select("prayer_id").eq("church_id", user.church_id),
         ]);
 
         if (membersError) console.error("loadData users query error:", membersError);
@@ -157,11 +155,16 @@ export default function DashboardV3Page() {
               );
 
         // Ministérios em que o PRÓPRIO usuário participa (contexto pessoal).
-        setMyDepartmentIds(
-          ((departmentMembersData || []) as Array<{ user_id: string; department_id: string }>)
-            .filter((link) => link.user_id === user.id)
-            .map((link) => link.department_id)
-        );
+        // Inclui tanto os vínculos de membro (department_members) quanto os
+        // ministérios que ele LIDERA/co-lidera — liderar não cria vínculo de
+        // membro, então sem isso um líder de 2 ministérios só via 1 no Início.
+        const linkedDeptIds = ((departmentMembersData || []) as Array<{ user_id: string; department_id: string }>)
+          .filter((link) => link.user_id === user.id)
+          .map((link) => link.department_id);
+        const ledDeptIds = departments
+          .filter((d) => (d.leader_ids || []).includes(user.id) || (d.co_leader_ids || []).includes(user.id))
+          .map((d) => d.id);
+        setMyDepartmentIds(Array.from(new Set([...linkedDeptIds, ...ledDeptIds])));
 
         setAllChurchDepartments((allDeptData || []) as Department[]);
         setMembers(scopedMembers);
@@ -175,6 +178,12 @@ export default function DashboardV3Page() {
         setCellMembers((cellsPayload?.cellMembers || []) as CellMemberRow[]);
         setNetworks((cellsPayload?.networks || []) as CellNetwork[]);
         setPastoralNotes(notesData || []);
+
+        const commentCounts: Record<string, number> = {};
+        ((prayerCommentsData || []) as Array<{ prayer_id: string }>).forEach((c) => {
+          if (c.prayer_id) commentCounts[c.prayer_id] = (commentCounts[c.prayer_id] || 0) + 1;
+        });
+        setPrayerCommentCounts(commentCounts);
 
         // Register database objects in selector cache
         registerPeopleInCache(membersData || []);
@@ -578,6 +587,7 @@ export default function DashboardV3Page() {
         description: request.description,
         person: person?.name || "Pedido compartilhado",
         href: "/pedidos-oracao",
+        commentCount: prayerCommentCounts[request.id] || 0,
       };
     });
 
@@ -638,7 +648,7 @@ export default function DashboardV3Page() {
       quickActions,
       notices,
     };
-  }, [cellMembers, cells, networks, church.name, departments, allChurchDepartments, events, members, myDepartmentIds, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes]);
+  }, [cellMembers, cells, networks, church.name, departments, allChurchDepartments, events, members, myDepartmentIds, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes, prayerCommentCounts]);
 
   if (loading) return <DashboardV3Skeleton />;
 

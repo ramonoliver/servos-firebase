@@ -66,12 +66,12 @@ export default function KidsPage() {
   return (
     <PageShell className="[font-family:'Inter','Plus_Jakarta_Sans',system-ui,sans-serif]">
       <PageHeader
-        eyebrow="Seguranca infantil"
+        eyebrow="Segurança infantil"
         title="Kids"
-        subtitle="Gerencie criancas, responsaveis, salas e check-ins dos cultos."
+        subtitle="Gerencie crianças, responsáveis, salas e check-ins dos cultos."
         actions={
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-secondary btn-sm" onClick={() => openCheckin(undefined, "new")}>Nova crianca</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => openCheckin(undefined, "new")}>Nova criança</button>
             <button className="btn btn-primary btn-sm" onClick={() => openCheckin()}>Check-in</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setRoomsOpen(true)}>Salas do Kids</button>
           </div>
@@ -86,20 +86,20 @@ export default function KidsPage() {
               Central operacional
             </div>
             <h1 className="max-w-[760px] text-[32px] font-bold leading-tight tracking-[-0.05em] text-ink md:text-[44px]">
-              Check-in infantil com clareza, cuidado e codigo seguro para retirada.
+              Check-in infantil com clareza, cuidado e código seguro para retirada.
             </h1>
             <p className="mt-3 max-w-[690px] text-[15px] leading-7 text-ink-muted">
-              Organize criancas por sala, acompanhe responsaveis e mantenha a equipe Kids alinhada durante cultos com muitas familias.
+              Organize crianças por sala, acompanhe responsáveis e mantenha a equipe Kids alinhada durante cultos com muitas famílias.
             </p>
           </div>
           <div className="rounded-[26px] border border-white/80 bg-white/78 p-5 shadow-[0_18px_48px_-36px_rgba(27,23,38,0.35)] backdrop-blur">
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Agora em sala</div>
             <div className="mt-2 flex items-end gap-2">
               <span className="text-[42px] font-bold leading-none tracking-[-0.055em] text-ink">{loading ? "..." : activeCheckins.length}</span>
-              <span className="pb-1 text-sm font-medium text-ink-muted">criancas aguardando retirada</span>
+              <span className="pb-1 text-sm font-medium text-ink-muted">crianças aguardando retirada</span>
             </div>
             <div className="mt-4 rounded-[18px] bg-[#FFF0EC] px-4 py-3 text-xs font-semibold leading-5 text-[#B33A21]">
-              Codigo unico por culto, responsavel vinculado e historico de retirada preparado para auditoria.
+              Código único por culto, responsável vinculado e histórico de retirada preparado para auditoria.
             </div>
           </div>
         </div>

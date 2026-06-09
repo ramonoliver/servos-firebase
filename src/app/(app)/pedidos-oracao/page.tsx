@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/hooks/use-app";
 import { supabase } from "@/lib/firebase";
-import { Avatar, EmptyState, Modal, PageHeader, PageShell, SkeletonList } from "@/components/ui";
+import { EmptyState, Modal, PageHeader, PageShell, SkeletonList } from "@/components/ui";
 import { formatCareDate } from "@/lib/care/types";
 import type { User } from "@/types";
 
-// Servos 2.0 — Pedidos de oração reais. Lê pastoral_notes do tipo "prayer";
-// permite criar um pedido e comentar em cada um.
+// Servos 2.0 — Pedidos de oração reais. Lê pastoral_notes do tipo "prayer".
+// A listagem é um RESUMO: cada card mostra o pedido + contadores de curtidas e
+// comentários e leva à página interna (/pedidos-oracao/[id]) para ver/comentar.
 type PastoralNote = {
   id: string;
   person_id: string;
@@ -19,19 +20,15 @@ type PastoralNote = {
   date: string;
 };
 
-type Comment = {
-  id: string;
-  prayer_id: string;
-  user_id: string;
-  content: string;
-  created_at: string;
-};
+type Comment = { id: string; prayer_id: string; user_id: string; content: string; created_at: string };
+type Like = { id: string; user_id: string; target_type: "prayer" | "comment"; target_id: string };
 
 export default function PedidosOracaoPage() {
   const { user, toast } = useApp();
   const [notes, setNotes] = useState<PastoralNote[]>([]);
   const [people, setPeople] = useState<User[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [likes, setLikes] = useState<Like[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Novo pedido
@@ -40,12 +37,8 @@ export default function PedidosOracaoPage() {
   const [desc, setDesc] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Comentários
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [posting, setPosting] = useState<string | null>(null);
-
   async function load() {
-    const [{ data: notesData }, { data: usersData }, { data: commentsData }] = await Promise.all([
+    const [{ data: notesData }, { data: usersData }, { data: commentsData }, { data: likesData }] = await Promise.all([
       supabase
         .from("pastoral_notes")
         .select("*")
@@ -53,15 +46,13 @@ export default function PedidosOracaoPage() {
         .eq("type", "prayer")
         .order("date", { ascending: false }),
       supabase.from("users").select("*").eq("church_id", user.church_id),
-      supabase
-        .from("prayer_comments")
-        .select("*")
-        .eq("church_id", user.church_id)
-        .order("created_at", { ascending: true }),
+      supabase.from("prayer_comments").select("*").eq("church_id", user.church_id),
+      supabase.from("prayer_likes").select("*").eq("church_id", user.church_id),
     ]);
     setNotes((notesData || []) as PastoralNote[]);
     setPeople((usersData || []) as User[]);
     setComments((commentsData || []) as Comment[]);
+    setLikes((likesData || []) as Like[]);
     setLoading(false);
   }
 
@@ -76,11 +67,41 @@ export default function PedidosOracaoPage() {
     return map;
   }, [people]);
 
-  const commentsByPrayer = useMemo(() => {
-    const map = new Map<string, Comment[]>();
-    comments.forEach((c) => map.set(c.prayer_id, [...(map.get(c.prayer_id) || []), c]));
+  const commentCountByPrayer = useMemo(() => {
+    const map = new Map<string, number>();
+    comments.forEach((c) => map.set(c.prayer_id, (map.get(c.prayer_id) || 0) + 1));
     return map;
   }, [comments]);
+
+  const myPrayerLike = (prayerId: string) =>
+    likes.find((l) => l.user_id === user.id && l.target_type === "prayer" && l.target_id === prayerId);
+  const prayerLikeCount = (prayerId: string) =>
+    likes.filter((l) => l.target_type === "prayer" && l.target_id === prayerId).length;
+
+  async function toggleLike(prayerId: string) {
+    const existing = myPrayerLike(prayerId);
+    const tempId = `tmp_prayer_${prayerId}`;
+    setLikes((prev) =>
+      existing
+        ? prev.filter((l) => l.id !== existing.id)
+        : [...prev, { id: tempId, user_id: user.id, target_type: "prayer", target_id: prayerId }]
+    );
+    try {
+      const res = await fetch("/api/prayer-requests/like", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetType: "prayer", targetId: prayerId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Falha ao curtir.");
+      if (data?.liked && data?.like) {
+        setLikes((prev) => prev.map((l) => (l.id === tempId ? (data.like as Like) : l)));
+      }
+    } catch {
+      setLikes((prev) => (existing ? [...prev, existing] : prev.filter((l) => l.id !== tempId)));
+      toast("Não foi possível curtir agora.");
+    }
+  }
 
   async function createPrayer() {
     if (!title.trim()) return;
@@ -103,30 +124,6 @@ export default function PedidosOracaoPage() {
       await load();
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function postComment(prayerId: string) {
-    const content = (drafts[prayerId] || "").trim();
-    if (!content) return;
-    setPosting(prayerId);
-    try {
-      const res = await fetch("/api/prayer-requests/comment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prayerId, content }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        toast(data?.error || "Erro ao comentar.");
-        return;
-      }
-      if (data?.comment) setComments((prev) => [...prev, data.comment as Comment]);
-      setDrafts((prev) => ({ ...prev, [prayerId]: "" }));
-    } catch {
-      toast("Erro ao comentar.");
-    } finally {
-      setPosting(null);
     }
   }
 
@@ -160,7 +157,9 @@ export default function PedidosOracaoPage() {
         <div className="grid items-start gap-3 lg:grid-cols-2">
           {notes.map((note) => {
             const person = peopleById.get(note.person_id);
-            const cardComments = commentsByPrayer.get(note.id) || [];
+            const commentCount = commentCountByPrayer.get(note.id) || 0;
+            const likeCount = prayerLikeCount(note.id);
+            const liked = Boolean(myPrayerLike(note.id));
             return (
               <div
                 key={note.id}
@@ -177,48 +176,37 @@ export default function PedidosOracaoPage() {
                       </Link>
                       <span className="text-[11px] text-ink-faint">{formatCareDate(note.date)}</span>
                     </div>
-                    {note.title && <div className="mt-1 text-[13px] font-semibold text-ink">{note.title}</div>}
-                    {note.description && (
-                      <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">{note.description}</p>
-                    )}
+                    <Link href={`/pedidos-oracao/${note.id}`} className="group block">
+                      {note.title && <div className="mt-1 text-[13px] font-semibold text-ink group-hover:text-brand-deep">{note.title}</div>}
+                      {note.description && (
+                        <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-ink-muted">{note.description}</p>
+                      )}
+                    </Link>
                   </div>
                 </div>
 
-                {cardComments.length > 0 && (
-                  <div className="mt-3 space-y-2.5 border-t border-border-soft pt-3">
-                    {cardComments.map((c) => {
-                      const author = peopleById.get(c.user_id);
-                      return (
-                        <div key={c.id} className="flex gap-2">
-                          <Avatar name={author?.name || "Pessoa"} color={author?.avatar_color || "#9B8CFB"} photoUrl={author?.photo_url} size={26} />
-                          <div className="min-w-0 flex-1 rounded-[12px] bg-surface-alt px-3 py-2">
-                            <div className="text-[11px] font-bold text-ink">{author?.name?.split(" ")[0] || "Pessoa"}</div>
-                            <p className="text-[12px] leading-relaxed text-ink-muted">{c.content}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="mt-3 flex gap-2">
-                  <input
-                    className="input-field !min-h-0 py-2 text-[13px]"
-                    value={drafts[note.id] || ""}
-                    onChange={(e) => setDrafts((prev) => ({ ...prev, [note.id]: e.target.value }))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") postComment(note.id);
-                    }}
-                    placeholder="Escreva um comentário…"
-                    maxLength={1000}
-                  />
+                <div className="mt-3 flex items-center gap-2 border-t border-border-soft pt-3">
                   <button
-                    className="btn btn-secondary btn-sm flex-shrink-0"
-                    onClick={() => postComment(note.id)}
-                    disabled={posting === note.id || !(drafts[note.id] || "").trim()}
+                    type="button"
+                    onClick={() => toggleLike(note.id)}
+                    aria-pressed={liked}
+                    aria-label={liked ? `Remover curtida (${likeCount})` : "Curtir"}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-semibold transition ${
+                      liked ? "border-rose/40 bg-rose-light text-rose-deep" : "border-border-soft bg-white text-ink-muted hover:bg-surface-alt"
+                    }`}
                   >
-                    {posting === note.id ? "…" : "Comentar"}
+                    <span aria-hidden="true">{liked ? "❤️" : "🤍"}</span>
+                    {likeCount > 0 && <span>{likeCount}</span>}
                   </button>
+                  <Link
+                    href={`/pedidos-oracao/${note.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border-soft bg-white px-3 py-1 text-[12px] font-semibold text-ink-muted transition hover:bg-surface-alt"
+                  >
+                    💬 {commentCount === 0 ? "Comentar" : `${commentCount} ${commentCount === 1 ? "comentário" : "comentários"}`}
+                  </Link>
+                  <Link href={`/pedidos-oracao/${note.id}`} className="ml-auto text-[12px] font-semibold text-brand-deep hover:opacity-75">
+                    Ver e comentar →
+                  </Link>
                 </div>
               </div>
             );

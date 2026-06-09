@@ -35,7 +35,7 @@ export function generateKidsCode(existingCodes: string[], seed = Date.now()): st
     const candidate = normalizeKidsCode(((seed + offset) % 900) + 100);
     if (!used.has(candidate)) return candidate;
   }
-  throw new Error("Nao foi possivel gerar um codigo Kids unico para este evento.");
+  throw new Error("Não foi possível gerar um código Kids único para este evento.");
 }
 
 export function isRoomFull(room: Pick<KidsRoom, "capacity">, checkins: Pick<KidsCheckIn, "status" | "room_id">[], roomId: string): boolean {
@@ -63,8 +63,8 @@ export function canManageKidsCheckIn(params: {
 export function getKidsStatusLabel(status: string): string {
   return {
     in_room: "Em sala",
-    called: "Chamado no telao",
+    called: "Chamado no telão",
     checked_out: "Retirado",
-    waiting_guardian: "Aguardando responsavel",
+    waiting_guardian: "Aguardando responsável",
   }[status] || status;
 }

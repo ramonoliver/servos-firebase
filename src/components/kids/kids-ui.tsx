@@ -16,12 +16,12 @@ type KidsData = {
 
 type IconName = "baby" | "check" | "copy" | "door" | "edit" | "phone" | "plus" | "shield" | "spark" | "users" | "x";
 
-const defaultRooms = [
-  { name: "Bercario", min_age: 0, max_age: 2, capacity: 10, description: "Bebes e criancas bem pequenas." },
-  { name: "Maternal", min_age: 3, max_age: 4, capacity: 14, description: "Primeira infancia com cuidado proximo." },
-  { name: "Kids 1", min_age: 5, max_age: 7, capacity: 18, description: "Criancas em fase inicial escolar." },
-  { name: "Kids 2", min_age: 8, max_age: 10, capacity: 20, description: "Criancas maiores com atividades dirigidas." },
-  { name: "Pre-teens", min_age: 11, max_age: 12, capacity: 16, description: "Pre-adolescentes de 11 a 12 anos." },
+export const defaultRooms = [
+  { name: "Berçário", min_age: 0, max_age: 2, capacity: 10, description: "Bebês e crianças bem pequenas." },
+  { name: "Maternal", min_age: 3, max_age: 4, capacity: 14, description: "Primeira infância com cuidado próximo." },
+  { name: "Kids 1", min_age: 5, max_age: 7, capacity: 18, description: "Crianças em fase inicial escolar." },
+  { name: "Kids 2", min_age: 8, max_age: 10, capacity: 20, description: "Crianças maiores com atividades dirigidas." },
+  { name: "Pré-teens", min_age: 11, max_age: 12, capacity: 16, description: "Pré-adolescentes de 11 a 12 anos." },
 ];
 
 function todayIso() {
@@ -90,7 +90,7 @@ export function useKidsData(eventId?: string, eventDate = todayIso()) {
 export function KidsSummaryCards({ children, rooms, checkins, loading }: { children: KidsChild[]; rooms: KidsRoom[]; checkins: KidsCheckInView[]; loading?: boolean }) {
   const activeCheckins = checkins.filter((item) => item.status !== "checked_out");
   const items = [
-    { label: "Criancas cadastradas", value: children.length, icon: "baby" as const, tone: "bg-[#FFF0EC] text-[#D94420]" },
+    { label: "Crianças cadastradas", value: children.length, icon: "baby" as const, tone: "bg-[#FFF0EC] text-[#D94420]" },
     { label: "Check-ins hoje", value: checkins.length, icon: "check" as const, tone: "bg-[#EEF9F1] text-[#1F8044]" },
     { label: "Salas ativas", value: rooms.filter((room) => room.status === "active").length, icon: "door" as const, tone: "bg-[#F5F0FF] text-[#6D5DF0]" },
     { label: "Aguardando retirada", value: activeCheckins.length, icon: "shield" as const, tone: "bg-[#FFF8ED] text-[#C07B1A]" },
@@ -137,11 +137,11 @@ export function KidsChildrenList({ children, rooms, onCheckIn }: { children: Kid
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Cadastro</div>
-          <h2 className="mt-1 text-[22px] font-semibold tracking-[-0.025em] text-ink">Criancas cadastradas</h2>
+          <h2 className="mt-1 text-[22px] font-semibold tracking-[-0.025em] text-ink">Crianças cadastradas</h2>
         </div>
         <div className="grid gap-2 md:grid-cols-[minmax(0,1.5fr)_1fr_130px_150px] lg:min-w-[720px]">
-          <input className="input-field" placeholder="Buscar por crianca, responsavel ou telefone" value={search} onChange={(event) => setSearch(event.target.value)} />
-          <input className="input-field" placeholder="Responsavel" value={guardian} onChange={(event) => setGuardian(event.target.value)} />
+          <input className="input-field" placeholder="Buscar por criança, responsável ou telefone" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <input className="input-field" placeholder="Responsável" value={guardian} onChange={(event) => setGuardian(event.target.value)} />
           <select className="input-field" value={age} onChange={(event) => setAge(event.target.value)}>
             <option value="all">Idade</option>
             <option value="0-4">0 a 4</option>
@@ -150,13 +150,13 @@ export function KidsChildrenList({ children, rooms, onCheckIn }: { children: Kid
           </select>
           <select className="input-field" value={status} onChange={(event) => setStatus(event.target.value)}>
             <option value="all">Status</option>
-            <option value="with-guardian">Com responsavel</option>
-            <option value="attention">Sem responsavel</option>
+            <option value="with-guardian">Com responsável</option>
+            <option value="attention">Sem responsável</option>
           </select>
         </div>
       </div>
       {filtered.length === 0 ? (
-        <EmptyState icon="+" title="Nenhuma crianca cadastrada ainda" description="Cadastre as criancas da igreja e vincule seus responsaveis." />
+        <EmptyState icon="+" title="Nenhuma criança cadastrada ainda" description="Cadastre as crianças da igreja e vincule seus responsáveis." />
       ) : (
         <div className="grid gap-3 xl:grid-cols-2">
           {filtered.map((child) => <KidsChildCard key={child.id} child={child} rooms={rooms} onCheckIn={() => onCheckIn(child)} />)}
@@ -182,10 +182,10 @@ function KidsChildCard({ child, rooms, onCheckIn }: { child: KidsChild; rooms: K
             <span className="rounded-full bg-[#EEF9F1] px-2.5 py-1 text-[10px] font-bold text-[#1F8044]">{primary ? "Seguro" : "Revisar"}</span>
           </div>
           <div className="mt-2 grid gap-2 text-[12px] text-ink-muted sm:grid-cols-2">
-            <span>Nascimento: {child.birth_date || "Nao informado"}</span>
-            <span>Sexo: {child.gender === "feminino" ? "Feminino" : child.gender === "masculino" ? "Masculino" : "Nao informado"}</span>
-            <span>Sala frequente: {child.frequent_room_name || recommended?.name || "Sem historico"}</span>
-            <span className="sm:col-span-2">Responsaveis: {child.guardians.map((item) => `${item.guardian.name} (${item.relationship})`).join(", ") || "Nao vinculado"}</span>
+            <span>Nascimento: {child.birth_date || "Não informado"}</span>
+            <span>Sexo: {child.gender === "feminino" ? "Feminino" : child.gender === "masculino" ? "Masculino" : "Não informado"}</span>
+            <span>Sala frequente: {child.frequent_room_name || recommended?.name || "Sem histórico"}</span>
+            <span className="sm:col-span-2">Responsaveis: {child.guardians.map((item) => `${item.guardian.name} (${item.relationship})`).join(", ") || "Não vinculado"}</span>
             <span className="inline-flex items-center gap-1.5"><Icon name="phone" size={13} /> {child.primary_phone || "Sem telefone"}</span>
           </div>
         </div>
@@ -278,7 +278,7 @@ function RoomForm({ room, saving, onCancel, onSave }: { room: Partial<KidsRoom>;
         <label><span className="input-label">Capacidade</span><input type="number" min={0} className="input-field" value={draft.capacity || 0} onChange={(event) => setDraft((p) => ({ ...p, capacity: Number(event.target.value) }))} /></label>
         <label><span className="input-label">Idade inicial</span><input type="number" min={0} max={12} className="input-field" value={draft.min_age || 0} onChange={(event) => setDraft((p) => ({ ...p, min_age: Number(event.target.value) }))} /></label>
         <label><span className="input-label">Idade final</span><input type="number" min={0} max={12} className="input-field" value={draft.max_age || 0} onChange={(event) => setDraft((p) => ({ ...p, max_age: Number(event.target.value) }))} /></label>
-        <label className="sm:col-span-2"><span className="input-label">Descricao</span><textarea className="input-field min-h-[86px]" value={draft.description || ""} onChange={(event) => setDraft((p) => ({ ...p, description: event.target.value }))} /></label>
+        <label className="sm:col-span-2"><span className="input-label">Descrição</span><textarea className="input-field min-h-[86px]" value={draft.description || ""} onChange={(event) => setDraft((p) => ({ ...p, description: event.target.value }))} /></label>
         <label><span className="input-label">Status</span><select className="input-field" value={draft.status || "active"} onChange={(event) => setDraft((p) => ({ ...p, status: event.target.value as KidsRoom["status"] }))}><option value="active">Ativa</option><option value="inactive">Inativa</option></select></label>
       </div>
       <div className="mt-4 flex justify-end gap-2">
@@ -300,9 +300,9 @@ function KidsRoomCard({ room, activeCount, onEdit }: { room: KidsRoom; activeCou
             <span className="rounded-full bg-surface-alt px-2.5 py-1 text-[10px] font-bold text-ink-muted">{room.min_age} a {room.max_age} anos</span>
             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${room.status === "active" ? "bg-[#EEF9F1] text-[#1F8044]" : "bg-surface-alt text-ink-faint"}`}>{room.status === "active" ? "Ativa" : "Inativa"}</span>
           </div>
-          <p className="mt-2 text-sm text-ink-muted">{room.description || "Sem descricao."}</p>
+          <p className="mt-2 text-sm text-ink-muted">{room.description || "Sem descrição."}</p>
           <div className="mt-3 h-2 rounded-full bg-surface-alt"><div className="h-2 rounded-full bg-brand" style={{ width: `${pct}%` }} /></div>
-          <div className="mt-1 text-[11px] font-semibold text-ink-faint">{activeCount} de {room.capacity} criancas na sala</div>
+          <div className="mt-1 text-[11px] font-semibold text-ink-faint">{activeCount} de {room.capacity} crianças na sala</div>
         </div>
         <button className="flex h-9 w-9 items-center justify-center rounded-full border border-border-soft bg-white text-ink-muted hover:bg-surface-alt" onClick={onEdit} aria-label={`Editar ${room.name}`}><Icon name="edit" size={15} /></button>
       </div>
@@ -341,13 +341,28 @@ export function KidsCheckInDrawer({
   // cadastrar um responsável novo.
   const [guardianMode, setGuardianMode] = useState<"existing" | "new">("existing");
   const [guardianId, setGuardianId] = useState("");
-  const [guardian, setGuardian] = useState({ name: "", phone: "", email: "", relationship: "Responsavel", gender: "nao_informado" });
+  const [guardian, setGuardian] = useState<GuardianDraft>({ name: "", phone: "", email: "", relationship: "Responsável", gender: "nao_informado" });
+  // Segundo responsável (opcional). Oferecido após o primeiro ser preenchido.
+  const [addSecond, setAddSecond] = useState(false);
+  const [guardian2Mode, setGuardian2Mode] = useState<"existing" | "new">("existing");
+  const [guardian2Id, setGuardian2Id] = useState("");
+  const [guardian2, setGuardian2] = useState<GuardianDraft>({ name: "", phone: "", email: "", relationship: "Responsável", gender: "nao_informado" });
   const [child, setChild] = useState({ name: "", birth_date: "", gender: "feminino", notes: "" });
   const [success, setSuccess] = useState<{ code: string; childName: string; roomName: string; guardianName: string; phone: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const currentChild = children.find((item) => item.id === childId) || selectedChild || null;
   const age = currentChild?.age ?? calculateAge(child.birth_date);
   const recommended = recommendRoomsForAge(age, rooms);
+
+  function resetForm() {
+    setChildId("");
+    setRoomId("");
+    setChild({ name: "", birth_date: "", gender: "feminino", notes: "" });
+    setGuardian({ name: "", phone: "", email: "", relationship: "Responsável", gender: "nao_informado" });
+    setAddSecond(false);
+    setGuardian2Id("");
+    setGuardian2({ name: "", phone: "", email: "", relationship: "Responsável", gender: "nao_informado" });
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -357,32 +372,67 @@ export function KidsCheckInDrawer({
     setRoomId("");
     setGuardianMode(members.length ? "existing" : "new");
     setGuardianId("");
+    setGuardian2Mode(members.length ? "existing" : "new");
+    setAddSecond(false);
+    setGuardian2Id("");
   }, [initialMode, open, selectedChild, members.length]);
+
+  // Sugere o parentesco complementar do segundo responsável ao abri-lo.
+  function openSecondGuardian() {
+    setGuardian2((p) => ({ ...p, relationship: complementaryRelationship(guardian.relationship) }));
+    setAddSecond(true);
+  }
+
+  // Um responsável é válido se for um membro selecionado OU tiver nome+telefone.
+  function guardianFilled(gMode: "existing" | "new", id: string, g: GuardianDraft): boolean {
+    return gMode === "existing" ? Boolean(id) : Boolean(g.name.trim() && g.phone.trim());
+  }
+
+  const primaryGuardianOk = guardianFilled(guardianMode, guardianId, guardian);
+  const secondGuardianOk = !addSecond || guardianFilled(guardian2Mode, guardian2Id, guardian2);
+  const newChildOk = Boolean(child.name.trim() && child.birth_date) && primaryGuardianOk && secondGuardianOk;
+  const canSubmit = !saving && Boolean(eventId) && Boolean(roomId) && (mode === "existing" ? Boolean(childId) : newChildOk);
+
+  // Monta os campos de um responsável novo para a API (membro existente → id).
+  function guardianPayload(gMode: "existing" | "new", id: string, g: GuardianDraft) {
+    if (gMode === "existing") return { guardianId: id || undefined, guardian: undefined };
+    return { guardianId: undefined, guardian: g };
+  }
 
   async function submit() {
     const selectedRoom = rooms.find((room) => room.id === roomId);
     if (!eventId) return toast("Selecione um evento para realizar check-in.");
     if (!roomId) return toast("Selecione uma sala.");
-    // Responsável existente: vincula o membro selecionado (não cria pessoa nova).
-    const useExistingGuardian = mode === "new" && guardianMode === "existing";
-    if (mode === "new" && guardianMode === "existing" && !guardianId) {
-      return toast("Selecione o responsável.");
-    }
-    const existingGuardian = useExistingGuardian ? members.find((m) => m.id === guardianId) : undefined;
+    if (mode === "new" && !primaryGuardianOk) return toast("Informe o responsável.");
+
     setSaving(true);
     try {
       const primary = currentChild?.guardians.find((item) => item.is_primary) || currentChild?.guardians[0];
+      const g1 = mode === "new" ? guardianPayload(guardianMode, guardianId, guardian) : { guardianId: primary?.guardian.id, guardian: undefined };
+      const g2 = mode === "new" && addSecond && secondGuardianOk ? guardianPayload(guardian2Mode, guardian2Id, guardian2) : { guardianId: undefined, guardian: undefined };
+
       const payload = await postKids({
         mode: "checkin",
         eventId,
         eventDate: eventDate || todayIso(),
         roomId,
         childId: mode === "existing" ? childId : undefined,
-        guardianId: mode === "existing" ? primary?.guardian.id : useExistingGuardian ? guardianId : undefined,
-        guardian: mode === "new" && guardianMode === "new" ? guardian : undefined,
+        guardianId: g1.guardianId,
+        guardian: g1.guardian,
+        guardianId2: g2.guardianId,
+        guardian2: g2.guardian,
         child: mode === "new" ? { ...child, phone: "", relationship: guardian.relationship } : undefined,
         notes: mode === "new" ? child.notes : "",
       });
+
+      // Confirma para a equipe se algum responsável novo recebeu convite.
+      const invitedNew =
+        mode === "new" &&
+        ((guardianMode === "new" && isEmail(guardian.email)) ||
+          (addSecond && guardian2Mode === "new" && isEmail(guardian2.email)));
+      if (invitedNew) toast("Check-in feito. Convite enviado ao responsável por e-mail.");
+
+      const existingGuardian = mode === "new" && guardianMode === "existing" ? members.find((m) => m.id === guardianId) : undefined;
       setSuccess({
         code: payload.code,
         childName: currentChild?.name || child.name,
@@ -401,52 +451,64 @@ export function KidsCheckInDrawer({
   return (
     <ActionDrawer open={open} onClose={onClose} title="Check-in Kids" width={620}>
       {success ? (
-        <KidsCheckInSuccess success={success} onNew={() => { setSuccess(null); setChildId(""); setRoomId(""); setChild({ name: "", birth_date: "", gender: "feminino", notes: "" }); }} />
+        <KidsCheckInSuccess success={success} onNew={() => { setSuccess(null); resetForm(); }} />
       ) : (
         <div className="space-y-5">
-          <p className="text-sm leading-6 text-ink-muted">Selecione ou cadastre uma crianca para direciona-la a sala correta.</p>
+          <p className="text-sm leading-6 text-ink-muted">Selecione ou cadastre uma criança para direcioná-la à sala correta.</p>
           <div className="flex rounded-full border border-border-soft bg-surface-alt p-1">
-            <button className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold ${mode === "existing" ? "bg-white text-ink shadow-sm" : "text-ink-muted"}`} onClick={() => setMode("existing")}>Crianca cadastrada</button>
+            <button className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold ${mode === "existing" ? "bg-white text-ink shadow-sm" : "text-ink-muted"}`} onClick={() => setMode("existing")}>Criança cadastrada</button>
             <button className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold ${mode === "new" ? "bg-white text-ink shadow-sm" : "text-ink-muted"}`} onClick={() => setMode("new")}>Cadastrar nova</button>
           </div>
           {mode === "existing" ? (
-            <label className="block"><span className="input-label">Buscar crianca cadastrada</span><select className="input-field" value={childId} onChange={(event) => setChildId(event.target.value)}><option value="">Selecione</option>{children.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.guardians[0]?.guardian.name || "sem responsavel"}</option>)}</select></label>
+            <label className="block"><span className="input-label">Buscar criança cadastrada</span><select className="input-field" value={childId} onChange={(event) => setChildId(event.target.value)}><option value="">Selecione</option>{children.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.guardians[0]?.guardian.name || "sem responsável"}</option>)}</select></label>
           ) : (
             <div className="space-y-4">
               <div className="rounded-[20px] bg-[#FFF8ED] p-4">
-                <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Responsavel obrigatorio</div>
-                {members.length > 0 && (
-                  <div className="mb-3 flex rounded-full border border-border-soft bg-white p-1">
-                    <button type="button" className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${guardianMode === "existing" ? "bg-brand text-white" : "text-ink-muted"}`} onClick={() => setGuardianMode("existing")}>Já cadastrado</button>
-                    <button type="button" className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${guardianMode === "new" ? "bg-brand text-white" : "text-ink-muted"}`} onClick={() => setGuardianMode("new")}>Novo responsável</button>
-                  </div>
-                )}
-                {members.length > 0 && guardianMode === "existing" ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <select className="input-field sm:col-span-2" value={guardianId} onChange={(event) => setGuardianId(event.target.value)}>
-                      <option value="">Selecione o responsável…</option>
-                      {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
-                    <select className="input-field" value={guardian.relationship} onChange={(event) => setGuardian((p) => ({ ...p, relationship: event.target.value }))}><option>Pai</option><option>Mae</option><option>Responsavel</option><option>Avo/Avo</option><option>Tio/Tia</option><option>Outro</option></select>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <input className="input-field" placeholder="Nome completo" value={guardian.name} onChange={(event) => setGuardian((p) => ({ ...p, name: event.target.value }))} />
-                    <input className="input-field" placeholder="Telefone" value={guardian.phone} onChange={(event) => setGuardian((p) => ({ ...p, phone: event.target.value }))} />
-                    <input className="input-field" placeholder="Email opcional" value={guardian.email} onChange={(event) => setGuardian((p) => ({ ...p, email: event.target.value }))} />
-                    <select className="input-field" value={guardian.relationship} onChange={(event) => setGuardian((p) => ({ ...p, relationship: event.target.value }))}><option>Pai</option><option>Mae</option><option>Responsavel</option><option>Avo/Avo</option><option>Tio/Tia</option><option>Outro</option></select>
-                  </div>
-                )}
+                <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Responsável obrigatório</div>
+                <GuardianFields
+                  members={members}
+                  gMode={guardianMode}
+                  setGMode={setGuardianMode}
+                  guardianId={guardianId}
+                  setGuardianId={setGuardianId}
+                  guardian={guardian}
+                  setGuardian={setGuardian}
+                />
               </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-                <input className="input-field" placeholder="Nome da crianca" value={child.name} onChange={(event) => setChild((p) => ({ ...p, name: event.target.value }))} />
+
+              {addSecond ? (
+                <div className="rounded-[20px] border border-border-soft bg-surface-alt/50 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Segundo responsável</div>
+                    <button type="button" className="text-xs font-semibold text-ink-muted hover:text-ink" onClick={() => setAddSecond(false)}>Remover</button>
+                  </div>
+                  <GuardianFields
+                    members={members}
+                    gMode={guardian2Mode}
+                    setGMode={setGuardian2Mode}
+                    guardianId={guardian2Id}
+                    setGuardianId={setGuardian2Id}
+                    guardian={guardian2}
+                    setGuardian={setGuardian2}
+                  />
+                </div>
+              ) : (
+                primaryGuardianOk && (
+                  <button type="button" onClick={openSecondGuardian} className="flex w-full items-center justify-center gap-1.5 rounded-[16px] border border-dashed border-border bg-white py-3 text-sm font-semibold text-brand-deep transition hover:bg-brand-light/30">
+                    <Icon name="plus" size={15} /> Adicionar segundo responsável (ex.: {complementaryRelationship(guardian.relationship)})
+                  </button>
+                )
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input className="input-field" placeholder="Nome da criança" value={child.name} onChange={(event) => setChild((p) => ({ ...p, name: event.target.value }))} />
                 <input className="input-field" type="date" value={child.birth_date} onChange={(event) => setChild((p) => ({ ...p, birth_date: event.target.value }))} />
                 <select className="input-field" value={child.gender} onChange={(event) => setChild((p) => ({ ...p, gender: event.target.value }))}>
                   <option value="feminino">Feminino</option>
                   <option value="masculino">Masculino</option>
-                  <option value="nao_informado">Nao informado</option>
+                  <option value="nao_informado">Não informado</option>
                 </select>
-                <textarea className="input-field min-h-[86px] sm:col-span-2" placeholder="Observacoes importantes, restricoes ou alergias" value={child.notes} onChange={(event) => setChild((p) => ({ ...p, notes: event.target.value }))} />
+                <textarea className="input-field min-h-[86px] sm:col-span-2" placeholder="Observações importantes, restrições ou alergias" value={child.notes} onChange={(event) => setChild((p) => ({ ...p, notes: event.target.value }))} />
               </div>
             </div>
           )}
@@ -466,12 +528,77 @@ export function KidsCheckInDrawer({
               })}
             </div>
           </div>
-          <button className="btn btn-primary w-full" disabled={saving || !eventId || !roomId || (mode === "existing" ? !childId : (!child.name || !child.birth_date || !guardian.name || !guardian.phone))} onClick={submit}>
+          <button className="btn btn-primary w-full" disabled={!canSubmit} onClick={submit}>
             {saving ? "Finalizando..." : "Concluir check-in"}
           </button>
         </div>
       )}
     </ActionDrawer>
+  );
+}
+
+type GuardianDraft = { name: string; phone: string; email: string; relationship: string; gender: string };
+
+const RELATIONSHIP_OPTIONS = ["Pai", "Mãe", "Responsável", "Avô/Avó", "Tio/Tia", "Outro"];
+
+function complementaryRelationship(relationship: string): string {
+  if (relationship === "Mãe") return "Pai";
+  if (relationship === "Pai") return "Mãe";
+  return "Responsável";
+}
+
+function isEmail(value: string): boolean {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim());
+}
+
+/** Campos de um responsável: alterna entre membro já cadastrado e cadastro novo. */
+function GuardianFields({
+  members,
+  gMode,
+  setGMode,
+  guardianId,
+  setGuardianId,
+  guardian,
+  setGuardian,
+}: {
+  members: User[];
+  gMode: "existing" | "new";
+  setGMode: (m: "existing" | "new") => void;
+  guardianId: string;
+  setGuardianId: (id: string) => void;
+  guardian: GuardianDraft;
+  setGuardian: React.Dispatch<React.SetStateAction<GuardianDraft>>;
+}) {
+  const relationshipSelect = (
+    <select className="input-field" value={guardian.relationship} onChange={(event) => setGuardian((p) => ({ ...p, relationship: event.target.value }))}>
+      {RELATIONSHIP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+    </select>
+  );
+  return (
+    <>
+      {members.length > 0 && (
+        <div className="mb-3 flex rounded-full border border-border-soft bg-white p-1">
+          <button type="button" className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${gMode === "existing" ? "bg-brand text-white" : "text-ink-muted"}`} onClick={() => setGMode("existing")}>Já cadastrado</button>
+          <button type="button" className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${gMode === "new" ? "bg-brand text-white" : "text-ink-muted"}`} onClick={() => setGMode("new")}>Novo responsável</button>
+        </div>
+      )}
+      {members.length > 0 && gMode === "existing" ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <select className="input-field sm:col-span-2" value={guardianId} onChange={(event) => setGuardianId(event.target.value)}>
+            <option value="">Selecione o responsável…</option>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+          {relationshipSelect}
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input className="input-field" placeholder="Nome completo" value={guardian.name} onChange={(event) => setGuardian((p) => ({ ...p, name: event.target.value }))} />
+          <input className="input-field" placeholder="Telefone" value={guardian.phone} onChange={(event) => setGuardian((p) => ({ ...p, phone: event.target.value }))} />
+          <input className="input-field" placeholder="E-mail (envia convite de cadastro)" value={guardian.email} onChange={(event) => setGuardian((p) => ({ ...p, email: event.target.value }))} />
+          {relationshipSelect}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -484,13 +611,13 @@ function KidsCheckInSuccess({ success, onNew }: { success: { code: string; child
         <div className="mx-auto mt-4 w-fit rounded-[22px] bg-white px-6 py-4 text-[36px] font-black tracking-[-0.04em] text-brand">{success.code}</div>
       </div>
       <div className="rounded-[22px] border border-border-soft bg-white p-4 text-sm text-ink-muted">
-        <div><strong className="text-ink">Crianca:</strong> {success.childName}</div>
+        <div><strong className="text-ink">Criança:</strong> {success.childName}</div>
         <div><strong className="text-ink">Sala:</strong> {success.roomName}</div>
-        <div><strong className="text-ink">Responsavel:</strong> {success.guardianName}</div>
-        <div><strong className="text-ink">Telefone:</strong> {success.phone || "Nao informado"}</div>
+        <div><strong className="text-ink">Responsável:</strong> {success.guardianName}</div>
+        <div><strong className="text-ink">Telefone:</strong> {success.phone || "Não informado"}</div>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <button className="btn btn-secondary" onClick={() => navigator.clipboard?.writeText(success.code)}>Copiar codigo</button>
+        <button className="btn btn-secondary" onClick={() => navigator.clipboard?.writeText(success.code)}>Copiar código</button>
         <button className="btn btn-secondary">Imprimir etiqueta</button>
         <button className="btn btn-primary sm:col-span-2" onClick={onNew}>Novo check-in</button>
       </div>
@@ -511,7 +638,7 @@ export function KidsEventCheckInSection({ eventId, eventDate, eventName }: { eve
   async function updateStatus(mode: "call_guardian" | "checkout", checkin: KidsCheckInView) {
     try {
       await postKids({ mode, checkinId: checkin.id });
-      toast(mode === "checkout" ? "Retirada confirmada." : "Responsavel chamado.");
+      toast(mode === "checkout" ? "Retirada confirmada." : "Responsável chamado.");
       setConfirm(null);
       await reload();
     } catch (error) {
@@ -524,18 +651,18 @@ export function KidsEventCheckInSection({ eventId, eventDate, eventName }: { eve
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">Kids check-in</div>
-          <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-ink">Criancas no culto</h2>
-          <p className="mt-1 text-sm text-ink-muted">{eventName ? `Check-in para ${eventName}.` : "Acompanhe as criancas separadas por sala."}</p>
+          <h2 className="text-[22px] font-semibold tracking-[-0.025em] text-ink">Crianças no culto</h2>
+          <p className="mt-1 text-sm text-ink-muted">{eventName ? `Check-in para ${eventName}.` : "Acompanhe as crianças separadas por sala."}</p>
         </div>
         <button className="btn btn-primary btn-sm" disabled={!canCheckIn || !schemaReady} onClick={() => setDrawerOpen(true)}>Check-in Kids</button>
       </div>
-      {!canCheckIn && <div className="mb-4 rounded-[18px] bg-[#FFF8ED] px-4 py-3 text-sm font-semibold text-[#A96A10]">Voce nao possui permissao para realizar check-in neste evento.</div>}
+      {!canCheckIn && <div className="mb-4 rounded-[18px] bg-[#FFF8ED] px-4 py-3 text-sm font-semibold text-[#A96A10]">Você não possui permissão para realizar check-in neste evento.</div>}
       {!schemaReady ? (
         <div className="rounded-[22px] bg-surface-alt px-5 py-8 text-center text-sm text-ink-faint">Execute a migration do modulo Kids para liberar salas e check-ins.</div>
       ) : loading ? (
         <div className="rounded-[22px] bg-surface-alt px-5 py-8 text-center text-sm text-ink-faint">Carregando Kids...</div>
       ) : grouped.length === 0 ? (
-        <EmptyState icon="+" title="Nenhum check-in Kids realizado neste culto" description="As criancas aparecerao aqui assim que forem direcionadas para as salas." action={canCheckIn && <button className="btn btn-primary btn-sm" onClick={() => setDrawerOpen(true)}>Iniciar check-in</button>} />
+        <EmptyState icon="+" title="Nenhum check-in Kids realizado neste culto" description="As crianças aparecerão aqui assim que forem direcionadas para as salas." action={canCheckIn && <button className="btn btn-primary btn-sm" onClick={() => setDrawerOpen(true)}>Iniciar check-in</button>} />
       ) : (
         <div className="space-y-4">
           {grouped.map((group) => (
@@ -552,7 +679,7 @@ export function KidsEventCheckInSection({ eventId, eventDate, eventName }: { eve
       {confirm && (
         <ConfirmDialog
           title="Confirmar retirada"
-          message={`Confirmar retirada de <strong>${confirm.child?.name || "crianca"}</strong>?<br/>Codigo: <strong>${confirm.code}</strong><br/>Responsavel: ${confirm.guardian?.name || "nao informado"}`}
+          message={`Confirmar retirada de <strong>${confirm.child?.name || "criança"}</strong>?<br/>Código: <strong>${confirm.code}</strong><br/>Responsável: ${confirm.guardian?.name || "não informado"}`}
           confirmLabel="Marcar como retirado"
           variant="success"
           onCancel={() => setConfirm(null)}
@@ -570,21 +697,21 @@ function KidsCheckedChildCard({ checkin, onCall, onCheckout }: { checkin: KidsCh
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="font-bold text-ink">{checkin.child?.name || "Crianca"}</h4>
+            <h4 className="font-bold text-ink">{checkin.child?.name || "Criança"}</h4>
             <KidsCodeBadge code={checkin.code} />
             <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-ink-muted">{getKidsStatusLabel(checkin.status)}</span>
           </div>
           <div className="mt-2 space-y-1 text-[12px] text-ink-muted">
             <div>{checkin.child?.age ?? "-"} anos · {checkin.room?.name || "Sala"}</div>
-            <div>Responsavel: {checkin.guardian?.name || checkin.child?.guardians?.[0]?.guardian.name || "Nao informado"}</div>
-            <div>Telefone: {checkin.guardian?.phone || checkin.child?.primary_phone || "Nao informado"}</div>
+            <div>Responsável: {checkin.guardian?.name || checkin.child?.guardians?.[0]?.guardian.name || "Não informado"}</div>
+            <div>Telefone: {checkin.guardian?.phone || checkin.child?.primary_phone || "Não informado"}</div>
             <div>Entrada: {new Date(checkin.checked_in_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button className="btn btn-secondary btn-sm" onClick={copied}><Icon name="copy" size={14} /> Copiar codigo</button>
-        <button className="btn btn-secondary btn-sm" onClick={onCall}>Chamar responsavel</button>
+        <button className="btn btn-secondary btn-sm" onClick={copied}><Icon name="copy" size={14} /> Copiar código</button>
+        <button className="btn btn-secondary btn-sm" onClick={onCall}>Chamar responsável</button>
         <button className="btn btn-primary btn-sm" disabled={checkin.status === "checked_out"} onClick={onCheckout}>Marcar como retirado</button>
       </div>
     </article>

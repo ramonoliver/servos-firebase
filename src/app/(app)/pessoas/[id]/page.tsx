@@ -29,7 +29,6 @@ import {
   getPersonRelationships,
   getPersonTimeline,
 } from "@/lib/pastoral/selectors";
-import { pastoralCells, pastoralMinistries } from "@/lib/pastoral/mock-data";
 import type { CareCase, PastoralPerson, PersonKind, TimelineEvent, PersonGender, MaritalStatus } from "@/lib/pastoral/types";
 
 const tabs = ["Timeline", "Acompanhamentos", "Pedidos de Oração", "Escalas", "Observações"];

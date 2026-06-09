@@ -108,6 +108,7 @@ export type PrayerRequestCardData = {
   description: string;
   person: string;
   href: string;
+  commentCount?: number;
 };
 
 export type QuickActionItem = {
@@ -924,8 +925,15 @@ export function PrayerRequestCard({ items }: { items: PrayerRequestCardData[] })
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF8ED] text-[#D99025]">
                 <Icon name="heart" size={18} />
               </div>
-              <div>
-                <div className="text-[14px] font-semibold text-[#191919]">{item.title}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-[14px] font-semibold text-[#191919]">{item.title}</div>
+                  {(item.commentCount ?? 0) > 0 && (
+                    <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-[#F1F0FB] px-2 py-0.5 text-[11px] font-semibold text-[#6D5DF0]">
+                      💬 {item.commentCount}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-[12px] leading-5 text-[#6E6E6E]">{item.description}</p>
                 <div className="mt-2 text-[11px] font-medium text-[#767676]">{item.person}</div>
               </div>
@@ -1126,7 +1134,14 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
                   .toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-bold text-[#191919]">{item.person}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[13px] font-bold text-[#191919]">{item.person}</div>
+                  {(item.commentCount ?? 0) > 0 && (
+                    <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-[#F1F0FB] px-2 py-0.5 text-[11px] font-semibold text-[#6D5DF0]">
+                      💬 {item.commentCount}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#6E6E6E]">
                   {item.description}
                 </p>

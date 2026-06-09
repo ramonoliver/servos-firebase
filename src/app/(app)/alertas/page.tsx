@@ -52,11 +52,44 @@ function daysUntilBirthday(birthDate: string): number | null {
 }
 
 export default function AlertasPage() {
-  const { user, departments } = useApp();
+  const { user, departments, toast } = useApp();
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [creating, setCreating] = useState<string | null>(null);
+  const [careCreated, setCareCreated] = useState<Set<string>>(new Set());
 
   const departmentIds = useMemo(() => departments.map((d) => d.id), [departments]);
+  // Quem pode registrar cuidado (mesma regra do servidor: membro puro não pode).
+  const canCare = user.role !== "member";
+
+  // Loop de cuidado: transforma um alerta em um acompanhamento (pastoral_note
+  // type "care", status "todo") atribuído à pessoa. Ele passa a aparecer em
+  // Acompanhamentos e retorna como alerta "Acompanhamento pendente".
+  async function generateCare(a: Alert) {
+    setCreating(a.id);
+    try {
+      const res = await fetch("/api/care/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "create",
+          personId: a.personId,
+          data: { type: "care", title: a.title, description: a.message, date: todayIso(), status: "todo" },
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(data?.error || "Erro ao criar acompanhamento.");
+        return;
+      }
+      setCareCreated((prev) => new Set(prev).add(a.id));
+      toast("Acompanhamento criado 🙏");
+    } catch {
+      toast("Erro ao criar acompanhamento.");
+    } finally {
+      setCreating(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -260,28 +293,57 @@ export default function AlertasPage() {
         />
       ) : (
         <div className="grid gap-3">
-          {alerts.map((a) => (
-            <Link
-              key={a.id}
-              href={a.href}
-              className={`flex items-start gap-3 rounded-[18px] border bg-white/70 p-4 shadow-soft backdrop-blur transition hover:bg-white hover:shadow-lift ${SEVERITY[a.severity].ring}`}
-            >
-              <Avatar name={a.personName} color={a.avatarColor} photoUrl={a.photoUrl} size={42} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-[14px] font-bold text-ink">{a.personName}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${SEVERITY[a.severity].chip}`}>
-                    {SEVERITY[a.severity].label}
-                  </span>
+          {alerts.map((a) => {
+            const alreadyCare = a.id.startsWith("todo:"); // já é um acompanhamento
+            const created = careCreated.has(a.id);
+            return (
+              <div
+                key={a.id}
+                className={`rounded-[18px] border bg-white/70 p-4 shadow-soft backdrop-blur transition hover:bg-white ${SEVERITY[a.severity].ring}`}
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar name={a.personName} color={a.avatarColor} photoUrl={a.photoUrl} size={42} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/pessoas/${a.personId}`} className="truncate text-[14px] font-bold text-ink hover:text-brand-deep">
+                        {a.personName}
+                      </Link>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${SEVERITY[a.severity].chip}`}>
+                        {SEVERITY[a.severity].label}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[13px] font-semibold text-ink">{a.title}</div>
+                    <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">{a.message}</p>
+                  </div>
                 </div>
-                <div className="mt-1 text-[13px] font-semibold text-ink">{a.title}</div>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">{a.message}</p>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border-soft pt-3">
+                  {canCare && !alreadyCare && (
+                    created ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-success-light px-3 py-1.5 text-[11px] font-semibold text-success">
+                        ✓ Acompanhamento criado
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => generateCare(a)}
+                        disabled={creating === a.id}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand-light/40 px-3 py-1.5 text-[11px] font-semibold text-brand-deep transition hover:bg-brand-light disabled:opacity-60"
+                      >
+                        {creating === a.id ? "Criando…" : "+ Gerar acompanhamento"}
+                      </button>
+                    )
+                  )}
+                  <Link
+                    href={a.href}
+                    className="ml-auto inline-flex items-center rounded-full bg-surface-alt px-3 py-1.5 text-[11px] font-semibold text-ink-muted transition hover:bg-surface-hover"
+                  >
+                    {a.actionLabel} →
+                  </Link>
+                </div>
               </div>
-              <span className="hidden flex-shrink-0 self-center rounded-full bg-surface-alt px-3 py-1.5 text-[11px] font-semibold text-ink-muted sm:inline">
-                {a.actionLabel} →
-              </span>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </PageShell>

@@ -52,8 +52,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Dados do evento sao obrigatorios." }, { status: 400 });
       }
 
+      const id = genId();
       const { error } = await supabase.from("events").insert({
-        id: genId(),
+        id,
         church_id: churchId,
         ...data,
         active: true,
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
       });
 
       if (error) throw error;
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, id });
     }
 
     if (!eventId) {

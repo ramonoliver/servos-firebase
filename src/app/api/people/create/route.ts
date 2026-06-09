@@ -34,10 +34,22 @@ const bodySchema = z.object({
   addressState: z.string().trim().max(2).default(""),
   instagram: z.string().trim().default(""),
   notes: z.string().default(""),
+  // Quando true, ignora o aviso de possível duplicado e cria assim mesmo.
+  force: z.boolean().optional().default(false),
 });
 
 function randomEmail(prefix: string) {
   return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@people.local`;
+}
+
+/** Normaliza nome para comparação (sem acentos, minúsculas, espaços únicos). */
+function normalizeName(value: string): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function buildAddressText(input: {
@@ -121,6 +133,39 @@ export async function POST(req: Request) {
 
     if (existingUser) {
       return NextResponse.json({ error: "E-mail ja esta sendo utilizado por outro cadastro." }, { status: 409 });
+    }
+
+    // Detecção de possíveis duplicados (nome igual normalizado ou mesmo
+    // telefone). Soft-block: o cliente pode reenviar com force=true.
+    if (!parsed.data.force) {
+      const nameNorm = normalizeName(name);
+      const phoneDigits = phone.replace(/\D/g, "");
+      const { data: churchUsers } = await supabase
+        .from("users")
+        .select("id, name, phone, email")
+        .eq("church_id", churchId);
+
+      const duplicates = ((churchUsers || []) as Array<{ id: string; name: string; phone?: string; email?: string }>)
+        .map((u) => {
+          const sameName = nameNorm.length > 0 && normalizeName(u.name) === nameNorm;
+          const samePhone = phoneDigits.length >= 8 && (u.phone || "").replace(/\D/g, "") === phoneDigits;
+          if (!sameName && !samePhone) return null;
+          return {
+            id: u.id,
+            name: u.name,
+            phone: u.phone || "",
+            reason: sameName && samePhone ? "mesmo nome e telefone" : sameName ? "mesmo nome" : "mesmo telefone",
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 5);
+
+      if (duplicates.length > 0) {
+        return NextResponse.json(
+          { needsConfirmation: true, duplicates, error: "Possível pessoa duplicada encontrada." },
+          { status: 409 }
+        );
+      }
     }
 
     const { data: church } = await supabase
