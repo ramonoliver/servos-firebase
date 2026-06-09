@@ -51,7 +51,10 @@ export async function POST(req: Request) {
     function canSee(c: any) {
       if (seesAll(typedActor)) return true;
       if (c.network_id && supervisedIds.has(c.network_id)) return true;
-      return leadsCell(c) || myMemberCellIds.has(c.id);
+      if (leadsCell(c) || myMemberCellIds.has(c.id)) return true;
+      // Membros podem DESCOBRIR células ativas (jornada "encontrar uma célula").
+      // Continuam sem poder gerenciar (canManage permanece restrito).
+      return c.status === "active";
     }
 
     const visible = allCells.filter(canSee);
