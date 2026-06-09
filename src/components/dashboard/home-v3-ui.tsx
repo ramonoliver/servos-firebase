@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Avatar } from "@/components/ui";
+import { Avatar, Modal } from "@/components/ui";
 import { cn, getIconEmoji } from "@/lib/utils/helpers";
 import type { User } from "@/types";
 
@@ -1048,6 +1048,34 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
 const prayerAvatarColors = ["#C07B1A", "#4A5ADE", "#1F8044", "#F0492F"];
 
 function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function submit() {
+    if (!title.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/prayer-requests/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description: desc }),
+      });
+      if (res.ok) {
+        setOpen(false);
+        setSent(true);
+        setTitle("");
+        setDesc("");
+      }
+    } catch {
+      /* silencioso — o feedback de sucesso só aparece em caso de ok */
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <Panel className="flex flex-col p-6" dataSectionId="member-prayers">
       <div className="mb-5 flex items-start justify-between gap-4">
@@ -1108,13 +1136,61 @@ function MemberPrayerPanel({ items }: { items: PrayerRequestCardData[] }) {
         </div>
       )}
 
-      <Link
-        href="/pedidos-oracao"
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] border border-dashed border-[#E6E0D7] bg-[#FAFAF8] py-3 text-[13px] font-bold text-[#6E6E6E] transition hover:bg-white"
-      >
-        <Icon name="plus" size={14} />
-        Fazer pedido de oração
-      </Link>
+      {sent ? (
+        <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#C8EDD5] bg-[#EEF9F1] py-3 text-[13px] font-bold text-[#1F8044]">
+          Pedido enviado 🙏
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] border border-dashed border-[#E6E0D7] bg-[#FAFAF8] py-3 text-[13px] font-bold text-[#6E6E6E] transition hover:bg-white"
+        >
+          <Icon name="plus" size={14} />
+          Fazer pedido de oração
+        </button>
+      )}
+
+      {open && (
+        <Modal
+          title="Fazer pedido de oração"
+          close={() => setOpen(false)}
+          width={440}
+          footer={
+            <>
+              <button className="btn btn-secondary btn-sm" onClick={() => setOpen(false)} disabled={sending}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={submit} disabled={sending || !title.trim()}>
+                {sending ? "Enviando…" : "Enviar pedido"}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="input-label">Pedido</label>
+              <input
+                className="input-field"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ex: Saúde da minha família"
+                maxLength={160}
+              />
+            </div>
+            <div>
+              <label className="input-label">Detalhes (opcional)</label>
+              <textarea
+                className="input-field min-h-[110px]"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                placeholder="Compartilhe como a igreja pode orar por você…"
+                maxLength={2000}
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
     </Panel>
   );
 }
