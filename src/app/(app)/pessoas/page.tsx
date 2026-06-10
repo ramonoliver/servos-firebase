@@ -7,6 +7,7 @@ import { ActionDrawer } from "@/components/ui/action-drawer";
 import { ConfirmDialog } from "@/components/ui";
 import { PageIntro, PersonCard, SoftCard } from "@/components/pastoral/pastoral-ui";
 import { calculateAge } from "@/lib/kids/domain";
+import { fileToAvatarDataUrl } from "@/lib/utils/image";
 import { registerPeopleInCache, registerCellsInCache } from "@/lib/pastoral/selectors";
 import type { PastoralPerson, PersonGender, PersonKind, MaritalStatus } from "@/lib/pastoral/types";
 
@@ -201,12 +202,20 @@ export default function PessoasPage() {
     });
   }, [peopleData, search, kind, tagId, special]);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhotoPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) {
+      toast("Imagem muito grande (máx 10MB).");
+      return;
+    }
+    try {
+      // Comprime/recorta para avatar (~10-30KB) — base64 cru estoura o limite
+      // de 1MB do documento no Firestore e o cadastro falha.
+      setPhotoPreview(await fileToAvatarDataUrl(file));
+    } catch {
+      toast("Não foi possível processar a imagem.");
+    }
   }
 
   async function handleCepBlur() {

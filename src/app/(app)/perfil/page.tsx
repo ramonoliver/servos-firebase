@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/hooks/use-app";
 import { updateSession } from "@/lib/auth/session";
 import { getInitials } from "@/lib/utils/helpers";
+import { fileToAvatarDataUrl } from "@/lib/utils/image";
 import { AvailabilityEditor, Skeleton, PageHeader } from "@/components/ui";
 import { supabase } from "@/lib/firebase";
 import type { Department, Event, Schedule, ScheduleMember, User } from "@/types";
@@ -90,20 +91,22 @@ export default function PerfilPage() {
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState("");
 
-  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {    const file = e.target.files?.[0];
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast("Imagem muito grande (max 2MB).");
+    if (file.size > 10 * 1024 * 1024) {
+      toast("Imagem muito grande (máx 10MB).");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string;
-      setPhotoUrl(result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Comprime/recorta para avatar pequeno (~10-30KB). Foto crua em base64
+      // estourava o limite de 1MB do documento no Firestore e o salvar falhava.
+      setPhotoUrl(await fileToAvatarDataUrl(file));
+    } catch {
+      toast("Não foi possível processar a imagem.");
+    }
   }
 
   function removePhoto() {
