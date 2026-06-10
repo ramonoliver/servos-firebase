@@ -11,6 +11,7 @@ import {
   type CellSummary,
   type DashboardV3Data,
   type Insight,
+  type MinistryContext,
   type MinistrySummary,
   type PrayerRequestCardData,
   type PriorityCard,
@@ -21,7 +22,8 @@ import {
 } from "@/components/dashboard/home-v3-ui";
 import { isCareCaseType, isPrayerType } from "@/lib/care/types";
 import { computeServedStats } from "@/lib/schedules/served-stats";
-import type { Cell, CellMemberRow, CellNetwork } from "@/lib/cells/types";
+import { nextOccurrenceDate } from "@/lib/events/recurrence";
+import { cellHealthAverage, cellHealthStatus, type Cell, type CellMemberRow, type CellNetwork } from "@/lib/cells/types";
 import type { Department, Event, Notification, Schedule, ScheduleMember, User } from "@/types";
 
 function formatShortDate(date: string) {
@@ -48,6 +50,29 @@ function formatEventAgendaTime(event: Event) {
     return `${labels[day] || "Semanal"} · ${time}`;
   }
   return `Evento · ${time}`;
+}
+
+const WEEKDAY_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+/** Nome do dia da semana de uma data ISO (YYYY-MM-DD), sem efeito de fuso. */
+function weekdayLabelFromIso(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return WEEKDAY_LABELS[new Date(y, m - 1, d, 12).getDay()] || "";
+}
+
+/** Próxima data (YYYY-MM-DD) para um dia da semana por nome ("Quinta"). */
+function nextDateForWeekdayName(name: string): string | undefined {
+  const normalized = (name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const target = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"].indexOf(normalized);
+  if (target < 0) return undefined;
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+  start.setDate(start.getDate() + (((target - start.getDay()) % 7) + 7) % 7);
+  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
 }
 
 function timelineTone(tone: string): TimelineItem["tone"] {
@@ -86,6 +111,7 @@ export default function DashboardV3Page() {
   const [allChurchDepartments, setAllChurchDepartments] = useState<Department[]>([]);
   const [pastoralNotes, setPastoralNotes] = useState<any[]>([]);
   const [prayerCommentCounts, setPrayerCommentCounts] = useState<Record<string, number>>({});
+  const [deptMemberCounts, setDeptMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const visibleDepartmentIds = useMemo(() => departments.map((department) => department.id), [departments]);
@@ -165,6 +191,13 @@ export default function DashboardV3Page() {
           .filter((d) => (d.leader_ids || []).includes(user.id) || (d.co_leader_ids || []).includes(user.id))
           .map((d) => d.id);
         setMyDepartmentIds(Array.from(new Set([...linkedDeptIds, ...ledDeptIds])));
+
+        // Voluntários por ministério (trilha "Meu ministério" do Início).
+        const counts: Record<string, number> = {};
+        ((departmentMembersData || []) as Array<{ department_id: string }>).forEach((link) => {
+          counts[link.department_id] = (counts[link.department_id] || 0) + 1;
+        });
+        setDeptMemberCounts(counts);
 
         setAllChurchDepartments((allDeptData || []) as Department[]);
         setMembers(scopedMembers);
@@ -435,6 +468,7 @@ export default function DashboardV3Page() {
       const event = events.find((item) => item.id === schedule.event_id);
       const department = departments.find((item) => item.id === schedule.department_id);
       const myStatus = scheduleMembers.find((sm) => sm.schedule_id === schedule.id && sm.user_id === user.id)?.status;
+      const confirmedCount = scheduleMembers.filter((sm) => sm.schedule_id === schedule.id && sm.status === "confirmed").length;
       return {
         title: event?.name || "Escala",
         meta: department?.name || "Ministério",
@@ -444,31 +478,31 @@ export default function DashboardV3Page() {
         href: `/escalas?id=${schedule.id}`,
         icon: "calendar",
         kind: "schedule" as const,
+        date: schedule.date,
+        footer: `${confirmedCount} ${confirmedCount === 1 ? "confirmado" : "confirmados"}`,
       };
     });
+    const cellMembersCount = (cellId: string) => cellMembers.filter((cm) => cm.cell_id === cellId).length;
+    const cellAgendaItem = (cell: Cell): UpcomingEventItem => {
+      const count = cellMembersCount(cell.id);
+      return {
+        title: cell.name,
+        meta: cell.audience || "Célula",
+        time: `${cell.week_day} · ${cell.time}`,
+        location: cell.address || "Local a confirmar",
+        badge: "Célula",
+        href: `/celulas/${cell.id}`,
+        icon: "home" as const,
+        kind: "cell" as const,
+        date: nextDateForWeekdayName(cell.week_day),
+        footer: count > 0 ? `${count} ${count === 1 ? "participante" : "participantes"}` : undefined,
+      };
+    };
     const upcomingFromCells: UpcomingEventItem[] = isCommonMember
       ? myCell
-        ? [{
-            title: myCell.name,
-            meta: myCell.audience || "Minha célula",
-            time: `${myCell.week_day} · ${myCell.time}`,
-            location: myCell.address || "Local a confirmar",
-            badge: "Célula",
-            href: `/celulas/${myCell.id}`,
-            icon: "home" as const,
-            kind: "cell" as const,
-          }]
+        ? [cellAgendaItem(myCell)]
         : []
-      : cells.slice(0, Math.max(0, 3 - upcomingFromSchedules.length)).map((cell) => ({
-          title: cell.name,
-          meta: cell.audience || "Célula",
-          time: `${cell.week_day} · ${cell.time}`,
-          location: cell.address || "Local a confirmar",
-          badge: "Célula",
-          href: `/celulas/${cell.id}`,
-          icon: "home" as const,
-          kind: "cell" as const,
-        }));
+      : cells.slice(0, Math.max(0, 3 - upcomingFromSchedules.length)).map(cellAgendaItem);
 
     const upcomingFromEvents: UpcomingEventItem[] = events
       .filter((event) => event.active !== false)
@@ -482,6 +516,7 @@ export default function DashboardV3Page() {
         href: `/eventos/${event.id}`,
         icon: event.type === "recurring" ? "spark" as const : "calendar" as const,
         kind: "event" as const,
+        date: event.recurrence ? nextOccurrenceDate(event.recurrence) : undefined,
       }));
 
     const upcoming: UpcomingEventItem[] = [
@@ -570,15 +605,41 @@ export default function DashboardV3Page() {
     const cell: CellSummary | undefined = myCell
       ? {
           name: myCell.name,
-          nextMeeting: `${myCell.week_day} às ${myCell.time} · ${myCell.address || "Local a confirmar"}`,
+          nextMeeting: `${myCell.week_day}, ${myCell.time} · ${myCell.address || "Local a confirmar"}`,
           notice: "Separar pedidos de oração e confirmar presença antes do encontro.",
           leader: cellLeader?.name || "Liderança da célula",
           prayerCount: activePrayerRequests.length,
           href: `/celulas/${myCell.id}`,
           leaders: cellLeaders.length > 0 ? cellLeaders : undefined,
           userIsLeader,
+          membersCount: cellMembersCount(myCell.id),
+          healthLabel: myCell.health ? cellHealthStatus(myCell.health, myCell.created_at) : undefined,
+          healthPct: myCell.health ? cellHealthAverage(myCell.health) : undefined,
         }
       : undefined;
+
+    // Ministério principal do usuário (prioriza o que ele lidera) — trilha
+    // "Meu ministério" do Início, com próxima escala, voluntários e pendências.
+    const todayIsoStr = new Date().toISOString().slice(0, 10);
+    const primaryDept =
+      departments.find((d) => ((d.leader_ids || []).includes(user.id) || (d.co_leader_ids || []).includes(user.id))) ||
+      departments.find((d) => myDepartmentIds.includes(d.id));
+    let myMinistry: MinistryContext | undefined;
+    if (primaryDept) {
+      const nextSched = schedules
+        .filter((s) => s.department_id === primaryDept.id && s.date >= todayIsoStr)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0];
+      const pendingCount = nextSched
+        ? scheduleMembers.filter((sm) => sm.schedule_id === nextSched.id && sm.status === "pending").length
+        : 0;
+      myMinistry = {
+        name: primaryDept.name,
+        href: `/ministerios/${primaryDept.id}`,
+        nextScheduleLabel: nextSched ? `${weekdayLabelFromIso(nextSched.date)}, ${nextSched.time}` : "Sem escala futura",
+        volunteers: deptMemberCounts[primaryDept.id] || 0,
+        pending: pendingCount,
+      };
+    }
 
     const prayers: PrayerRequestCardData[] = activePrayerRequests.slice(0, 2).map((request) => {
       const person = members.find((m) => m.id === request.person_id);
@@ -644,11 +705,12 @@ export default function DashboardV3Page() {
       carePeople,
       insights,
       cell,
+      myMinistry,
       prayers,
       quickActions,
       notices,
     };
-  }, [cellMembers, cells, networks, church.name, departments, allChurchDepartments, events, members, myDepartmentIds, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes, prayerCommentCounts]);
+  }, [cellMembers, cells, networks, church.name, departments, allChurchDepartments, events, members, myDepartmentIds, notifications, scheduleMembers, schedules, unreadNotifications, user, pastoralNotes, prayerCommentCounts, deptMemberCounts]);
 
   if (loading) return <DashboardV3Skeleton />;
 

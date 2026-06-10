@@ -93,7 +93,7 @@ async function ensureGuardian(
 ): Promise<EnsureGuardianResult> {
   if (guardianId) return { id: guardianId, invited: false };
   if (!guardian?.name || guardian.phone.replace(/\D/g, "").length < 8) {
-    throw new Error("Informe um responsavel com nome e telefone validos.");
+    throw new Error("Informe um responsável com nome e telefone válidos.");
   }
 
   const email = guardian.email?.trim().toLowerCase() || "";
@@ -255,11 +255,11 @@ async function createChildWithGuardians(
   guardians: GuardianLink[]
 ) {
   const age = calculateAge(child.birth_date);
-  if (!isKidsAge(age)) throw new Error("A crianca precisa ter ate 12 anos.");
+  if (!isKidsAge(age)) throw new Error("A criança precisa ter até 12 anos.");
   // De-duplica responsáveis repetidos (ex.: mesmo membro selecionado duas vezes).
   const seen = new Set<string>();
   const links = guardians.filter((g) => g.guardianId && !seen.has(g.guardianId) && seen.add(g.guardianId));
-  if (links.length === 0) throw new Error("Vincule pelo menos um responsavel.");
+  if (links.length === 0) throw new Error("Vincule pelo menos um responsável.");
   const primary = links.find((g) => g.is_primary) || links[0];
 
   const id = genId();
@@ -312,12 +312,12 @@ export async function POST(req: Request) {
   try {
     const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: "Dados invalidos para Kids." }, { status: 400 });
+      return NextResponse.json({ error: "Dados inválidos para Kids." }, { status: 400 });
     }
 
     const { actor, session, errorResponse } = await requireApiActor(req, { select: "id, role, church_id, active" });
     if (errorResponse) return errorResponse;
-    if (!actor?.active) return NextResponse.json({ error: "Usuario inativo." }, { status: 403 });
+    if (!actor?.active) return NextResponse.json({ error: "Usuário inativo." }, { status: 403 });
 
     const supabase = getFirebaseAdminClient();
     const churchId = session!.church_id;
@@ -326,7 +326,7 @@ export async function POST(req: Request) {
     const canManage = actor.role === "admin" || can(actor, "event.edit") || can(actor, "member.edit");
 
     if (!canManage) {
-      return NextResponse.json({ error: "Voce nao possui permissao para realizar check-in neste evento." }, { status: 403 });
+      return NextResponse.json({ error: "Você não possui permissão para realizar check-in neste evento." }, { status: 403 });
     }
 
     // Contexto de convite (nome da igreja) carregado sob demanda e cacheado.
@@ -357,8 +357,8 @@ export async function POST(req: Request) {
     }
 
     if (body.mode === "upsert_room") {
-      if (!body.room) return NextResponse.json({ error: "Sala nao informada." }, { status: 400 });
-      if (body.room.max_age < body.room.min_age) return NextResponse.json({ error: "Faixa etaria invalida." }, { status: 400 });
+      if (!body.room) return NextResponse.json({ error: "Sala não informada." }, { status: 400 });
+      if (body.room.max_age < body.room.min_age) return NextResponse.json({ error: "Faixa etária inválida." }, { status: 400 });
       const now = new Date().toISOString();
       const payload = {
         ...body.room,
@@ -373,7 +373,7 @@ export async function POST(req: Request) {
     }
 
     if (body.mode === "delete_room") {
-      if (!body.roomId) return NextResponse.json({ error: "Sala nao informada." }, { status: 400 });
+      if (!body.roomId) return NextResponse.json({ error: "Sala não informada." }, { status: 400 });
       const { count, error: countError } = await supabase
         .from("kids_checkins")
         .select("id", { count: "exact", head: true })
@@ -390,20 +390,20 @@ export async function POST(req: Request) {
     }
 
     if (body.mode === "create_child") {
-      if (!body.child) return NextResponse.json({ error: "Crianca nao informada." }, { status: 400 });
+      if (!body.child) return NextResponse.json({ error: "Criança não informada." }, { status: 400 });
       const links = await buildGuardianLinks();
       const childId = await createChildWithGuardians(supabase, churchId, body.child, links);
       return NextResponse.json({ success: true, childId, guardianId: links[0].guardianId });
     }
 
     if (body.mode === "checkin") {
-      if (!body.eventId || !body.eventDate) return NextResponse.json({ error: "Evento/data nao informado." }, { status: 400 });
+      if (!body.eventId || !body.eventDate) return NextResponse.json({ error: "Evento/data não informado." }, { status: 400 });
       if (!body.roomId) return NextResponse.json({ error: "Selecione uma sala." }, { status: 400 });
 
       let childId = body.childId || "";
       let guardianId = body.guardianId || "";
       if (!childId) {
-        if (!body.child) return NextResponse.json({ error: "Selecione ou cadastre uma crianca." }, { status: 400 });
+        if (!body.child) return NextResponse.json({ error: "Selecione ou cadastre uma criança." }, { status: 400 });
         const links = await buildGuardianLinks();
         childId = await createChildWithGuardians(supabase, churchId, body.child, links);
         guardianId = links.find((l) => l.is_primary)?.guardianId || links[0].guardianId;
@@ -420,7 +420,7 @@ export async function POST(req: Request) {
         if (linkError) throw linkError;
         guardianId = primaryLink?.guardian_id || "";
       }
-      if (!guardianId) return NextResponse.json({ error: "Vincule um responsavel antes do check-in." }, { status: 400 });
+      if (!guardianId) return NextResponse.json({ error: "Vincule um responsável antes do check-in." }, { status: 400 });
 
       const { data: duplicate, error: duplicateError } = await supabase
         .from("kids_checkins")
@@ -432,7 +432,7 @@ export async function POST(req: Request) {
         .neq("status", "checked_out")
         .maybeSingle();
       if (duplicateError) throw duplicateError;
-      if (duplicate) return NextResponse.json({ error: "Esta crianca ja possui check-in ativo neste culto." }, { status: 409 });
+      if (duplicate) return NextResponse.json({ error: "Esta criança já possui check-in ativo neste culto." }, { status: 409 });
 
       const { data: existingCodes, error: codesError } = await supabase
         .from("kids_checkins")
@@ -465,7 +465,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, checkinId, code });
     }
 
-    if (!body.checkinId) return NextResponse.json({ error: "Check-in nao informado." }, { status: 400 });
+    if (!body.checkinId) return NextResponse.json({ error: "Check-in não informado." }, { status: 400 });
 
     if (body.mode === "call_guardian") {
       // Lê o check-in para saber criança, sala, código e responsável antes de

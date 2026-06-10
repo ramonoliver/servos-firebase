@@ -63,6 +63,18 @@ export type UpcomingEventItem = {
   /** Discriminador de origem. NÃO usar `icon` para classificar (eventos
    * especiais também usam o ícone "calendar"). */
   kind?: "schedule" | "cell" | "event";
+  /** Data concreta (YYYY-MM-DD) — habilita o chip de dia na Agenda da semana. */
+  date?: string;
+  /** Rodapé do card (ex.: "24 confirmados"). */
+  footer?: string;
+};
+
+export type MinistryContext = {
+  name: string;
+  href: string;
+  nextScheduleLabel: string;
+  volunteers: number;
+  pending: number;
 };
 
 export type MinistrySummary = {
@@ -101,6 +113,10 @@ export type CellSummary = {
   href: string;
   leaders?: Array<{ name: string; role: string }>;
   userIsLeader?: boolean;
+  /** Contexto compacto (trilha "Minha célula" do Início). */
+  membersCount?: number;
+  healthLabel?: string;
+  healthPct?: number;
 };
 
 export type PrayerRequestCardData = {
@@ -147,6 +163,8 @@ export type DashboardV3Data = {
   carePeople: CarePerson[];
   insights: Insight[];
   cell?: CellSummary;
+  /** Contexto do ministério principal do usuário (trilha "Meu ministério"). */
+  myMinistry?: MinistryContext;
   prayers: PrayerRequestCardData[];
   quickActions: QuickActionItem[];
   notices: NoticeItem[];
@@ -522,39 +540,79 @@ const eventIconColors: Record<string, { bg: string; text: string }> = {
 
 const eventIconFallback = { bg: "bg-[#FAFAF8]", text: "text-[#6E6E6E]" };
 
+const WEEKDAY_ABBR = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"];
+const WEEKDAY_FULL = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+/** Decompõe "YYYY-MM-DD" em partes de exibição sem depender de fuso. */
+function dateParts(iso?: string) {
+  if (!iso || iso.length < 10) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const day = new Date(y, m - 1, d, 12).getDay();
+  return {
+    abbr: WEEKDAY_ABBR[day],
+    full: WEEKDAY_FULL[day],
+    num: String(d).padStart(2, "0"),
+    short: `${WEEKDAY_ABBR[day].charAt(0)}${WEEKDAY_ABBR[day].slice(1).toLowerCase()}, ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`,
+  };
+}
+
+// Tons rotativos dos cards da Agenda da semana (lavanda, coral, azul, verde).
+const agendaTones = [
+  { card: "border-[rgba(109,93,240,0.16)] bg-[#FBFAFF]", chip: "bg-[#F0ECFF] text-[#6D5DF0]", icon: "bg-[#F0ECFF] text-[#6D5DF0]" },
+  { card: "border-[rgba(240,73,47,0.14)] bg-[#FFFBF9]", chip: "bg-[#FFF0EC] text-[#F0492F]", icon: "bg-[#FFF0EC] text-[#F0492F]" },
+  { card: "border-[rgba(43,168,214,0.16)] bg-[#FAFDFF]", chip: "bg-[#E8F7FD] text-[#2BA8D6]", icon: "bg-[#E8F7FD] text-[#2BA8D6]" },
+  { card: "border-[rgba(31,128,68,0.14)] bg-[#FAFEFB]", chip: "bg-[#EEF9F1] text-[#1F8044]", icon: "bg-[#EEF9F1] text-[#1F8044]" },
+];
+
 export function UpcomingEvents({ items }: { items: UpcomingEventItem[] }) {
   return (
     <Panel className="p-6" dataSectionId="upcoming-events">
-      <SectionTitle title="Próximos encontros" eyebrow="Agenda" />
-      <div className="grid gap-3">
-        {items.slice(0, 4).map((item) => {
-          const iconStyle = eventIconColors[item.icon] ?? eventIconFallback;
+      <SectionTitle title="Agenda da semana" eyebrow="Agenda" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {items.slice(0, 4).map((item, index) => {
+          const tone = agendaTones[index % agendaTones.length];
+          const parts = dateParts(item.date);
+          // Hora isolada quando `time` vem como "08/06 · 19:00" ou "Domingo · 19:30".
+          const timeOnly = item.time.includes("·") ? item.time.split("·").pop()!.trim() : item.time;
           return (
             <Link
               key={`${item.title}-${item.time}`}
               href={item.href}
-              className="block rounded-[20px] border border-[#F0EFEB] bg-[linear-gradient(180deg,#FFFFFF_0%,#FFFCFA_100%)] p-3.5 transition hover:border-[#E6E0D7] hover:bg-white"
+              className={cn(
+                "flex flex-col rounded-[22px] border p-4 transition hover:shadow-[0_14px_34px_-22px_rgba(25,25,25,0.28)]",
+                tone.card,
+              )}
             >
-              <div className="flex items-start gap-3">
-                <div
-                  className={cn(
-                    "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[15px]",
-                    iconStyle.bg,
-                    iconStyle.text,
-                  )}
-                >
+              {parts ? (
+                <div className={cn("flex w-fit flex-col items-center rounded-[14px] px-3 py-1.5", tone.chip)}>
+                  <span className="text-[10px] font-bold tracking-[0.08em]">{parts.abbr}</span>
+                  <span className="text-[20px] font-extrabold leading-none tracking-[-0.04em]">{parts.num}</span>
+                </div>
+              ) : (
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-[14px]", tone.icon)}>
                   <Icon name={item.icon} size={18} />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="truncate text-[14px] font-semibold text-[#191919]">{item.title}</div>
-                    <span className="flex-shrink-0 rounded-full bg-[#FFF0EC] px-2 py-0.5 text-[10px] font-semibold text-[#F0492F]">
-                      {item.badge}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-[12px] font-medium text-[#6E6E6E]">{item.time}</div>
-                </div>
+              )}
+
+              <div className="mt-3 truncate text-[15px] font-bold text-[#191919]">{item.title}</div>
+
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <span className="text-[14px] font-semibold text-[#191919]">{timeOnly}</span>
+                {parts && (
+                  <span className={cn("flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px]", tone.icon)}>
+                    <Icon name={item.icon} size={15} />
+                  </span>
+                )}
               </div>
+
+              <div className="mt-0.5 truncate text-[12px] text-[#9A958F]">{item.location || item.meta}</div>
+
+              {item.footer && (
+                <div className="mt-3 border-t border-[rgba(25,25,25,0.06)] pt-2.5 text-[12px] font-semibold text-[#1F8044]">
+                  {item.footer}
+                </div>
+              )}
             </Link>
           );
         })}
@@ -1393,6 +1451,124 @@ function MyMinistriesPanel({ items }: { items: MinistrySummary[] }) {
   );
 }
 
+/**
+ * Trilha de contexto pessoal (mockup "Minha célula | Meu ministério | Agenda"):
+ * três cards compactos lado a lado para quem lidera/participa.
+ */
+function ContextCardHeader({ icon, label, chip, href }: { icon: IconName; label: string; chip: string; href: string }) {
+  return (
+    <Link href={href} className="flex items-center justify-between gap-2">
+      <span className="flex items-center gap-2">
+        <span className={cn("flex h-8 w-8 items-center justify-center rounded-[10px]", chip)}>
+          <Icon name={icon} size={15} />
+        </span>
+        <span className="text-[13px] font-bold text-[#191919]">{label}</span>
+      </span>
+      <span className="text-[#B9B4AD]">›</span>
+    </Link>
+  );
+}
+
+function MyCellContextCard({ cell }: { cell: CellSummary }) {
+  return (
+    <Panel className="flex flex-col p-5" dataSectionId="context-cell">
+      <ContextCardHeader icon="home" label="Minha célula" chip="bg-[#F0ECFF] text-[#6D5DF0]" href={cell.href} />
+      <div className="mt-3 text-[20px] font-extrabold tracking-[-0.03em] text-[#191919]">{cell.name}</div>
+      <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#9A958F]">Próximo encontro</div>
+      <div className="mt-0.5 flex items-center gap-1.5 text-[14px] font-semibold text-[#191919]">
+        {cell.nextMeeting.split("·")[0]?.trim()}
+        <Icon name="calendar" size={14} className="text-[#9A958F]" />
+      </div>
+      <div className="mt-4 flex items-end justify-between gap-3 border-t border-[#F0EFEB] pt-3">
+        <div>
+          <div className="text-[20px] font-extrabold leading-none text-[#191919]">{cell.membersCount ?? "—"}</div>
+          <div className="mt-1 text-[11px] text-[#6E6E6E]">Participantes</div>
+        </div>
+        {typeof cell.healthPct === "number" && (
+          <div className="min-w-0 flex-1 pl-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-[#6E6E6E]">Saúde da célula</span>
+              <span aria-hidden="true" className="text-[#1F8044]">♥</span>
+            </div>
+            <div className="text-[12px] font-bold text-[#191919]">{cell.healthLabel}</div>
+            <div className="mt-1 h-1.5 rounded-full bg-[#F0EFEB]">
+              <div className="h-1.5 rounded-full bg-[#1F8044]" style={{ width: `${Math.min(100, cell.healthPct)}%` }} />
+            </div>
+          </div>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function MyMinistryContextCard({ ministry }: { ministry: MinistryContext }) {
+  return (
+    <Panel className="flex flex-col p-5" dataSectionId="context-ministry">
+      <ContextCardHeader icon="heart" label="Meu ministério" chip="bg-[#EEF9F1] text-[#1F8044]" href={ministry.href} />
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[20px] font-extrabold tracking-[-0.03em] text-[#191919]">{ministry.name}</div>
+          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#9A958F]">Próxima escala</div>
+          <div className="mt-0.5 flex items-center gap-1.5 text-[14px] font-semibold text-[#191919]">
+            {ministry.nextScheduleLabel}
+            <Icon name="calendar" size={14} className="text-[#9A958F]" />
+          </div>
+        </div>
+        <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[18px] bg-[#EEF9F1] text-[#1F8044]">
+          <Icon name="heart" size={24} />
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[#F0EFEB] pt-3">
+        <div>
+          <div className="text-[20px] font-extrabold leading-none text-[#191919]">{ministry.volunteers}</div>
+          <div className="mt-1 text-[11px] text-[#6E6E6E]">Voluntários</div>
+        </div>
+        <div className="border-l border-[#F0EFEB] pl-3">
+          <div className="text-[20px] font-extrabold leading-none text-[#191919]">{ministry.pending}</div>
+          <div className="mt-1 text-[11px] text-[#6E6E6E]">Pendências</div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function MiniAgendaCard({ items }: { items: UpcomingEventItem[] }) {
+  return (
+    <Panel className="flex flex-col p-5" dataSectionId="context-agenda">
+      <ContextCardHeader icon="calendar" label="Agenda" chip="bg-[#FFF0EC] text-[#F0492F]" href="/calendario" />
+      <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#9A958F]">Próximos eventos</div>
+      <div className="mt-2 flex-1 space-y-2.5">
+        {items.slice(0, 3).map((item) => {
+          const parts = dateParts(item.date);
+          const timeOnly = item.time.includes("·") ? item.time.split("·").pop()!.trim() : item.time;
+          return (
+            <Link key={`${item.title}-${item.time}`} href={item.href} className="flex items-center gap-3 transition hover:opacity-75">
+              <span className="w-[72px] flex-shrink-0 text-[12px] text-[#9A958F]">{parts ? parts.short : item.time}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-[#191919]">{item.title}</span>
+              <span className="flex-shrink-0 text-[12px] font-semibold text-[#6E6E6E]">{timeOnly}</span>
+            </Link>
+          );
+        })}
+        {items.length === 0 && <p className="text-[12px] text-[#9A958F]">Nenhum evento próximo.</p>}
+      </div>
+      <Link href="/calendario" className="mt-3 text-center text-[13px] font-bold text-[#191919] transition hover:opacity-75">
+        Ver agenda completa →
+      </Link>
+    </Panel>
+  );
+}
+
+export function PersonalContextRow({ cell, ministry, agenda }: { cell?: CellSummary; ministry?: MinistryContext; agenda: UpcomingEventItem[] }) {
+  const count = (cell ? 1 : 0) + (ministry ? 1 : 0) + 1;
+  return (
+    <section className={cn("grid min-w-0 items-stretch gap-5", count === 3 ? "xl:grid-cols-3" : count === 2 ? "xl:grid-cols-2" : "")}>
+      {cell && <MyCellContextCard cell={cell} />}
+      {ministry && <MyMinistryContextCard ministry={ministry} />}
+      <MiniAgendaCard items={agenda} />
+    </section>
+  );
+}
+
 function HybridHomeSections({ data }: { data: DashboardV3Data }) {
   // Líderes de célula/ministério: sem os cards de prioridade (confirmações
   // pendentes, pessoas em cuidado, células, visitantes), sem "Pessoas
@@ -1404,16 +1580,14 @@ function HybridHomeSections({ data }: { data: DashboardV3Data }) {
 
   return (
     <>
+      {/* Trilha de contexto pessoal: Minha célula · Meu ministério · Agenda. */}
+      <PersonalContextRow cell={data.cell} ministry={data.myMinistry} agenda={data.upcoming} />
+
       {hasSchedules && <MemberSchedulePanel items={scheduleItems} />}
 
       <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(280px,340px)]">
         <PriorityList items={data.priorityItems} />
         <ActivityTimeline items={data.timeline} />
-        <UpcomingEvents items={data.upcoming} />
-      </section>
-
-      <section className="grid min-w-0 items-stretch gap-6 xl:grid-cols-2">
-        <MemberCellPanel cell={data.cell} />
         <MemberPrayerPanel items={data.prayers} />
       </section>
     </>
@@ -1504,14 +1678,12 @@ export function DashboardV3Home({ data }: { data: DashboardV3Data }) {
         ) : (
           <>
             <PriorityCards items={data.priorities} />
-            {/* Feed (Prioridades + Timeline) à esquerda, Próximos encontros como
-                trilho à direita — equilibra melhor o peso vertical da página. */}
-            <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
-              <div className="min-w-0 space-y-5">
-                <PriorityList items={data.priorityItems} />
-                <ActivityTimeline items={data.timeline} />
-              </div>
-              <UpcomingEvents items={data.upcoming} />
+            {/* Agenda da semana em largura total (cards de dia), com o feed
+                (Prioridades + Timeline) em duas colunas logo abaixo. */}
+            <UpcomingEvents items={data.upcoming} />
+            <section className="grid min-w-0 gap-5 xl:grid-cols-2">
+              <PriorityList items={data.priorityItems} />
+              <ActivityTimeline items={data.timeline} />
             </section>
 
             {/* Contexto pessoal: quem administra/pastoreia mas também participa
