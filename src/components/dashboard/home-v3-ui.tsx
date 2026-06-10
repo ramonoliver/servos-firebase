@@ -1021,7 +1021,22 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
                 <h2 className="text-[24px] font-extrabold leading-tight tracking-[-0.04em] text-[#191919]">
                   {cell.name}
                 </h2>
-                <div className="mt-1 text-[13px] font-semibold text-[#6D5DF0]">{cell.nextMeeting}</div>
+                {(() => {
+                  const [dayTime, location] = cell.nextMeeting.split("·").map((s) => s.trim());
+                  return (
+                    <>
+                      <div className="mt-1 flex items-center gap-1.5 text-[13px] font-semibold text-[#6D5DF0]">
+                        <Icon name="calendar" size={13} />
+                        {dayTime}
+                      </div>
+                      {location && (
+                        <div className="mt-0.5 text-[12px] text-[#6E6E6E]">
+                          📍 {location}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 {cell.userIsLeader && (
                   <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#6D5DF0] px-3 py-1 text-[11px] font-bold text-white">
                     <Icon name="spark" size={11} />
@@ -1034,48 +1049,11 @@ function MemberCellPanel({ cell }: { cell?: CellSummary }) {
               </div>
             </div>
 
-            <div className="mb-4 rounded-[16px] bg-[#FAFAF8] p-4">
+            <div className="mb-5 rounded-[16px] bg-[#FAFAF8] p-4">
               <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#767676]">
                 Recado da célula
               </div>
               <div className="mt-1 text-[13px] leading-5 text-[#191919]">{cell.notice}</div>
-            </div>
-
-            <div className="mb-5">
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#767676]">
-                Liderança
-              </div>
-              <div className="flex flex-col gap-2">
-                {(cell.leaders && cell.leaders.length > 0
-                  ? cell.leaders
-                  : [{ name: cell.leader, role: "Líder" }]
-                ).map((leader, index) => (
-                  <div
-                    key={leader.name}
-                    className={cn(
-                      "flex items-center gap-3 rounded-[14px] px-3 py-2.5",
-                      index === 0 ? "bg-[#F5F0FF]" : "bg-[#FAFAF8]",
-                    )}
-                  >
-                    <div
-                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                      style={{ background: index === 0 ? "#6D5DF0" : "#C07B1A" }}
-                    >
-                      {leader.name
-                        .split(" ")
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((n) => n.charAt(0))
-                        .join("")
-                        .toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-bold text-[#191919]">{leader.name}</div>
-                      <div className="text-[11px] text-[#6E6A82]">{leader.role}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <Link
@@ -1558,13 +1536,13 @@ function MiniAgendaCard({ items }: { items: UpcomingEventItem[] }) {
   );
 }
 
-export function PersonalContextRow({ cell, ministry, agenda }: { cell?: CellSummary; ministry?: MinistryContext; agenda: UpcomingEventItem[] }) {
-  const count = (cell ? 1 : 0) + (ministry ? 1 : 0) + 1;
+export function PersonalContextRow({ cell, ministry }: { cell?: CellSummary; ministry?: MinistryContext }) {
+  const count = (cell ? 1 : 0) + (ministry ? 1 : 0);
+  if (count === 0) return null;
   return (
-    <section className={cn("grid min-w-0 items-stretch gap-5", count === 3 ? "xl:grid-cols-3" : count === 2 ? "xl:grid-cols-2" : "")}>
+    <section className={cn("grid min-w-0 items-stretch gap-5", count === 2 ? "xl:grid-cols-2" : "")}>
       {cell && <MyCellContextCard cell={cell} />}
       {ministry && <MyMinistryContextCard ministry={ministry} />}
-      <MiniAgendaCard items={agenda} />
     </section>
   );
 }
@@ -1580,8 +1558,10 @@ function HybridHomeSections({ data }: { data: DashboardV3Data }) {
 
   return (
     <>
-      {/* Trilha de contexto pessoal: Minha célula · Meu ministério · Agenda. */}
-      <PersonalContextRow cell={data.cell} ministry={data.myMinistry} agenda={data.upcoming} />
+      <UpcomingEvents items={data.upcoming} />
+
+      {/* Trilha de contexto pessoal: Minha célula · Meu ministério. */}
+      <PersonalContextRow cell={data.cell} ministry={data.myMinistry} />
 
       {hasSchedules && <MemberSchedulePanel items={scheduleItems} />}
 
@@ -1601,7 +1581,7 @@ function MemberHomeSections({ data }: { data: DashboardV3Data }) {
 
   return (
     <>
-      <MemberAgenda items={data.upcoming} />
+      <UpcomingEvents items={data.upcoming} />
       {/* Quem já serve vê os seus ministérios em destaque. */}
       {hasMinistry && <MyMinistriesPanel items={data.personalMinistries} />}
       <section
